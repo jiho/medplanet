@@ -1,18 +1,212 @@
-library("readr")
 library("readxl")
+library("stringr")
 library("plyr")
 library("dplyr")
 library("lubridate")
-library("reshape2")
-library("tidyr")
-library("stringr")
 library("ggplot2")
 
-##{ Read coastline ---------------------------------------------------------
+# library("readr")
+# library("plyr")
+# library("dplyr")
+# library("lubridate")
+# library("reshape2")
+# library("tidyr")
+# library("ggplot2")
 
-coast <- read.csv("data/gshhg_medplanet_domain_i.csv")
-map <- ggplot() + list(
-  geom_polygon(aes(x=lon, y=lat), data=coast, fill="white", colour="grey50", size=0.25),
+parse_latlon <- function(x) {
+  library("stringr")
+  # get different pieces
+  bits <- str_split_fixed(x, "[º'\"]", 4)
+  # remove N or E (for now)
+  bits <- bits[,-4]
+  # convert to numbers
+  class(bits) <- "numeric"
+  # convert to decimal degrees
+  bits[,1] + (bits[,2] + bits[,3]/60)/60
+}
+
+
+## Read ECOCEAN ----
+
+d <- read_excel("data/ecocean/Compil Données pêches - Ecocean.xlsx", sheet=1, skip=1)
+
+# cleanup data
+d$lat <- parse_latlon(d$lat)
+d$lon <- parse_latlon(d$lon)
+
+unknown_gear_ok <- which(is.na(d$n_gear_ok))
+d$n_gear_ok[unknown_gear_ok] <- d$n_gear_set[unknown_gear_ok]
+
+d$n <- as.numeric(d$n)
+
+# select relevant data
+d <- select(d, date_out, site, station, project, lat, lon, n_gear_ok, family, genus, species, n)
+
+ecocean <- d
+
+
+## Read SUBLIMO ----
+
+# read and merge all data
+catches <- read_excel("data/sublimo/bdd nettoyé 012015.xlsx", sheet=1, skip=1)
+# env <- read_excel("data/sublimo/Environnement 2012_2015.xlsx", sheet=1, skip=1)
+coord <- read_excel("data/sublimo/coordinates.xlsx", sheet=1)
+
+d <- left_join(select(catches, site, station, year_out, month_out, day_out, family, genus, species, n), coord)
+
+# cleanup data
+d$date_out <- ymd(str_c(d$year_out, sprintf("%02i", d$month_out), sprintf("%02i", d$day_out), sep="-"))
+d <- select(d, -year_out, -month_out, -day_out)
+
+d$project <- "SUBLIMO"
+
+# specify empty catches
+d$n[is.na(d$n)] <- 0
+d$n_gear_ok <- 1
+
+sublimo <- d
+
+
+## Read Villefranche ----
+
+# read and merge data
+coords  <- read_excel("data/villefranche/coordinates.xlsx", sheet=1)
+effort  <- read_excel("data/villefranche/effort.xlsx", sheet=1)
+catches <- read_excel("data/villefranche/catches.xlsx", sheet=1)
+
+d <- full_join(select(catches, date_out, station, gear, family, genus, species, n), select(effort, date_out, station, gear, n_gear_ok))
+d <- full_join(d, coords)
+
+# cleanup data
+d <- filter(d, gear=="CARE")
+d <- select(d, -gear)
+
+d$project <- "RADEICHTHYO"
+d$site <- "Villefranche"
+
+vlfr <- d
+
+
+
+## Merge and clean all data ----
+
+d <- rbind.fill(ecocean, sublimo, vlfr)
+d <- rename(d, date=date_out, n_gear=n_gear_ok)
+
+summary(d)
+
+filter(d, is.na(n))
+filter(d, n>1000)
+filter(d, is.na(n_gear))
+
+
+# compute Catch Per Unit Effort (CPUE)
+# compute effort
+effort <- unique(select(d, date, site, station, n_gear)) %>% group_by(date, site) %>% summarise(n_gear=sum(n_gear)) %>% ungroup()
+# compute catches
+catches <- d %>% group_by(date, site, project, family, genus, species) %>% summarise(n=sum(n, na.rm=T)) %>% ungroup()
+# compute coords
+coords <- d %>% group_by(site) %>% summarise(lat=mean(lat, na.rm=T), lon=mean(lon, na.rm=T)) %>% ungroup()
+
+d <- full_join(catches, effort)
+d$cpue <- d$n / d$n_gear
+d <- select(d, -n, -n_gear)
+
+# remove NA/NaN cpue because this should not happen (and is not informative)
+d <- filter(d, !is.na(cpue))
+
+d <- left_join(d, coords)
+
+
+# clean taxonomic names
+d$family <- str_trim(tolower(d$family))
+d$genus <- str_trim(tolower(d$genus))
+d$species <- str_trim(tolower(d$species))
+
+# remove uncertainty
+d[which(str_detect(d$family, "\\?")),c("family", "genus", "species")] <- NA
+d[which(str_detect(d$genus, "\\?")),c("genus", "species")] <- NA
+d[which(str_detect(d$species, "\\?")),c("species")] <- NA
+
+# remove sp
+d$species[which(str_detect(d$species, "^sp[1-9p]*$"))] <- NA
+
+# check that when higher level is NA, the lower levels are NA
+all(is.na(filter(d, is.na(family))$genus))
+all(is.na(filter(d, family=="ni")$genus))
+all(is.na(filter(d, is.na(genus))$species))
+
+# check that each genus has the same family
+filter(summarise(group_by(d, genus), n=length(unique(family))), n>1)
+# and most species suffix should belong to only one genus
+filter(summarise(group_by(d, species), n=length(unique(genus))), n>1)
+# 4 exceptions, OK.
+
+# remove non-fish
+d <- d[-which(str_detect(d$family, "^crabe")),]
+d <- d[-which(str_detect(d$family, "^crevette")),]
+d <- d[-which(d$family == "squille"),]
+d <- d[-which(d$family == "octopodidae"),]
+d <- d[-which(d$family == "loliginidae"),]
+d <- d[-which(d$family == "sepiida"),]
+d <- d[-which(d$family == "sepiolidae"),]
+d <- d[-which(d$family == "nephropidae"),]
+
+# remove non-coastal fish
+d <- d[-which(d$family == "engraulidae"),]
+d <- d[-which(d$family == "clupeidae"),]
+d <- d[-which(d$family == "scombridae"),]
+d <- d[-which(d$family == "sphyraenidae"),]
+d <- d[-which(d$genus == "trachurus"),]
+
+# check
+print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
+summary(d)
+unique(d$site)
+unique(d$project)
+sort(unique(d$family))
+sort(unique(d$genus))
+sort(unique(d$species))
+
+# cleanup taxonomic names
+d$family[which(d$family == "ni")] <- "unidentified"
+d$family <- str_to_title(d$family)
+d$genus <- str_to_title(d$genus)
+d$species <- str_c(d$genus, " ", d$species)
+
+# sort sites by lon then lat
+coords <- arrange(coords, lon, lat)
+d$site <- factor(d$site, levels=unique(coords$site))
+
+# add zero catches all non-observed taxa
+taxo <- unique(select(d, family, genus, species))
+taxo <- arrange(taxo, family, genus, species)
+
+d0 <- ddply(d, ~date+site+lon+lat+project, function(x) {
+  x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
+  x$cpue[is.na(x$cpue)] <- 0
+  return(x)
+}, .progress="text")
+
+# remove lines with only NA taxonomic specification (were used to specify 0 catches)
+d0 <- d0[-which(is.na(d0$family) & is.na(d0$genus) &  is.na(d0$species))]
+
+dim(d)
+dim(d0)
+
+
+## Prepare ancillary data ----
+
+# Prepare map
+range(d$lat)
+range(d$lon)
+
+# read coastline extracted on this domain
+coast <- read.csv("data/gshhg_nw_med_h.csv")
+
+# and plot it
+map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
+  geom_polygon(data=coast, fill="white", colour="grey50", size=0.25),
   coord_quickmap(),
   scale_x_continuous(expand=c(0,0)), scale_y_continuous(expand=c(0,0)),
   theme(
@@ -23,155 +217,18 @@ map <- ggplot() + list(
 )
 map
 
-# }
+# plot stations to check
+map + geom_text(aes(label=site), data=coords)
 
-# Add zero catches = dates sampled but for which a species is not present
-add_zeros <- function(d, id.vars, taxo.vars="species", abund="cpue") {
-  # get all date/location sampled
-  d1 <- unique(d[,id.vars])
-  # get all taxonomic units (i.e. species)
-  d2 <- unique(d[,taxo.vars])
-  # compute all possibilities
-  d1$i <- 0; d2$i <- 0
-  all <- left_join(d1, d2, by="i")
-  all <- select(all, -i)
-  # insert known data into all possibilities and zero-out the rest
-  d0 <- left_join(all, d)
-  d0[,abund][is.na(d0[,abund])] <- 0
-  return(d0)
-}
-
-
-##{ Villefranche -----------------------------------------------------------
-
-d <- read.csv("rade-ichthyo.csv")
-
-# compute average lon and lat of Villefranche
-lat <- mean(d$lat, na.rm=TRUE)
-lon <- mean(d$lon, na.rm=TRUE)
-
-# cleanup
-d <- filter(d, gear == "CARE", dev_stage != "pre-flexion")
-d$date <- as.Date(d$collection_date)
-
-# convert to CPUE per capture event
-d$cpue <- d$n / d$n_gear
-d <- summarise(group_by(d, date, family, species), cpue=sum(cpue))
-
-# add zeros
-d <- add_zeros(d, id.vars="date", taxo.vars=c("family", "species"))
-
-# add metadata
-d$lon <- lon
-d$lat <- lat
-d$genus <- str_split_fixed(d$species, " ", 2)[,1]
-d$place <- "Villefranche"
-
-# store
-vlfr <- d
-
-# }
-
-##{ SUBLIMO ----------------------------------------------------------------
-
-# get metadata
-env <- read.csv("SUBLIMO/Environnement 2012_2015.csv")
-env <- env[,c("Station", "Date.out")]
-env$Date.out <- ymd(env$Date.out)
-env$Station <- str_trim(env$Station)
-env$Place_code <- str_split_fixed(env$Station, "_", 2)[,1]
-
-# compute effort (number of observations per place and date)
-effort <- summarise(group_by(env, Place_code, Date.out), n_care=n())
-
-# get lat and lon for each Place
-coords <- read.csv("SUBLIMO/coordinates.csv")
-coords$Place_code <- str_split_fixed(coords$Station, "_", 2)[,1]
-# compute average lat/lon for each place
-coords <- summarise(group_by(coords, Place, Place_code), lat=mean(Latitude), lon=mean(Longitude))
-
-env <- left_join(effort, coords)
-
-# remove two capture events with no location code
-env <- na.omit(env)
-env <- ungroup(env)
-
-
-# read captures
-# d <- read_excel("SUBLIMO/bdd netoyé 012015.xlsx")
-d <- read.csv("SUBLIMO/bdd netoyé 012015.csv", na.strings=c("", "NA"))
-# cleanup
-d$Family <- str_trim(d$Family)
-d$Genus <- str_trim(d$Genus)
-d$Species <- str_trim(d$Species)
-
-d$Place  <- str_replace(d$Place, "Port Cros", "Port-Cros")
-d$Place  <- str_replace(d$Place, "Saint_Florent", "Saint Florent")
-
-# remove unidentified/empty catches
-d <- d[ rowSums(is.na(select(d, Family, Genus, Species))) != 3 , ]
-d <- filter(d, Family != "No fish")
-# there are still 7 catches with NA abundance... bizarre
-
-# cleanup data
-d$Date.out <- ymd(str_c(d$Year, d$Month, d$Day, sep="-"))
-d$Species <- str_c(d$Genus, d$Species, sep=" ")
-d <- select(d, Place, Date.out, Family, Genus, Species, Abundance)
-
-# remove the problematic abundances
-d <- na.omit(d)
-
-# compute cpue
-d <- full_join(select(env, -Place_code), d)
-
-colSums(is.na(d))
-filter(d, is.na(n_care))
-
-
-d$cpue <- d$Abundance / d$n_care
-d <- filter(d, !is.na(cpue))
-d <- summarise(group_by(d, Place, Date.out, Family, Genus, Species), cpue=sum(cpue))
-d <- ungroup(d)
-
-# add zeros
-d1 <- unique(select(d, Place, Date.out))
-d2 <- unique(select(d, Family, Genus, Species))
-d1$id <- 0
-d2$id <- 0
-all <- left_join(d1, d2)
-all <- select(all, -id)
-
-d <- left_join(all, d)
-d$cpue[is.na(d$cpue)] <- 0
-
-d <- left_join(d, places)
-
-names(d) <- tolower(names(d))
-d <- rename(d, date=date.out)
-
-sublimo <- d
-# }
-
-
-##{ Prepare data -----------------------------------------------------------
-
-
-
-# collect everything
-d <- rbind.fill(sublimo, vlfr)
-
-# add information
+# extract date components
+d$year <- year(d$date)
+d$month <- month(d$date)
 d$yday <- yday(d$date)
 d$yweek <- week(d$date)
-d$week <- week(d$date)
-d$year <- year(d$date)
-d$julian_day <- as.numeric(difftime(d$date, min(d$date), units="days"))
-d$julian_week <- as.numeric(difftime(d$date, min(d$date), units="weeks"))
+start <- as.Date(str_c(min(d$year), "-01-01"))
+d$days_since_start <- as.numeric(difftime(d$date, start, units="days"))
+d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")))
 
-catches <- summarise(group_by(d, species), n=sum(cpue))
-catches <- arrange(catches, desc(n))
+## ----
 
-map + geom_point(aes(lon, lat, size=sqrt(cpue)), data=d) + scale_size_continuous(range=c(1,20))
-
-# }
-save(d, map, catches, file="data.Rdata")
+save(d, d0, map, taxo, file="data.rda")
