@@ -115,8 +115,16 @@ d$cpue <- d$n / d$n_gear
 # remove NA/NaN cpue because this should not happen (and is not informative)
 d <- filter(d, !is.na(cpue))
 
-d <- left_join(d, coords)
+d <- left_join(d, sites)
 
+# sort sites by lon then lat
+sites <- arrange(sites, lon, lat)
+d$site <- factor(d$site, levels=unique(sites$site))
+effort$site <- factor(effort$site, levels=unique(sites$site))
+sites$site <- factor(sites$site, levels=unique(sites$site))
+
+
+## Clean taxonomic names ----
 
 # clean taxonomic names
 d$family <- str_trim(tolower(d$family))
@@ -174,15 +182,12 @@ d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
 d$species <- str_c(d$genus, " ", d$species)
 
-# sort sites by lon then lat
-coords <- arrange(coords, lon, lat)
-d$site <- factor(d$site, levels=unique(coords$site))
 
 # add zero catches all non-observed taxa
 taxo <- unique(select(d, family, genus, species))
 taxo <- arrange(taxo, family, genus, species)
 
-d0 <- ddply(d, ~date+site+lon+lat+project, function(x) {
+d0 <- ddply(d, ~date+site+lon+lat, function(x) {
   x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
   x$cpue[is.na(x$cpue)] <- 0
   return(x)
@@ -217,8 +222,14 @@ map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
 )
 map
 
-# plot stations to check
-map + geom_text(aes(label=site), data=coords)
+# plot sites to check
+sites$hjust <- ifelse(sites$lon<4, -0.1, 1.1)
+sites$hjust[sites$site %in% c("Marseille", "La Ciotat")] <- -0.1
+
+sites$vjust <- 0.5
+sites$vjust[sites$site %in% c("Les Embiez", "Port-Cros")] <- 1
+sites$vjust[sites$site %in% c("Bastia", "Carry")] <- 0
+map + geom_point(data=sites) + geom_text(aes(label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
 
 # extract date components
 d$year <- year(d$date)
