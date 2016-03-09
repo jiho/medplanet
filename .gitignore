@@ -1,2 +1,6 @@
 *.pdf
 *.rda
+# Rmd stuff
+cache/*
+figure/*
+*.html
