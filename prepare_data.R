@@ -110,7 +110,7 @@ sites <- d %>% group_by(site) %>% summarise(lat=mean(lat, na.rm=T), lon=mean(lon
 
 d <- full_join(catches, effort)
 d$cpue <- d$n / d$n_gear
-d <- select(d, -n, -n_gear)
+# d <- select(d, -n, -n_gear)
 
 # remove NA/NaN cpue because this should not happen (and is not informative)
 d <- filter(d, !is.na(cpue))
