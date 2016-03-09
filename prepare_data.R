@@ -242,4 +242,4 @@ d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")
 
 ## ----
 
-save(d, d0, map, taxo, file="data.rda")
+save(d, d0, effort, sites, map, taxo, file="data.rda")
