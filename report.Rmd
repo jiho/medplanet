@@ -1,0 +1,122 @@
+```{r options, echo=FALSE}
+knitr::opts_chunk$set(comment="#", tidy=FALSE, echo=F, fig.width=5.4, fig.height=3, dpi=100, cache=T)
+options(markdown.HTML.stylesheet="~/Code/niceCSS/document.css")
+```
+
+```{r}
+load("data.rda")
+suppressPackageStartupMessages(library("plyr"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("printr"))
+suppressPackageStartupMessages(library("extrafont"))
+suppressPackageStartupMessages(library("grid"))
+suppressPackageStartupMessages(library("chroma"))
+
+# prepare graphics
+theme_set(
+  theme_grey(10, "Source Sans Pro") +
+  theme(
+    plot.margin=unit(c(0,0,0,0), "mm"),
+    axis.text = element_text(size = rel(0.9))
+  )
+)
+scale_fill_viridis <- function(...) { scale_fill_gradientn(colors=viridis.colors(10), ...) }
+scale_color_viridis <- function(...) { scale_color_gradientn(colors=viridis.colors(10), ...) }
+```
+
+
+# MEDPLANET report, French coastline
+
+## Sampling effort
+
+Fish larvae were collected at the following sites
+
+```{r}
+map + geom_point(data=sites) + geom_text(aes(label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
+```
+
+At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Statistics on the number of CARE working per night at each site are
+
+```{r}
+effort %>% group_by(site) %>% summarise(mean=round(mean(n_gear, na.rm=T),1), median=median(n_gear, na.rm=T), min=min(n_gear, na.rm=T), max=max(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+```
+
+Sampling occurred over the periods
+
+```{r}
+effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+```
+
+```{r}
+ggplot(effort) + geom_point(aes(x=date, y=site), shape="|")
+```
+
+## Taxonomy
+
+We focus on *coastal fish* taxa only. A total of `r sum(d$n)` larvae were caught, belonging to `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
+
+The most common families, genera, and species were (beware, log10 scale !)
+
+```{r}
+dd <- d0 %>% group_by(date, site, family) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% arrange(desc(mean)) %>% head(10)
+common_families <- dd_stat$family
+dd$family <- factor(dd$family, levels=dd_stat$family)
+ggplot(na.omit(dd), aes(x=family, y=cpue)) + geom_violin() + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+
+
+dd <- d0 %>% group_by(date, site, genus) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(genus) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% arrange(desc(mean)) %>% head(10)
+common_genera <- dd_stat$genus
+dd$genus <- factor(dd$genus, levels=dd_stat$genus)
+ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin() + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+
+dd <- d0 %>% group_by(date, site, species) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% arrange(desc(mean)) %>% head(10)
+common_species <- dd_stat$species
+dd$species <- factor(dd$species, levels=dd_stat$species)
+ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin() + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+```
+
+So overall, the catch is often < 1 fish/CARE/night/site and extremely variable (probably both geographically and in time). But still, the most common taxa are not surprising.
+
+
+## Variations among sites
+
+The overall catch per night is highly variable among sites, with some very extreme events
+
+```{r}
+dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
+
+# ggplot(dd) + geom_path(aes(x=cpue, linetype=site, color=site, y=..scaled..), stat="density", bw=0.2) + theme(legend.position=c(0.8, 0.8), legend.key.width=unit(10, "mm")) + labs(y="Scaled probability density")
+# last_plot() + scale_x_continuous(trans="identity", limits=c(0,10))
+
+ggplot(dd) + geom_boxplot(aes(x=site, y=cpue)) + coord_flip()
+```
+
+```{r}
+# compute median CPUE per site
+cpue_per_site <- dd %>% group_by(site) %>% summarise(med=median(cpue)) %>% arrange(desc(med))
+overall_med_cpue <- median(dd$cpue)
+cpue_per_site$good <- cpue_per_site$med > overall_med_cpue
+```
+
+Excluding those extreme events and focusing on the more common, low, catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). There does not seem to be a large scale geographical pattern to this (sites are ordered from West to East).
+
+```{r fig.height=4}
+ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
+```
+
+
+## Variations among years
+
+
+
+## Seasonal variations, within years
+
+
+## Lunar phase variations
+
+
+## Synchronicity among sites
