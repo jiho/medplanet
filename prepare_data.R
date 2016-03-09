@@ -126,7 +126,7 @@ sites$site <- factor(sites$site, levels=unique(sites$site))
 
 ## Clean taxonomic names ----
 
-# clean taxonomic names
+# clean names written in files
 d$family <- str_trim(tolower(d$family))
 d$genus <- str_trim(tolower(d$genus))
 d$species <- str_trim(tolower(d$species))
@@ -136,7 +136,7 @@ d[which(str_detect(d$family, "\\?")),c("family", "genus", "species")] <- NA
 d[which(str_detect(d$genus, "\\?")),c("genus", "species")] <- NA
 d[which(str_detect(d$species, "\\?")),c("species")] <- NA
 
-# remove sp
+# remove "sp"
 d$species[which(str_detect(d$species, "^sp[1-9p]*$"))] <- NA
 
 # check that when higher level is NA, the lower levels are NA
@@ -167,14 +167,14 @@ d <- d[-which(d$family == "scombridae"),]
 d <- d[-which(d$family == "sphyraenidae"),]
 d <- d[-which(d$genus == "trachurus"),]
 
-# check
-print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
-summary(d)
-unique(d$site)
-unique(d$project)
-sort(unique(d$family))
-sort(unique(d$genus))
-sort(unique(d$species))
+# # check
+# print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
+# summary(d)
+# unique(d$site)
+# unique(d$project)
+# sort(unique(d$family))
+# sort(unique(d$genus))
+# sort(unique(d$species))
 
 # cleanup taxonomic names
 d$family[which(d$family == "ni")] <- "unidentified"
@@ -182,8 +182,8 @@ d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
 d$species <- str_c(d$genus, " ", d$species)
 
+## Add zero catches all non-observed taxa ----
 
-# add zero catches all non-observed taxa
 taxo <- unique(select(d, family, genus, species))
 taxo <- arrange(taxo, family, genus, species)
 
