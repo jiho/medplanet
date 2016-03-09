@@ -88,7 +88,7 @@ vlfr <- d
 
 
 
-## Merge and clean all data ----
+## Merge all data, compute effort and CPUE ----
 
 d <- rbind.fill(ecocean, sublimo, vlfr)
 d <- rename(d, date=date_out, n_gear=n_gear_ok)
@@ -99,14 +99,14 @@ filter(d, is.na(n))
 filter(d, n>1000)
 filter(d, is.na(n_gear))
 
-
-# compute Catch Per Unit Effort (CPUE)
-# compute effort
+# compute Catch Per Unit Effort (CPUE), per site
+# compute total effort (nb of CAREs) per site
+# NB: start by selecting all unique records of sampled nights (some are repeated because several larvae were caught)
 effort <- unique(select(d, date, site, station, n_gear)) %>% group_by(date, site) %>% summarise(n_gear=sum(n_gear)) %>% ungroup()
-# compute catches
-catches <- d %>% group_by(date, site, project, family, genus, species) %>% summarise(n=sum(n, na.rm=T)) %>% ungroup()
-# compute coords
-coords <- d %>% group_by(site) %>% summarise(lat=mean(lat, na.rm=T), lon=mean(lon, na.rm=T)) %>% ungroup()
+# compute total catches per site
+catches <- d %>% group_by(date, site, family, genus, species) %>% summarise(n=sum(n, na.rm=T)) %>% ungroup()
+# compute center of gravity of CARE positions in sites
+sites <- d %>% group_by(site) %>% summarise(lat=mean(lat, na.rm=T), lon=mean(lon, na.rm=T)) %>% ungroup()
 
 d <- full_join(catches, effort)
 d$cpue <- d$n / d$n_gear
