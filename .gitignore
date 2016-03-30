@@ -3,4 +3,6 @@
 # Rmd stuff
 cache/*
 figure/*
+report_cache/*
+report_files/*
 *.html
