@@ -95,11 +95,13 @@ d <- rename(d, date=date_out, n_gear=n_gear_ok)
 
 summary(d)
 
+# inspect
 filter(d, is.na(n))
 filter(d, n>1000)
 filter(d, is.na(n_gear))
 
 # compute Catch Per Unit Effort (CPUE), per site
+
 # compute total effort (nb of CAREs) per site
 # NB: start by selecting all unique records of sampled nights (some are repeated because several larvae were caught)
 effort <- unique(select(d, date, site, station, n_gear)) %>% group_by(date, site) %>% summarise(n_gear=sum(n_gear)) %>% ungroup()
@@ -115,10 +117,9 @@ d$cpue <- d$n / d$n_gear
 # remove NA/NaN cpue because this should not happen (and is not informative)
 d <- filter(d, !is.na(cpue))
 
-d <- left_join(d, sites)
-
 # sort sites by lon then lat
 sites <- arrange(sites, lon, lat)
+d <- left_join(d, sites)
 d$site <- factor(d$site, levels=unique(sites$site))
 effort$site <- factor(effort$site, levels=unique(sites$site))
 sites$site <- factor(sites$site, levels=unique(sites$site))
@@ -182,23 +183,6 @@ d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
 d$species <- str_c(d$genus, " ", d$species)
 
-## Add zero catches all non-observed taxa ----
-
-taxo <- unique(select(d, family, genus, species))
-taxo <- arrange(taxo, family, genus, species)
-
-d0 <- ddply(d, ~date+site+lon+lat, function(x) {
-  x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
-  x$cpue[is.na(x$cpue)] <- 0
-  return(x)
-}, .progress="text")
-
-# remove lines with only NA taxonomic specification (were used to specify 0 catches)
-d0 <- d0[-which(is.na(d0$family) & is.na(d0$genus) &  is.na(d0$species))]
-
-dim(d)
-dim(d0)
-
 
 ## Prepare ancillary data ----
 
@@ -232,13 +216,33 @@ sites$vjust[sites$site %in% c("Bastia", "Carry")] <- 0
 map + geom_point(data=sites) + geom_text(aes(label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
 
 # extract date components
-d$year <- year(d$date)
-d$month <- month(d$date)
+d$year <- factor(year(d$date))
+d$month <- factor(month(d$date))
 d$yday <- yday(d$date)
 d$yweek <- week(d$date)
-start <- as.Date(str_c(min(d$year), "-01-01"))
+start <- as.Date(str_c(min(year(d$date)), "-01-01"))
 d$days_since_start <- as.numeric(difftime(d$date, start, units="days"))
 d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")))
+
+
+## Add zero catches all non-observed taxa ----
+
+taxo <- unique(select(d, family, genus, species))
+taxo <- arrange(taxo, family, genus, species)
+
+d0 <- ddply(d, ~date+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
+  x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
+  x$cpue[is.na(x$cpue)] <- 0
+  return(x)
+}, .progress="text")
+
+# remove lines with only NA taxonomic specification (were used to specify 0 catches)
+d0 <- d0[-which(is.na(d0$family) & is.na(d0$genus) &  is.na(d0$species)),]
+d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
+
+# remove 0 catches from d
+d <- filter(d, cpue != 0)
+
 
 ## ----
 
