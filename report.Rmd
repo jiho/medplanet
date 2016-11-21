@@ -309,7 +309,7 @@ dd <- filter(dd, cpue < 110)
 # create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
-ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B") + scale_x_datetime("month", date_breaks="1 month", date_labels="%b")
+ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
@@ -346,7 +346,7 @@ dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species
 ggplot(dd) +
   geom_path(aes(x=fake_date, y=scaled_cpue, colour=year)) +
   facet_grid(species_abbr~.) +
-  scale_x_datetime(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
+  scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
   labs(y="cpue (scaled per species and year)") + no_y
 ```
 
@@ -520,7 +520,7 @@ This is done within each site, for all sampled nights, for the most common speci
 ```{r}
 dd <- d0 %>% filter(species %in% common_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
 
-summary(dd$cpue)
+# summary(dd$cpue)
 #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 0.000   0.000   0.375   3.736   1.625 899.000
 
