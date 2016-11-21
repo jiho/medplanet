@@ -6,3 +6,4 @@ figure/*
 report_cache/*
 report_files/*
 *.html
+.Rproj.user
