@@ -520,7 +520,7 @@ This is done within each site, for all sampled nights, for the most common speci
 ```{r}
 dd <- d0 %>% filter(species %in% common_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
 
-summary(dd$cpue)
+# summary(dd$cpue)
 #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 0.000   0.000   0.375   3.736   1.625 899.000
 
