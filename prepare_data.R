@@ -29,6 +29,9 @@ parse_latlon <- function(x) {
 ## Read ECOCEAN ----
 
 d <- read_excel("data/ecocean/Compil Données pêches - Ecocean.xlsx", sheet=1, skip=1)
+d1 <- read_excel("data/ecocean/Donnees peches Girel 2013.xlsx", sheet=1, skip=1)
+d <- rbind(d, d1)
+
 
 # cleanup data
 d$lat <- parse_latlon(d$lat)
@@ -154,12 +157,16 @@ filter(summarise(group_by(d, species), n=length(unique(genus))), n>1)
 # remove non-fish
 d <- d[-which(str_detect(d$family, "^crabe")),]
 d <- d[-which(str_detect(d$family, "^crevette")),]
+d <- d[-which(str_detect(d$family, "^vers")),]
 d <- d[-which(d$family == "squille"),]
 d <- d[-which(d$family == "octopodidae"),]
 d <- d[-which(d$family == "loliginidae"),]
 d <- d[-which(d$family == "sepiida"),]
 d <- d[-which(d$family == "sepiolidae"),]
 d <- d[-which(d$family == "nephropidae"),]
+d <- d[-which(d$family == "pinnotheridae"),]
+d <- d[-which(d$family == "mysis"),]
+d <- d[-which(d$family == "copépodes"),]
 
 # remove non-coastal fish
 d <- d[-which(d$family == "engraulidae"),]
