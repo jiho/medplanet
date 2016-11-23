@@ -154,6 +154,15 @@ filter(summarise(group_by(d, genus), n=length(unique(family))), n>1)
 filter(summarise(group_by(d, species), n=length(unique(genus))), n>1)
 # 4 exceptions, OK.
 
+# rename species with error in genus or family
+d$species[which(d$genus == "surmuletus")] <-"surmulletus"
+d$genus[which(d$genus == "gaidrosparus")] <-"gaidropsarus"
+d$family[which(d$family == "scorpenidae")] <-"scorpaenidae"
+d$family[which(d$family == "mulidae")] <-"mullidae"
+d$family[which(d$family == "blennidae")] <-"blenniidae"
+
+
+
 # remove non-fish
 d <- d[-which(str_detect(d$family, "^crabe")),]
 d <- d[-which(str_detect(d$family, "^crevette")),]
@@ -175,9 +184,6 @@ d <- d[-which(d$family == "clupeidae"),]
 d <- d[-which(d$family == "scombridae"),]
 d <- d[-which(d$family == "sphyraenidae"),]
 d <- d[-which(d$genus == "trachurus"),]
-
-# rename species with error in genus
-d$genus[which(d$genus == "gaidrosparus")] <-"gaidropsarus"
 
 # # check
 # print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
