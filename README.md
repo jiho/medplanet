@@ -35,33 +35,33 @@ All analyses should be performed (when appropriate):
 The analyses should be performed on the whole community and on a selection of interesting/representative taxa.
 
 1. Description of data
-    - ☐ spatial scope
-    - ☐ temporal scope
-    - ☐ sampling effort
-    - ☐ data distribution
+    - [ ] spatial scope
+    - [ ] temporal scope
+    - [ ] sampling effort
+    - [ ] data distribution
 
 2. Taxonomic composition
-    - ☐ which species/genus/families are more abundant
-    - ☐ does that represent adult populations
+    - [ ] which species/genus/families are more abundant
+    - [ ] does that represent adult populations
 
 3. Spatial variability
-    - ☐ abundance among sites
-    - ☐ species composition among sites
-    - ☐ synchronicity among sites
+    - [ ] abundance among sites
+    - [ ] species composition among sites
+    - [ ] synchronicity among sites
     
 4. Temporal variability
-    - ☐ temporal scale of variation in abundance
-    - ☐ seasonality
-    - ☐ inter-annual variation in abundance
-    - ☐ inter-annual consistency in seasonality
-    - ☐ inter-annual variation in species composition
+    - [ ] temporal scale of variation in abundance
+    - [ ] seasonality
+    - [ ] inter-annual variation in abundance
+    - [ ] inter-annual consistency in seasonality
+    - [ ] inter-annual variation in species composition
         
 5. Forcing variables
-    - ☐ local site variables (substrate type, depth, etc.)
-    - ☐ moon phase (via moon light?)
-    - ☐ local wind and wind history
-    - ☐ regional wind regime
-    - ☐ local temperature and temperature history
-    - ☐ regional current
-    - ☐ local plankton abundance
-    - ☐ regional productivity
+    - [ ] local site variables (substrate type, depth, etc.)
+    - [ ] moon phase (via moon light?)
+    - [ ] local wind and wind history
+    - [ ] regional wind regime
+    - [ ] local temperature and temperature history
+    - [ ] regional current
+    - [ ] local plankton abundance
+    - [ ] regional productivity
