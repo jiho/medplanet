@@ -40,6 +40,10 @@ d$lon <- parse_latlon(d$lon)
 unknown_gear_ok <- which(is.na(d$n_gear_ok))
 d$n_gear_ok[unknown_gear_ok] <- d$n_gear_set[unknown_gear_ok]
 
+# detect and remove non numerical counts
+non_num <- is.na(as.numeric(d$n))
+select(d, family, n)[non_num,]
+# -> ok only non fish
 d$n <- as.numeric(d$n)
 
 # select relevant data
@@ -153,15 +157,6 @@ filter(summarise(group_by(d, genus), n=length(unique(family))), n>1)
 # and most species suffix should belong to only one genus
 filter(summarise(group_by(d, species), n=length(unique(genus))), n>1)
 # 4 exceptions, OK.
-
-# rename species with error in genus or family
-d$species[which(d$genus == "surmuletus")] <-"surmulletus"
-d$genus[which(d$genus == "gaidrosparus")] <-"gaidropsarus"
-d$family[which(d$family == "scorpenidae")] <-"scorpaenidae"
-d$family[which(d$family == "mulidae")] <-"mullidae"
-d$family[which(d$family == "blennidae")] <-"blenniidae"
-
-
 
 # remove non-fish
 d <- d[-which(str_detect(d$family, "^crabe")),]
