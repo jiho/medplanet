@@ -11,7 +11,7 @@ CARE catches from the N-W Mediterranean, from the projects:
 
 ## Description of the data and code
 
-`apps`: stubb for a shiny app to visualise the dynamics of the data. Currently only a map.
+`apps`: stub for a shiny app to visualise the dynamics of the data. Currently only a map.
 
 `data`: repository for data from various projects
 
