@@ -90,7 +90,7 @@ autoplot.CA <- function(x, dimensions=c(1,2), size=1, ...) {
   eig <- tidy(x)
   dims <- names(dat)[str_detect(names(dat), "Dim")]
   labs <- str_c(dims, " (",round(eig$prop.variance[dimensions]*100),"%)")
-  p <- ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="type")) + scale_colour_discrete(guide="none") + geom_point(size=size, ...) + geom_text_repel(aes(label=label), size=size*2.5, ...) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
+  p <- ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="type")) + scale_colour_discrete(guide="none") + geom_point(size=size, ...) + geom_text_repel(aes(label=label), size=size*2.5, segment.alpha=0.7, ...) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
   return(p)
 }
 
@@ -110,7 +110,7 @@ options(digits=2)
 Fish larvae were collected at the following sites
 
 ```{r}
-map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3)
+map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3, segment.alpha=0.7)
 ```
 
 At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Unless otherwise stated, it includes nights with 0 catches.
@@ -309,7 +309,7 @@ dd <- filter(dd, cpue < 110)
 # create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
-ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
@@ -439,7 +439,7 @@ ggplot(filter(d0m, species %in% common_species)) + geom_histogram(aes(x=moon_pha
 # ggplot(filter(d0m, species %in% common_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
 # # does not change much
 
-ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species)) + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
 
 # # log10 transformed
 # ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
@@ -452,7 +452,7 @@ Even when we reduce the data to summer months (May to August, included), during 
 in_summer <- function(x) {
   month(x) %in% 5:8
 }
-ggplot(filter(d0m, species %in% common_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species)) + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
+ggplot(filter(d0m, species %in% common_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
 ```
 
 Another way to look at it is to regress CPUE on moon phase. Using quantile regression, we can focus on the common scenario (median, quantile=0.5), or the higher catches (quantiles > 0.5). We see that the median catch is basically 0 everywhere and that only the 90th percentile (quantile=0.9) starts to respond to moon phase.
