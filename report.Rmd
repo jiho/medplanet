@@ -309,7 +309,7 @@ dd <- filter(dd, cpue < 110)
 # create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
-ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="gam") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
