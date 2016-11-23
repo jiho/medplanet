@@ -90,7 +90,7 @@ autoplot.CA <- function(x, dimensions=c(1,2), size=1, ...) {
   eig <- tidy(x)
   dims <- names(dat)[str_detect(names(dat), "Dim")]
   labs <- str_c(dims, " (",round(eig$prop.variance[dimensions]*100),"%)")
-  p <- ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="type")) + scale_colour_discrete(guide="none") + geom_point(size=size, ...) + geom_text_repel(aes(label=label), size=size*2.5, ...) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
+  p <- ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="type")) + scale_colour_discrete(guide="none") + geom_point(size=size, ...) + geom_text_repel(aes(label=label), size=size*2.5, segment.alpha=0.7, ...) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
   return(p)
 }
 
@@ -110,7 +110,7 @@ options(digits=2)
 Fish larvae were collected at the following sites
 
 ```{r}
-map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3)
+map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3, segment.alpha=0.7)
 ```
 
 At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Unless otherwise stated, it includes nights with 0 catches.
