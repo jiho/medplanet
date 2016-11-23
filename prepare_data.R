@@ -176,6 +176,9 @@ d <- d[-which(d$family == "scombridae"),]
 d <- d[-which(d$family == "sphyraenidae"),]
 d <- d[-which(d$genus == "trachurus"),]
 
+# rename species with error in genus
+d$genus[which(d$genus == "gaidrosparus")] <-"gaidropsarus"
+
 # # check
 # print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
 # summary(d)
