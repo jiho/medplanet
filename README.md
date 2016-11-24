@@ -35,10 +35,10 @@ All analyses should be performed (when appropriate):
 The analyses should be performed on the whole community and on a selection of interesting/representative taxa.
 
 1. Description of data
-    - [ ] spatial scope
-    - [ ] temporal scope
-    - [ ] sampling effort
-    - [ ] data distribution
+    - [x] spatial scope
+    - [x] temporal scope
+    - [x] sampling effort
+    - [x] data distribution
 
 2. Taxonomic composition
     - [ ] which species/genus/families are more abundant
