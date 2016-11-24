@@ -8,7 +8,7 @@ load("data.rda")
 # load packages and functions
 library("tidyverse")
 
-source("lib_plot.R")
+source("lib_plot.R")    # colour scales and theme
 ```
 
 

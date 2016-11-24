@@ -3,6 +3,7 @@
 #
 
 # theme with small font and no margins
+library("ggplot2")
 theme_set(
   theme_grey(10) +
   theme(
@@ -12,6 +13,7 @@ theme_set(
 )
 
 # nice colour scales
+library("chroma")
 scale_fill_viridis <- function(...) { scale_fill_gradientn(colors=viridis.colors(10), ...) }
 scale_color_viridis <- function(...) { scale_color_gradientn(colors=viridis.colors(10), ...) }
 
