@@ -13,7 +13,6 @@ library("printr")
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
-
 ```
 
 # Spatial distribution
@@ -64,6 +63,10 @@ autoplot(ca, size=1)
 
 # ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
 ```
+
+## Influence of local site variables
+
+TODO substrate, geomorphology, latitude, depth, etc.
 
 ## Synchronicity among sites
 

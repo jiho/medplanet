@@ -42,12 +42,13 @@ The analyses should be performed on the whole community and on a selection of in
 
 2. Taxonomic composition
     - [x] which species/genus/families are more abundant
-    - [ ] does that represent adult populations
+    - [ ] does that represent adult populations?
 
 3. Spatial variability
     - [x] abundance among sites
     - [-] species composition among sites
     - [ ] synchronicity among sites
+    - [ ] influence of local site variables (substrate type, depth, etc.) on abundances among sites
     
 4. Temporal variability
     - [x] temporal scale of variation in abundance
@@ -57,12 +58,17 @@ The analyses should be performed on the whole community and on a selection of in
     - [x] inter-annual variation in abundance
     - [-] inter-annual variation in species composition
         
-5. Forcing variables
-    - [ ] local site variables (substrate type, depth, etc.)
-    - [ ] moon phase (via moon light?)
+5. Forcing by meteorological variables
     - [ ] local wind and wind history
     - [ ] regional wind regime
     - [ ] local temperature and temperature history
-    - [ ] regional current
-    - [ ] local plankton abundance
-    - [ ] regional productivity
+
+6. Forcing by currents
+    - [ ] regional current intensity
+    - [ ] current position
+    - [ ] regional current dynamics (eddies, etc.)
+    
+7. Forcing by plankton abundances
+    - [ ] regional phytplankton (Chl a from satellite)
+    - [ ] local zooplankton abundance
+    - [ ] local zooplankton abundance history

@@ -1,0 +1,23 @@
+```{r load, message=FALSE, echo=FALSE}
+# set knitr options
+source("lib_knitr.R")
+
+# load data
+load("data.rda")
+
+# load packages and functions
+library("tidyverse")
+library("printr")
+
+source("lib_plot.R")        # colour scales and theme
+```
+
+# Forcing by currents
+
+## Describe currents in each site
+
+## Influence of regional intensity of current
+
+## Influence of current position
+
+## Influence of current dynamics (eddies, etc.)
