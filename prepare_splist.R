@@ -40,7 +40,11 @@ l <- l[-which(l$life == "Benthique"& l$coastal == "Non"& l$`coastal juveniles` =
 l <- l[-which(l$family == "clupeidae"),]
 l <- l[-which(l$family == "sphyraenidae"),]
 
+#rename family
+l$family[which(l$family == "lotidae")] <- "gadidae"
 
+
+save(l, file="listesp.rda")
 
 
 
