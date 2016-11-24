@@ -41,12 +41,12 @@ The analyses should be performed on the whole community and on a selection of in
     - [x] data distribution
 
 2. Taxonomic composition
-    - [ ] which species/genus/families are more abundant
+    - [x] which species/genus/families are more abundant
     - [ ] does that represent adult populations
 
 3. Spatial variability
-    - [ ] abundance among sites
-    - [ ] species composition among sites
+    - [x] abundance among sites
+    - [-] species composition among sites
     - [ ] synchronicity among sites
     
 4. Temporal variability
