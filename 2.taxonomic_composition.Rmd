@@ -44,6 +44,9 @@ dd_stat <- dd_stat %>% head(12)
 common_species <- dd_stat$species
 dd$species <- factor(dd$species, levels=dd_stat$species)
 ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+
+# add the list of common taxa to what was already in "data.rda"
+save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
 ```
 
 At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most common taxa in CARE catches are not surprising given what we know of the coastal adult populations.
