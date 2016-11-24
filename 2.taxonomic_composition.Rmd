@@ -1,0 +1,53 @@
+```{r load, message=FALSE, echo=FALSE}
+# set knitr options
+source("lib_knitr.R")
+
+# load data
+load("data.rda")
+
+# load packages and functions
+library("tidyverse")
+
+source("lib_plot.R")
+```
+
+
+# Taxonomic composition
+
+## Description
+
+Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
+
+CPUE is presented (still on a log10 scale, beware!) for the most common families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
+
+```{r warning=FALSE}
+# NB: do not display warnings. All warnings are about log transformation giving -Inf when using 0, which we know
+
+# families
+dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site, family) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+common_families <- dd_stat$family
+dd$family <- factor(dd$family, levels=dd_stat$family)
+ggplot(na.omit(dd), aes(x=family, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+
+# genera
+dd <- d0 %>% filter(!is.na(genus)) %>% group_by(date, site, family, genus) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family, genus) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+common_genera <- dd_stat$genus
+dd$genus <- factor(dd$genus, levels=dd_stat$genus)
+ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+
+# species
+dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
+dd_stat <- dd_stat %>% head(12)
+common_species <- dd_stat$species
+dd$species <- factor(dd$species, levels=dd_stat$species)
+ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+```
+
+At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most common taxa in CARE catches are not surprising given what we know of the coastal adult populations.
+
+## Comparison with adult assemblages
+
+TODO
