@@ -72,5 +72,26 @@ labs(y="cpue (scaled per species and site)") + no_y
 
 #Cross correlation
 
-p<- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")])
+#Example
+coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
+cor = coef$acf[,,1]
+cor
+lag = coef$lag[,,1]
+lag
+res = data.frame(cor,lag)
+res
+res_max = res[which.max(res$cor),]
+res_max
 
+
+#For all possibilities :  doesn't work 
+
+find_max_ccf <- ddply(dd,~site+year, function(a,b){
+  coeff <- ccf(a$scaled_cpue, b$scaled_cpue, lag.max=20)
+  cor = p$acf[,,1]
+  lag = p$lag[,,1]
+  res = data.frame(cor,lag)
+  res_max = res[which.max(res$cor),]
+  return(res_max)
+}
+)
