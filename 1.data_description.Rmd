@@ -1,0 +1,106 @@
+```{r load, message=FALSE}
+# set knitr options
+source("lib_knitr.R")
+
+# load data
+load("data.rda")
+
+# load packages and functions
+library("stringr")
+library("plyr")
+library("tidyverse")
+library("ggrepel")
+library("printr")
+
+source("lib_plot.R")
+
+# dplyr compatible function to compute statistical summaries of a variable
+sum_tbl <- function(x, var) {
+  funs <- list(
+    n=str_c("length(", var ,")"),
+    n_NA=str_c("sum(is.na(", var ,"))"),
+    min=str_c("min(",var,", na.rm=T)"),
+    q25=str_c("stats::quantile(",var,", p=0.25, na.rm=T)"),
+    median=str_c("stats::median(",var,", na.rm=T)"),
+    mean=str_c("mean(",var,", na.rm=T)"),
+    q75=str_c("stats::quantile(",var,", p=0.75, na.rm=T)"),
+    max=str_c("max(",var,", na.rm=T)")
+  )
+  summarise_(x, .dots=funs)
+}
+```
+
+# Description of data
+
+
+## Spatial scope
+
+Fish larvae were collected at the following sites
+
+```{r}
+map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3, segment.alpha=0.7)
+```
+
+## Temporal scope
+
+Sampling occurred over the periods
+
+```{r}
+effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+```
+
+```{r}
+ggplot(effort) + geom_point(aes(x=date, y=site), shape="|")
+```
+
+## Sampling effort
+
+At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Unless otherwise stated, it includes nights with 0 catches.
+
+Statistics on the number of CARE working per night at each site are
+
+```{r}
+# effort %>% group_by(site) %>% summarise(mean=round(mean(n_gear, na.rm=T),1), median=median(n_gear, na.rm=T), min=min(n_gear, na.rm=T), max=max(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+effort %>% group_by(site) %>% sum_tbl("n_gear") %>% select(-n, -n_NA, -starts_with("q"))
+```
+
+## Distribution of catches
+
+We focus on *coastal fish* taxa only. A total of `r sum(d$n)` larvae were caught. The most commonly observed catch per night per CARE (CPUE), is 0, by far (the bars represent the number of times a given CPUE was observed in the dataset).
+
+```{r}
+dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=sum(cpue))
+ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
+```
+
+Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
+
+```{r}
+ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10")
+```
+
+However, in terms of total number of fish supplied to the coast, its the rare, very high CPUE nights that contribute the most; the following plot is basically the previous one where each bar is multiplied by the number of larvae it corresponds to.
+
+```{r}
+ggplot(dd) + geom_histogram(aes(x=cpue, weight=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10") + labs(y="number of larvae")
+```
+
+```{r}
+tot <- sum(dd$cpue)
+dd <- dd %>% ungroup() %>% arrange(desc(cpue))
+i50 <- min(which(cumsum(dd$cpue) >= tot*0.5))
+percent50 <- round(i50 / nrow(dd) * 100)
+
+# exclude nights with particularly high catches
+dd <- dd[-c(1,2),]
+tot <- sum(dd$cpue)
+i50ex <- min(which(cumsum(dd$cpue) >= tot*0.5))
+percent50ex <- round(i50ex / nrow(dd) * 100)
+
+i90ex <- min(which(cumsum(dd$cpue) >= tot*0.9))
+percent90ex <- round(i90ex / nrow(dd) * 100)
+```
+
+Overall, `r nrow(dd)` sampling "events" (one event = one night fished at one site) are recorded in the dataset. Over 50% of the `r sum(d$n)` larvae caught were caught during only `r i50` of those fishing events (`r percent50`% of the effort). Two nights in Corsica resulted in extremely high catches of *S smaris*, which mask everything else. Even excluding those, the `r percent50ex`% richest events represent >50% of the catch and the `r percent90ex`% richest yield >90% (almost all) the catch.
+
+In summary, catches are often *low*, extremely *variable* (probably both geographically and in time) and what matters to coastal populations are the *few nights with high catches*, the rest is just negligible.
