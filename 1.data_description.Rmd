@@ -6,8 +6,6 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
-library("stringr")
-library("plyr")
 library("tidyverse")
 library("ggrepel")
 library("printr")
