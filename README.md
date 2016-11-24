@@ -50,11 +50,12 @@ The analyses should be performed on the whole community and on a selection of in
     - [ ] synchronicity among sites
     
 4. Temporal variability
-    - [ ] temporal scale of variation in abundance
-    - [ ] seasonality
-    - [ ] inter-annual variation in abundance
-    - [ ] inter-annual consistency in seasonality
-    - [ ] inter-annual variation in species composition
+    - [x] temporal scale of variation in abundance
+    - [x] moon phase (via moon light?)
+    - [x] seasonality
+    - [-] inter-annual consistency in seasonality
+    - [x] inter-annual variation in abundance
+    - [-] inter-annual variation in species composition
         
 5. Forcing variables
     - [ ] local site variables (substrate type, depth, etc.)

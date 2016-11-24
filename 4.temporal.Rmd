@@ -1,0 +1,349 @@
+```{r load, message=FALSE, echo=FALSE}
+# set knitr options
+source("lib_knitr.R")
+
+# load data
+load("data.rda")
+
+# load packages and functions
+library("plyr")
+library("tidyverse")
+library("FactoMineR")
+library("printr")
+library("lubridate")
+
+source("lib_plot.R")        # colour scales and theme
+source("lib_data_manip.R")  # summarise tables
+source("lib_factorial.R")   # extract and plot info from CAs
+```
+
+# Temporal variability
+
+
+## Temporal scales of variability
+
+At which scale do abundances vary the most: do they mostly depend on season, month, etc. We can analyse the temporal scales of variability through a variogram. This computes the difference in CPUE between two successive days (delay = 1 day), two days on successive weeks (delay = 7 days), etc. to test whether the catches are more similar on successive days (autocorrelation) or on the same day in successive months (potential lunar effect), etc.
+
+This is done within each site, for all sampled nights, for the most common species (for which catches are relatively steady). The results below are for all pairwise differences (top) and some summaries --quartiles, median and mean-- (red lines on top, bottom).
+
+```{r}
+dd <- d0 %>% filter(species %in% common_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
+
+# summary(dd$cpue)
+#  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+# 0.000   0.000   0.375   3.736   1.625 899.000
+
+# compute variogram cloud (all pairwise differences)
+vario_cloud <- ddply(dd, ~site, function(x) {
+  delay <- dist(x$days_since_start)
+  # diff <- dist(log1p(x$cpue))
+  diff <- dist(x$cpue)
+  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
+})
+vario_cloud <- filter(vario_cloud, delay < (365*2+10))
+
+# compute average variogram on bins with an ~ equal number of observations
+vario <- vario_cloud
+breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
+vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
+
+diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
+delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
+vario <- full_join(delay, diffs, by="bins")
+
+x_scale <- list(
+  scale_x_continuous(
+    limits=c(0, 715),
+    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
+    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
+    minor=NULL
+  ),
+  theme(axis.text.x=element_text(angle=35, hjust=1))
+)
+
+last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
+ggplot(mapping=aes(x=delay, y=diff)) +
+  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
+  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
+  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
+  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
+  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
+  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
+
+last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
+ggplot(data=vario, mapping=aes(x=delay)) +
+  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
+  geom_path(aes(y=median)) +
+  geom_path(aes(y=mean), linetype="dashed") +
+  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
+  x_scale + scale_y_continuous(limits=c(0,NA)) +
+  labs(x="delay (days)", y="difference in CPUE")
+```
+
+TODO redo the same for high catches only or catches summarised by level (low, mid, high)
+
+
+## Lunar phase variations
+
+```{r results="hide"}
+suppressPackageStartupMessages(library("oce", quietly=TRUE))
+# get all dates
+dates <- sort(unique(d0$date))
+
+# for each date, compute the proportion of the night when the moon is up
+moon <- ldply(dates, function(x) {
+  # x <- dates[8]
+
+  # go back from noon the previous day, to noon on the day of collection
+  interval <- 0.1
+  xr <- x - days(1) + seq(12, 36, by=interval)*3600
+
+  # compute position of sun and moon
+  sun_alt <- sunAngle(xr, lon=7.31, lat=43.68)$altitude
+  moon <- moonAngle(xr, lon=7.31, lat=43.68)
+  moon_alt <- moon$altitude
+
+  # detect when sun is down and moon is up
+  moon_visible <- (sun_alt < 0) & (moon_alt > 0)
+  # compute the number of hours this is the case
+  moon_time <- sum(moon_visible) * interval
+  
+  # compute a moon phase index, based on the proportion illuminated
+  # 0 : new moon
+  # 1 : next full moon
+  # -1 : previous full moon
+  # negative : descending
+  # positive : ascending
+  moon_phase <- mean(moon$illuminatedFraction[sun_alt < 0]) * sign(diff(moon$illuminatedFraction[c(1, length(xr))]))
+  
+  # compute average "moonlight" indexes during that time
+  if (moon_time > 0) {
+    # visible fraction
+    moon_index1 <- mean(moon$illuminatedFraction[moon_visible]) / moon_time
+  
+    # fraction * diameter * altitude
+    moon_index2 <- sum(moon$illuminatedFraction[moon_visible] * moon$diameter[moon_visible] * (moon$altitude[moon_visible]/90))
+  } else {
+    moon_index1 <- moon_index2 <- 0
+  }
+  
+  data.frame(date=x, moon_time, moon_phase, moon_index1, moon_index2)
+}, .progress="none")
+
+# add that to the data
+d0m <- left_join(d0, moon, by="date")
+dm <- left_join(d, moon, by="date")
+
+# # interpolate times of rise and set of celestial bodies
+# rise_set <- function(time, altitude) {
+#   # time <- ymd("2016-01-01") + hours(0:(24*3))
+#   # altitude <- sunAngle(time, lon=7.31, lat=43.68)$altitude
+#   xn <- as.numeric(time)
+#
+#   # detect sign changes in altitude
+#   sign_change <- diff(sign(altitude))
+#   i <- which(sign_change != 0)
+#
+#   # interpolate time when body crosses altitude 0
+#   d <- data.frame(x1=xn[i], x2=xn[i+1], y1=altitude[i], y2=altitude[i+1])
+#   times <- apply(d, 1, function(X) {approx(X[3:4], X[1:2], value)$y})
+#   times <- as.POSIXct(times, tz=tz(time), origin="1970-01-01")
+#
+#   # determine crossing direction
+#   direction <- c("set", "rise")[as.numeric(sign_change[i]>0)+1]
+#
+#   return(data.frame(time=times, direction))
+# }
+```
+
+If we look at the total number of larvae caught, a large proportion of it is caught around the new moon, as shown below for common species. However the second plot shows that there is still considerable variability in CPUE, even around the new moon, and that it mostly masks the moon-phase signal (the red lines are polynomial regressions of the average CPUE; most of which do not highlight a moon phase influence).
+
+
+```{r fig.height=5}
+moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
+
+ggplot(filter(d0m, species %in% common_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
+
+# # density
+# ggplot(filter(d0m, species %in% common_species)) + geom_density(aes(x=moon_phase, weight=cpue, y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
+#
+# # density logged
+# ggplot(filter(d0m, species %in% common_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
+# # does not change much
+
+ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+
+# # log10 transformed
+# ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
+```
+
+Even when we reduce the data to summer months (May to August, included), during which the catches are better overall, the moon phase signal is still mostly indiscernible in instantaneous CPUE.
+
+```{r fig.height=5}
+# reduce to summer months
+in_summer <- function(x) {
+  month(x) %in% 5:8
+}
+ggplot(filter(d0m, species %in% common_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
+```
+
+Another way to look at it is to regress CPUE on moon phase. Using quantile regression, we can focus on the common scenario (median, quantile=0.5), or the higher catches (quantiles > 0.5). We see that the median catch is basically 0 everywhere and that only the 90th percentile (quantile=0.9) starts to respond to moon phase.
+
+```{r fig.height=4}
+suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
+
+# select data: common species, in summer, without extreme Spicara
+dd <- filter(d0m, species %in% common_species, in_summer(date), cpue < 250)
+
+# only consider distance to the new moon, irrespective of direction
+dd$moon_phase <- abs(dd$moon_phase)
+
+# # plot according to various moon related variables
+# ggplot(dd) + geom_point(aes(x=moon_time, y=cpue))
+# ggplot(dd) + geom_point(aes(x=moon_phase, y=cpue))
+# ggplot(dd) + geom_point(aes(x=moon_index1, y=cpue))
+# ggplot(dd) + geom_point(aes(x=moon_index2, y=cpue))
+
+# fit and predict quantile regression models
+x <- seq(0, 1, length.out=100)
+new <- data.frame(moon_phase=x, moon_index1=x, moon_index2=x)
+
+quantiles <- c(0.5, 0.75, 0.9, 0.95, 0.99)
+qpred <- ldply(quantiles, function(q) {
+  # quantile regression on log(n+1)
+  m <- rq(log1p(cpue) ~ moon_phase, tau=q, data=dd)
+
+  # predict regression curve
+  pred <- tryCatch(
+    predict(m, newdata=new, interval="confidence"),
+    error=function(x) {return(data.frame(fit=rep(0, times=100), lower=0, higher=0))}
+  )
+  # switch back to cpue
+  pred <- expm1(pred)
+  
+  # add "metadata"
+  pred <- cbind(new, pred)
+  pred$quantile <- q
+
+  return(pred)
+})
+qpred$quantile <- factor(qpred$quantile)
+
+# plot the result
+ggplot(mapping=aes(x=moon_phase)) +
+  geom_point(aes(y=cpue), data=dd, alpha=0.5) +
+  geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpred, alpha=0.3) +
+  geom_path(aes(y=fit, colour=quantile), data=qpred) +
+  # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
+  scale_y_continuous("cpue (in summer, log(n+1) transformed)", trans="log1p") +
+  scale_x_continuous("moon phase", breaks=c(0, 0.5, 1), labels=c("\U0098", "\U00BA", "\U0099")) +
+  theme(axis.text.x=element_text(family="Wingdings 2"))
+```
+
+So, overall, high catches almost always occur around the new moon but not all new moons yield high catches (actually, most do not), even in the good season.
+
+
+## Seasonal variations
+
+Unsurprisingly, the catch is very seasonal, with higher catches from May to mid-September and another small increase around November. NB: the two points with very high catches of *S smaris* occurred in June; they were removed from the plot.
+
+```{r}
+dd <- d0 %>% group_by(date, yday, year, site) %>% summarise(cpue=sum(cpue))
+# remove high catches of S smaris
+dd <- filter(dd, cpue < 110)
+# create a fake date coordinate
+dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
+
+ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+```
+
+TODO redo that per quantile level (probably has to be done manually with a loess smoother per quantile level).
+
+At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
+
+```{r fig.height=7}
+dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
+
+# create a fake date coordinate
+dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+
+# rescale per species and year
+dd <- dd %>% group_by(species, year) %>% mutate(scaled_cpue=cpue/max(cpue))
+dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+
+# order species by average/first date of arrival
+order <- dd %>%
+  group_by(species) %>%
+  filter(cpue > median(cpue)) %>% 
+  summarise(avg_date=weighted.mean(yweek, scaled_cpue), first_date=min(yweek)) %>%
+  arrange(first_date)
+
+# rename species for display
+abbrev_sp <- function(x, n=4) {
+  bits <- str_split_fixed(x, fixed(" "), 2)
+  g <- str_sub(bits[,1],1,1)
+  s <- str_sub(bits[,2],1,n)
+  str_c(g, ". ", s)
+}
+order$species_abbr <- abbrev_sp(order$species, n=5)
+
+# force order by time of arrival
+dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species_abbr)
+
+ggplot(dd) +
+  geom_path(aes(x=fake_date, y=scaled_cpue, colour=year)) +
+  facet_grid(species_abbr~.) +
+  scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
+  labs(y="cpue (scaled per species and year)") + no_y
+```
+
+TODO describe with Robin's time consistency index.
+
+
+## Abundance among years
+
+The effort varied quite a lot among years.
+
+```{r}
+effort %>% mutate(year=lubridate::year(date)) %>% filter(year != 2016) %>% group_by(year) %>% summarise(n_nights_sampled=length(unique(date)), n_CARE_fished=sum(n_gear))
+```
+
+In total CPUE, pooling all taxa together, the catch seems similar over the years, with possibly a shift towards higher catches in 2014 and 2015. 
+
+```{r warning=FALSE}
+dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+
+dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+
+ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
+```
+
+
+## Species composition among years
+
+When inspecting the dynamics per species the characteristic year-species couples are:
+
+- 2012: *A hepsetus*
+- 2013: *S smaris*
+- 2014: *B boops*, *D annularis*, *O melanuara*
+
+```{r fig.height=5}
+dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(year, species) %>% summarise(tot=sum(cpue), mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
+
+# relative abundance
+# ggplot(dd) + geom_bar(aes(x=year, y=mean), stat="identity") + facet_wrap(~species, scales="free_y") + theme(axis.text.x=element_text(angle=30, hjust=1))
+
+# just make the plot cleaner by pre-computing the relative abundances
+ddr <- dd %>% group_by(species) %>% mutate(mean=mean/max(mean))
+ggplot(ddr) +
+  geom_bar(aes(x=year, y=mean), stat="identity", width=0.75) +
+  facet_wrap(~species, ncol=3) +
+  scale_y_continuous("relative cpue", breaks=c(0, 0.5, 1)) +
+  theme(axis.text.x=element_text(angle=30, hjust=1), axis.text.y=element_blank(), axis.ticks.y=element_blank())
+
+ca <- CA(as.multivar(dd, x.var="year"), graph=F)
+autoplot(ca)
+```
+
+
+
