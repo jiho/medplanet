@@ -1,4 +1,4 @@
-```{r load, message=FALSE}
+```{r load, message=FALSE, echo=FALSE}
 # set knitr options
 source("lib_knitr.R")
 
