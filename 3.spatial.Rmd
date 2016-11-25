@@ -51,6 +51,21 @@ ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord
 
 ## Species composition among sites
 
+
+Total number of family, genus and species catched by sampling site.
+
+```{r fig.height=5}
+dd_tax <- unique(select(d, site, family, genus, species))
+dd_tax <- dd_tax[-which(dd_tax$family=="Unidentified"),]
+
+dd_sp <- ddply(dd_tax, ~ site, summarise, nb.family = length(unique(na.omit(family))),
+                          nb.genus = length(unique(na.omit(genus))),
+                          nb.species = length(unique(na.omit(species))))
+
+dd_sp <- arrange(dd_sp, nb.species)
+dd_sp
+```
+
 Through a Correspondence Analysis we can study the *relative* proportions of the dominant species at each site. On the plot, sites are close to the species which were most common at this site compared to other species and other sites. So overall, the following sites are characterised by a larger proportion of the following species:
 
 - Marseille and Villefranche: *O melanuara*, *B boops*, *D annularis*
@@ -161,24 +176,25 @@ TODO to review
 #Example
 coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
 cor = coef$acf[,,1]
-cor
 lag = coef$lag[,,1]
-lag
 res = data.frame(cor,lag)
-res
 res_max = res[which.max(res$cor),]
-res_max
 
 
-#For all possibilities :  doesn't work 
 
-find_max_ccf <- ddply(dd,~site+year, function(a,b){
-  coeff <- ccf(a$scaled_cpue, b$scaled_cpue, lag.max=20)
-  cor = p$acf[,,1]
-  lag = p$lag[,,1]
-  res = data.frame(cor,lag)
-  res_max = res[which.max(res$cor),]
-  return(res_max)
-}
-)
+#For all possibilities :  doesn't work
+
+# I try to compute the ccf coef between two site, for the same year.
+# I would export results in a confusion matrix
+
+
+#find_max_ccf <- function(a,b){
+#  coeff <- ccf(a$scaled_cpue, b$scaled_cpue, lag.max=20)
+#  cor = p$acf[,,1]
+#  lag = p$lag[,,1]
+#  res = data.frame(cor,lag)
+#  res_max = res[which.max(res$cor),]
+#  return(res_max)
+#}
+
 ```
