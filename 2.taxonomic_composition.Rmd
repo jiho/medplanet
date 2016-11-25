@@ -26,6 +26,7 @@ CPUE is presented (still on a log10 scale, beware!) for the most common families
 # families
 dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site, family) %>% summarise(cpue=sum(cpue))
 dd_stat <- dd %>% group_by(family) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+# TODO check if there are some other interesting families beyond these 12
 common_families <- dd_stat$family
 dd$family <- factor(dd$family, levels=dd_stat$family)
 ggplot(na.omit(dd), aes(x=family, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
@@ -33,6 +34,7 @@ ggplot(na.omit(dd), aes(x=family, y=cpue)) + geom_violin(na.rm=T) + geom_point(a
 # genera
 dd <- d0 %>% filter(!is.na(genus)) %>% group_by(date, site, family, genus) %>% summarise(cpue=sum(cpue))
 dd_stat <- dd %>% group_by(family, genus) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+# TODO same as for families
 common_genera <- dd_stat$genus
 dd$genus <- factor(dd$genus, levels=dd_stat$genus)
 ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
@@ -41,6 +43,7 @@ ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin(na.rm=T) + geom_point(al
 dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
 dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
 dd_stat <- dd_stat %>% head(12)
+# TODO same as for families
 common_species <- dd_stat$species
 dd$species <- factor(dd$species, levels=dd_stat$species)
 ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
@@ -107,13 +110,6 @@ dd_stat <- dd_stat %>% head(12)
 common_species <- dd_stat$species
 embiez$species <- factor(embiez$species, levels=dd_stat$species)
 ggplot(na.omit(embiez), aes(x=species, y=cpue)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
-
-
-
 ```
 
-
-
-
-
-
+TODO get list of adult species and detail which are captured by CAREs or not

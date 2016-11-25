@@ -80,6 +80,8 @@ ggplot(data=vario, mapping=aes(x=delay)) +
   labs(x="delay (days)", y="difference in CPUE")
 ```
 
+TODO redo the same per species for a few species
+
 TODO redo the same for high catches only or catches summarised by level (low, mid, high)
 
 
@@ -158,7 +160,6 @@ dm <- left_join(d, moon, by="date")
 
 If we look at the total number of larvae caught, a large proportion of it is caught around the new moon, as shown below for common species. However the second plot shows that there is still considerable variability in CPUE, even around the new moon, and that it mostly masks the moon-phase signal (the red lines are polynomial regressions of the average CPUE; most of which do not highlight a moon phase influence).
 
-
 ```{r fig.height=5}
 moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
@@ -186,6 +187,10 @@ in_summer <- function(x) {
 }
 ggplot(filter(d0m, species %in% common_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
 ```
+
+TODO scale by sampling effort: compute *mean* of CPUE per lunar period (quarter?)
+
+TODO in the plots with all CPUE, make polynomial smoothers work on high catches only = a bit like quantile regression
 
 Another way to look at it is to regress CPUE on moon phase. Using quantile regression, we can focus on the common scenario (median, quantile=0.5), or the higher catches (quantiles > 0.5). We see that the median catch is basically 0 everywhere and that only the 90th percentile (quantile=0.9) starts to respond to moon phase.
 
@@ -291,8 +296,7 @@ ggplot(dd) +
   labs(y="cpue (scaled per species and year)") + no_y
 ```
 
-TODO describe with Robin's time consistency index.
-
+TODO describe with Robin's time consistency index or use the same approach as for synchrony between sites (anomaly to the average)
 
 ## Abundance among years
 
@@ -312,6 +316,7 @@ dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
 ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
 ```
 
+TODO significance tests kruskal + pairwise.wilcox
 
 ## Species composition among years
 
@@ -339,5 +344,6 @@ ca <- CA(as.multivar(dd, x.var="year"), graph=F)
 autoplot(ca)
 ```
 
+TODO redo with genera, other species, etc.
 
-
+TODO interpret this CA and the spatial CA together

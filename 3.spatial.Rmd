@@ -49,6 +49,10 @@ Excluding those extreme events and focusing on the more common, low, catches, al
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
 ```
 
+TODO test significant diff between all couples of sites, East and West sites, continent vs corsica. kruskal.test, pairwise.wilcox.test
+
+TODO try to cluster some spatial structure. how???
+
 ## Species composition among sites
 
 
@@ -81,6 +85,10 @@ autoplot(ca, size=1)
 
 # ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
 ```
+
+TODO do the same with genera
+
+TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
 
 ## Influence of local site variables
 
@@ -168,12 +176,20 @@ ggplot(dd) +
   no_y
 ```
 
+TODO to interpret
+
+TODO plot, for each site and each species, the anomaly with respect to the mean arrival time of the year
+
 Cross-correlation
 
 TODO to review
 
 ```{r}
+# build a table with dates as lines and sites as columns, cpue inside. dates should be regularly spaced => compute per week
+
 #Example
+
+
 coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
 cor = coef$acf[,,1]
 lag = coef$lag[,,1]
