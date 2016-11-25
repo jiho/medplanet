@@ -6,9 +6,12 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
+library("plyr")
 library("tidyverse")
 library("FactoMineR")
 library("printr")
+library("stringr")
+library("lubridate")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -70,4 +73,87 @@ TODO substrate, geomorphology, latitude, depth, etc.
 
 ## Synchronicity among sites
 
-TODO
+```{r warning=FALSE}
+
+# species
+dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
+dd_stat <- dd_stat %>% head(12)
+common_species <- dd_stat$species
+dd$species <- factor(dd$species, levels=dd_stat$species)
+
+# Synchronicity betwenn regions
+
+dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+
+# create a fake date coordinate
+dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+
+# rescale per species, year and sites
+dd <- dd %>% group_by(species, site) %>% mutate(scaled_cpue=cpue/max(cpue))
+dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+
+
+# order species by average/first date of arrival
+order <- dd %>%
+  group_by(species) %>%
+  filter(cpue > median(cpue)) %>%
+  summarise(avg_date=weighted.mean(yweek, scaled_cpue), first_date=min(yweek)) %>%
+  arrange(first_date)
+
+# rename species for display
+abbrev_sp <- function(x, n=4) {
+  bits <- str_split_fixed(x, fixed(" "), 2)
+  g <- str_sub(bits[,1],1,1)
+  s <- str_sub(bits[,2],1,n)
+  str_c(g, ". ", s)
+}
+order$species_abbr <- abbrev_sp(order$species, n=5)
+
+# force order by time of arrival
+dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species_abbr)
+
+ggplot(dd) +
+  geom_path(aes(x=fake_date, y=scaled_cpue, colour=site)) +
+  facet_grid(species_abbr~year)+
+  scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
+  scale_color_manual(values=c("Leucate"="#339900", "Port Vendres"="#339900",
+                                     "Agde"="#339900","Carry"="#0066CC",
+                                     "Marseille"="#0066CC", "Cassis"="#0066CC",
+                                     "La Ciotat"="#0066CC","Les Embiez"="#CCCC33",
+                                     "Port-Cros"="#CCCC33", "Villefranche"="#9900CC",
+                                     "Bastia"="#CC0000", "Bonifacio"="#CC0000", "Saint Florent"="#CC0000"),
+                     breaks=c("Leucate","Port Vendres","Agde",
+                              "Carry","Marseille", "Cassis","La Ciotat",
+                              "Les Embiez","Port-Cros","Villefranche","Bastia","Bonifacio",
+                              "Saint Florent")) +
+labs(y="cpue (scaled per species and site)") + no_y
+
+
+
+#Cross correlation
+
+#Example
+coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
+cor = coef$acf[,,1]
+cor
+lag = coef$lag[,,1]
+lag
+res = data.frame(cor,lag)
+res
+res_max = res[which.max(res$cor),]
+res_max
+
+
+#For all possibilities :  doesn't work 
+
+find_max_ccf <- ddply(dd,~site+year, function(a,b){
+  coeff <- ccf(a$scaled_cpue, b$scaled_cpue, lag.max=20)
+  cor = p$acf[,,1]
+  lag = p$lag[,,1]
+  res = data.frame(cor,lag)
+  res_max = res[which.max(res$cor),]
+  return(res_max)
+}
+)
+```
