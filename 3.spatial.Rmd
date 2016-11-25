@@ -73,66 +73,91 @@ TODO substrate, geomorphology, latitude, depth, etc.
 
 ## Synchronicity among sites
 
-```{r warning=FALSE}
+```{r fig.height=8}
+# mean CPUE per week, site, and species for common species
+dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
 
-# species
-dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
-dd_stat <- dd_stat %>% head(12)
-common_species <- dd_stat$species
-dd$species <- factor(dd$species, levels=dd_stat$species)
-
-# Synchronicity betwenn regions
-
-dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
-
-# create a fake date coordinate
+# create a new weekly date coordinate
+dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
+# and a new fake one starting all the same year
 dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
 
-# rescale per species, year and sites
-dd <- dd %>% group_by(species, site) %>% mutate(scaled_cpue=cpue/max(cpue))
+# rescale abundances per species, site and year, to get a comparable peak per year
+dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
 dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
 
-
-# order species by average/first date of arrival
-order <- dd %>%
-  group_by(species) %>%
-  filter(cpue > median(cpue)) %>%
-  summarise(avg_date=weighted.mean(yweek, scaled_cpue), first_date=min(yweek)) %>%
-  arrange(first_date)
+# # remove large date jumps (i.e. add NAs at the beginning of the jump)
+# dd <- arrange(dd, species, site, date) %>% ungroup()
+# dd <- ddply(dd, ~species+site, function(x, large=30) {
+#   large_jumps <- c(diff(x$date) > large, FALSE)
+#   # repeat each line at the beginning of a large jump
+#   x <- x[rep(1:nrow(x), as.numeric(large_jumps)+1),]
+#   # replace the abundances at that date by NA
+#   large_jumps <- c(diff(x$date) > large, FALSE)
+#   x$scaled_cpue[large_jumps] <- NA
+#   return(x)
+# })
 
 # rename species for display
-abbrev_sp <- function(x, n=4) {
-  bits <- str_split_fixed(x, fixed(" "), 2)
-  g <- str_sub(bits[,1],1,1)
-  s <- str_sub(bits[,2],1,n)
-  str_c(g, ". ", s)
+dd$species_abbr <- abbrev_sp(dd$species, n=4)
+
+# group sites per region
+sites$region <- c(
+  rep("Golfe du Lion", 3),
+  rep("Marseille et environs", 4),
+  rep("Var", 2),
+  rep("Alpes Mar.", 1),
+  rep("Corse", 3)
+)
+
+# we want to use a combination of colour and linetype to identify all sites
+# ggplot2 cannot do that on its own so we need to manually compute the interaction between the two and create the appropriate scales
+
+# prepare manual colours
+colours <- scales::hue_pal(h = c(0, 360) + 15, c = 100, l = 65, h.start = 0)(length(unique(sites$region)))
+sites$region_id <- as.numeric(as.factor(sites$region))
+sites$colours <- colours[sites$region_id]
+
+# prepare manual linetypes
+linetypes <- c("solid", "11", "12", "21")
+# linetypes <- 1:4
+sites$region_change <- c(FALSE, diff(sites$region_id) != 0)
+sites$linetypes <- 0
+index <- 0
+for (i in 1:nrow(sites)) {
+  if (sites$region_change[i]) {
+    index <- 1
+  } else {
+    index <- index + 1
+  }
+  sites$linetypes[i] <- index
 }
-order$species_abbr <- abbrev_sp(order$species, n=5)
+sites$linetypes <- linetypes[sites$linetypes]
 
-# force order by time of arrival
-dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species_abbr)
+# compute the interaction, which will be mapped in ggplot
+dd <- left_join(dd, select(sites, site, region), by="site")
+dd$region_site <- interaction(dd$region, dd$site)
+dd$region_site <- factor(dd$region_site, labels=sites$site)
 
+# nice plot
 ggplot(dd) +
-  geom_path(aes(x=fake_date, y=scaled_cpue, colour=site)) +
+  geom_line(aes(x=fake_date, y=scaled_cpue, colour=region_site, linetype=region_site)) +
   facet_grid(species_abbr~year)+
-  scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
-  scale_color_manual(values=c("Leucate"="#339900", "Port Vendres"="#339900",
-                                     "Agde"="#339900","Carry"="#0066CC",
-                                     "Marseille"="#0066CC", "Cassis"="#0066CC",
-                                     "La Ciotat"="#0066CC","Les Embiez"="#CCCC33",
-                                     "Port-Cros"="#CCCC33", "Villefranche"="#9900CC",
-                                     "Bastia"="#CC0000", "Bonifacio"="#CC0000", "Saint Florent"="#CC0000"),
-                     breaks=c("Leucate","Port Vendres","Agde",
-                              "Carry","Marseille", "Cassis","La Ciotat",
-                              "Les Embiez","Port-Cros","Villefranche","Bastia","Bonifacio",
-                              "Saint Florent")) +
-labs(y="cpue (scaled per species and site)") + no_y
+  scale_x_date("", date_breaks="2 month", date_labels="%b", minor_breaks=NULL) +
+  theme(
+    axis.text.x=element_text(angle=45, hjust=1),
+    legend.position="top"
+  ) +
+  scale_linetype_manual("site", values=sites$linetypes) +
+  scale_colour_manual("site", values=sites$colours) +
+  no_y
+```
 
+Cross-correlation
 
+TODO to review
 
-#Cross correlation
-
+```{r}
 #Example
 coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
 cor = coef$acf[,,1]
