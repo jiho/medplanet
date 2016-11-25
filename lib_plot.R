@@ -25,3 +25,11 @@ no_y <- list(
   ),
   scale_y_continuous(breaks=0)
 )
+
+# abbreviate species names for easy plotting
+abbrev_sp <- function(x, n=4) {
+  bits <- str_split_fixed(x, fixed(" "), 2)
+  g <- str_sub(bits[,1],1,1)
+  s <- str_sub(bits[,2],1,n)
+  str_c(g, ". ", s)
+}

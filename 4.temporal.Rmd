@@ -279,12 +279,6 @@ order <- dd %>%
   arrange(first_date)
 
 # rename species for display
-abbrev_sp <- function(x, n=4) {
-  bits <- str_split_fixed(x, fixed(" "), 2)
-  g <- str_sub(bits[,1],1,1)
-  s <- str_sub(bits[,2],1,n)
-  str_c(g, ". ", s)
-}
 order$species_abbr <- abbrev_sp(order$species, n=5)
 
 # force order by time of arrival
