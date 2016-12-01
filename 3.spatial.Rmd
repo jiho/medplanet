@@ -80,11 +80,83 @@ ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
 
 # ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
+
 ```
+
+```{r}
+# Compute a Contingency table to find rare and common species
+t <- unique(select(d, site, species))
+t <- as.data.frame.matrix(t(table(t$site, t$species)))
+t$sum <- apply(t,1,sum)
+```
+
+Among the `r length(unique(na.omit(d$species)))` identified species, `r length(rownames(t[which(t$sum == 1),]))` are catched only in one site (not necessary the same) and `r length(rownames(t[which(t$sum >= 10),]))` are catched at least in 10 sites.
+
+```{r}
+#Species found in only one site
+scarce <- t[which(t$sum == 1),]
+scarce_species <- data.frame(species = as.character(rownames(scarce)))
+list_scarce <- right_join(d, scarce_species)
+list_scarce <- arrange(unique(select(list_scarce, site, species)), site)
+```
+
+```{r}
+#Species found in several site
+cosmo <- t[which(t$sum > 7),]
+cosmo_species <- data.frame(species = as.character(rownames(cosmo)))
+list_cosmo <- right_join(d, cosmo_species)
+list_cosmo <- unique(select(list_cosmo, species))
+```
+
 
 ## Influence of local site variables
 
+```{r}
+dd_test <- select(d0, site, species, cpue)
+dd_test <- dd_test %>% filter(!is.na(species))
+head_sp <- select(dd_stat, family, species)
+
+dd_test <- left_join(head_sp, dd_test, by="species")
+dd_test$substrate <- NA
+
+#Give a substrate to each site
+
+dd_test$substrate[which(dd_test$site=="Port Vendres")]<-"sand"
+dd_test$substrate[which(dd_test$site=="Leucate")]<-"sand"
+dd_test$substrate[which(dd_test$site=="Agde")]<-"sand"
+dd_test$substrate[which(dd_test$site=="Carry")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Marseille")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Cassis")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="La Ciotat")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Les Embiez")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Port-Cros")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Villefranche")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Bastia")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Saint Florent")]<-"rocky"
+dd_test$substrate[which(dd_test$site=="Bonifacio")]<-"rocky"
+
+
+#Plot
+dd_subs <- dd_test %>% group_by(substrate, species) %>% summarise(mean = mean(cpue))
+
+ggplot(dd_subs, aes(x = species, y = mean))+geom_bar(stat='identity') + facet_grid(~substrate) +theme(axis.text.x=element_text(angle=25, hjust=1))
+
+
+#Test differences between site and substrate
+wilcox.test(cpue~substrate, data=dd_test)
+kruskal.test(cpue~site, data=dd_test)
+
+#Comparison for cpue of each species
+
+
+#Pairwise comparison 
+
+
+```
+
+
 TODO substrate, geomorphology, latitude, depth, etc.
+
 
 ## Synchronicity among sites
 
@@ -179,22 +251,5 @@ cor = coef$acf[,,1]
 lag = coef$lag[,,1]
 res = data.frame(cor,lag)
 res_max = res[which.max(res$cor),]
-
-
-
-#For all possibilities :  doesn't work
-
-# I try to compute the ccf coef between two site, for the same year.
-# I would export results in a confusion matrix
-
-
-#find_max_ccf <- function(a,b){
-#  coeff <- ccf(a$scaled_cpue, b$scaled_cpue, lag.max=20)
-#  cor = p$acf[,,1]
-#  lag = p$lag[,,1]
-#  res = data.frame(cor,lag)
-#  res_max = res[which.max(res$cor),]
-#  return(res_max)
-#}
 
 ```
