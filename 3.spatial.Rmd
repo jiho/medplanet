@@ -96,7 +96,7 @@ Among the `r length(unique(na.omit(d$species)))` identified species, `r length(r
 #Species found in only one site
 scarce <- t[which(t$sum == 1),]
 scarce_species <- data.frame(species = as.character(rownames(scarce)))
-list_scarce <- right_join(d, scarce_species)
+list_scarce <- right_join(d, scarce_species, by="species")
 list_scarce <- arrange(unique(select(list_scarce, site, species)), site)
 ```
 
@@ -104,7 +104,7 @@ list_scarce <- arrange(unique(select(list_scarce, site, species)), site)
 #Species found in several site
 cosmo <- t[which(t$sum > 7),]
 cosmo_species <- data.frame(species = as.character(rownames(cosmo)))
-list_cosmo <- right_join(d, cosmo_species)
+list_cosmo <- right_join(d, cosmo_species,by="species")
 list_cosmo <- unique(select(list_cosmo, species))
 ```
 
@@ -112,38 +112,61 @@ list_cosmo <- unique(select(list_cosmo, species))
 ## Influence of local site variables
 
 ```{r}
+dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
+dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
+dd_stat <- dd_stat %>% head(12)
+common_species <- dd_stat$species
+
 dd_test <- select(d0, site, species, cpue)
 dd_test <- dd_test %>% filter(!is.na(species))
 head_sp <- select(dd_stat, family, species)
 
 dd_test <- left_join(head_sp, dd_test, by="species")
-dd_test$substrate <- NA
+dd_test$region <- NA
+dd_test$topography <- NA
 
-#Give a substrate to each site
+#Give a region to each site
+dd_test$region[which(dd_test$site=="Port Vendres")]<-"west_rhone"
+dd_test$region[which(dd_test$site=="Leucate")]<-"west_rhone"
+dd_test$region[which(dd_test$site=="Agde")]<-"west_rhone"
+dd_test$region[which(dd_test$site=="Carry")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Marseille")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Cassis")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="La Ciotat")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Les Embiez")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Port-Cros")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Villefranche")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Bastia")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Saint Florent")]<-"east_rhone"
+dd_test$region[which(dd_test$site=="Bonifacio")]<-"east_rhone"
 
-dd_test$substrate[which(dd_test$site=="Port Vendres")]<-"sand"
-dd_test$substrate[which(dd_test$site=="Leucate")]<-"sand"
-dd_test$substrate[which(dd_test$site=="Agde")]<-"sand"
-dd_test$substrate[which(dd_test$site=="Carry")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Marseille")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Cassis")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="La Ciotat")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Les Embiez")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Port-Cros")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Villefranche")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Bastia")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Saint Florent")]<-"rocky"
-dd_test$substrate[which(dd_test$site=="Bonifacio")]<-"rocky"
+
+#Give a topography to each site
+# Gulf of lion plateau and deep coatal waters of PACA
+dd_test$topography[which(dd_test$site=="Port Vendres")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Leucate")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Agde")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Carry")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Marseille")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Cassis")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="La Ciotat")]<-"gulf_lion"
+dd_test$topography[which(dd_test$site=="Les Embiez")]<-"PACA"
+dd_test$topography[which(dd_test$site=="Port-Cros")]<-"PACA"
+dd_test$topography[which(dd_test$site=="Villefranche")]<-"PACA"
+dd_test$topography[which(dd_test$site=="Bastia")]<-"PACA"
+dd_test$topography[which(dd_test$site=="Saint Florent")]<-"PACA"
+dd_test$topography[which(dd_test$site=="Bonifacio")]<-"PACA"
 
 
 #Plot
-dd_subs <- dd_test %>% group_by(substrate, species) %>% summarise(mean = mean(cpue))
+dd_region <- dd_test %>% group_by(region, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
+ggplot(dd_region, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~region) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
 
-ggplot(dd_subs, aes(x = species, y = mean))+geom_bar(stat='identity') + facet_grid(~substrate) +theme(axis.text.x=element_text(angle=25, hjust=1))
-
+dd_topography <- dd_test %>% group_by(region, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
+ggplot(dd_region, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~topography) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
 
 #Test differences between site and substrate
-wilcox.test(cpue~substrate, data=dd_test)
+wilcox.test(cpue~substrate, data=dd_test) # but unbalanced factors
 kruskal.test(cpue~site, data=dd_test)
 
 #Comparison for cpue of each species
@@ -240,16 +263,48 @@ ggplot(dd) +
   no_y
 ```
 
-Cross-correlation
-
-TODO to review
-
+##Synchronicity secund part
 ```{r}
-#Example
-coef <- ccf(dd$scaled_cpue[which(dd$site=="Villefranche"|dd$year=="2013")],dd$scaled_cpue[which(dd$site=="Agde"|dd$year=="2013")],lag.max=20)
-cor = coef$acf[,,1]
-lag = coef$lag[,,1]
-res = data.frame(cor,lag)
-res_max = res[which.max(res$cor),]
+# mean CPUE per week, site, and species for common species
+dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+
+# create a new weekly date coordinate
+dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
+# and a new fake one starting all the same year
+dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+
+# rescale abundances per species, site and year, to get a comparable peak per year
+dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
+dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+
+# rename species for display
+dd$species_abbr <- abbrev_sp(dd$species, n=4)
+
+
+
+#Compute mean date and week of recruitment for each species per site and year
+syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = max(cpue)) %>% ungroup()
+syn <- filter(syn, cpue !=0) # we focus on high values to find date of recruitment
+syn <- inner_join(syn, dd, by = c("year", "site", "species","cpue"))
+syn <- syn %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup()
+
+syn_year_site <- syn %>% group_by(site, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup()
+syn_site <- syn %>% group_by(year, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup()
+syn_year <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek)) %>% ungroup()
+
+# Time lag between site, for each year and each species
+lag <- left_join(syn_site,syn, by = c("year","species"))
+lag <- lag %>% group_by(species,year,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = yweek-ref_yweek)%>%ungroup()
+
+# Time lag between site, for each species
+lag <- left_join(syn_year_site,syn_year, by = c("species"))
+lag <- select(lag, species, site, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
+lag <- lag %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = yweek-ref_yweek)%>%ungroup()
+
+# Time lag between year, for each species
+lag <- left_join(syn_site,syn_year, by = c("species"))
+lag <- select(lag, species, year, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
+lag <- lag %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise(lag_week = yweek-ref_yweek)
+
 
 ```

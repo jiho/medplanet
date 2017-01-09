@@ -4,6 +4,7 @@ source("lib_knitr.R")
 
 # load data
 load("data.rda")
+load("listesp.rda")
 
 # load packages and functions
 library("tidyverse")
@@ -16,7 +17,7 @@ source("lib_plot.R")    # colour scales and theme
 
 ## Description
 
-Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species. Among these species, 20 are catched only in one site (not necessary the same) and 8 are catched at least in 10 sites.
+Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species. 
 
 CPUE is presented (still on a log10 scale, beware!) for the most common families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
 
@@ -53,67 +54,10 @@ At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/s
 
 
 ## Comparison with adult assemblages
-```{r warning=FALSE}
-load("donees adultes.rda")
-load("listesp.rda")
-```
 
 Remind : Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
 
-Teleosts species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera and `r length(unique(na.omit(l$species)))` species. 
+Teleosts species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(louisy$family)))` families, `r length(unique(na.omit(louisy$genus)))` genera and `r length(unique(na.omit(louisy$species)))` species. 
 
-Among the species most frequently observed in the adult state during counting ... To see with adults abundance data..
-
-
-### Description : Abundance of adults,  example of embiez
-
-I'm not sure it's possible to compare abundances between larvae and adults. We can compare the most abundant species between adults counting and larvae catches. But it will not be possible for all sites. The data that Anais expects are data counting from :
-Carry, Carqueiranne, Embiez and Menton.
-
-For the Embiez example , the adult data are from 2012 to 2014 (average of nb individuals / 125m²) and larval data from 2014 to 2015.
-
-```{r warning=FALSE}
-
-
-# families
-aa <- a
-aa_stat <- aa %>% group_by(family) %>% summarise(mean=mean(abundance))
-aa_stat <- arrange(aa_stat, desc(mean))
-common_family <- aa_stat$family
-aa$family <- factor(aa$family, levels=aa_stat$family)
-ggplot(na.omit(aa), aes(x=family, y=abundance)) +  geom_boxplot() + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
-
-# genera
-aa <- a
-aa_stat <- aa %>% group_by(genus) %>% summarise(mean=mean(abundance))
-aa_stat <- arrange(aa_stat, desc(mean)) %>% head(12)
-common_genus <- aa_stat$genus
-aa$genus <- factor(aa$genus, levels=aa_stat$genus)
-ggplot(na.omit(aa), aes(x=genus, y=abundance)) +  geom_boxplot() + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
-
-# species
-aa <- a
-aa_stat <- aa %>% group_by(species) %>% summarise(mean=mean(abundance))
-aa_stat <- arrange(aa_stat, desc(mean)) %>% head(12)
-common_species <- aa_stat$species
-aa$species <- factor(aa$species, levels=aa_stat$species)
-ggplot(na.omit(aa), aes(x=species, y=abundance)) +  geom_boxplot() + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
-
-# larvae species catched with CARE on Embiez
-dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
-embiez <- dd[which(dd$site=="Les Embiez"),]
-dd_stat <- embiez %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
-dd_stat <- dd_stat %>% head(12)
-common_species <- dd_stat$species
-embiez$species <- factor(embiez$species, levels=dd_stat$species)
-ggplot(na.omit(embiez), aes(x=species, y=cpue)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
-
-
-
-```
-
-
-
-
-
+Coastal species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera and `r length(unique(na.omit(l$species)))` species. 
 
