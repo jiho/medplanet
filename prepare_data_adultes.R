@@ -7,25 +7,6 @@ library("ggplot2")
 
 
 
-## Read Embiez ----
-
-a <- read_excel("data/adultes/données adultes Embiez.xlsx", sheet=1, skip=1)
-
-# clean names written in files
-a$family <- str_trim(tolower(a$family))
-a$genus <- str_trim(tolower(a$genus))
-a$species <- str_trim(tolower(a$species))
-
-# Join genus and species suffix in species column
-a$species <- str_c(a$genus, " ", a$species)
-
-# check that each genus has the same family
-filter(summarise(group_by(a, genus), n=length(unique(family))), n>1)
-filter(summarise(group_by(a, species), n=length(unique(genus))), n>1)
-
-save(a, file="donees adultes.rda")
-
-
 #Read species list of north west mediterranean
 l <- read_excel("data/Liste especes mediterranee.xlsx", sheet=1)
 
@@ -44,25 +25,31 @@ l$species <- str_c(l$genus, " ", l$species)
 filter(summarise(group_by(l, genus), n=length(unique(family))), n>1)
 filter(summarise(group_by(l, species), n=length(unique(genus))), n>1)
 
-# remove non-fish
-l <- l[-which(l$family == "octopodidae"),]
-l <- l[-which(l$family == "sepiidae"),]
-l <- l[-which(l$family == "sepiolidae"),]
-l <- l[-which(l$family == "argonautidae"),]
-l <- l[-which(l$family == "loliginidae"),]
-
-# remove non-coastal fish
-l <- l[-which(l$life == "Pélagique"& l$coastal == "Non"& l$`coastal juveniles` == "Non"),]
-l <- l[-which(l$life == "Benthique"& l$coastal == "Non"& l$`coastal juveniles` == "Non"),]
-
-#l <- l[-which(l$family == "engraulidae"),]
-#l <- l[-which(l$family == "scombridae"),]
-l <- l[-which(l$family == "clupeidae"),]
-l <- l[-which(l$family == "sphyraenidae"),]
-
 #rename family
 l$family[which(l$family == "lotidae")] <- "gadidae"
 
+# remove non-coastal fish
+louisy <- l
 
-save(l, file="listesp.rda")
+l <- l[-which(l$family == "engraulidae"),] # anchois
+l <- l[-which(l$family == "scombridae"),]  #thons...
+l <- l[-which(l$family == "clupeidae"),]  # sardines
+l <- l[-which(l$family == "sphyraenidae"),]  #barracudas, car JO l'a mis dans son script
+l <- l[-which(l$family == "exocoetidae"),] #poissons volants
+l <- l[-which(l$family == "coryphaenidae"),] # coryphène
+l <- l[-which(l$family == "chlorophthalmidae"),] #
+l <- l[-which(l$family == "xiphiidae"),] # espadons
+l <- l[-which(l$family == "istiophoridae"),] # marlin
+l <- l[-which(l$family == "trichiuridae"),]#sabres
+l <- l[-which(l$family == "molidae"),]#poisson lune
+l <- l[-which(l$family == "regalecidae"),] #regalec
+
+l <- l[-which(l$family == "trachipteridae"),]
+l <- l[-which(l$family == "ammodytidae"),]
+l <- l[-which(l$family == "haemulidae"),]
+l <- l[-which(l$family == "macrouridae"),]
+l <- l[-which(l$family == "aulopidae"),]
+l <- l[-which(l$family == "petromyzonidae"),]
+
+save(l,louisy, file="listesp.rda")
 
