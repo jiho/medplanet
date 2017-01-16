@@ -4,9 +4,9 @@ source("lib_knitr.R")
 
 # load data
 load("data.rda")
-load("listesp.rda")
 
 # load packages and functions
+library("stringr")
 library("tidyverse")
 
 source("lib_plot.R")    # colour scales and theme
@@ -60,10 +60,56 @@ At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/s
 
 As written above, larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
 
+```{r read_adults, results="hide"}
+# read species list of north west mediterranean
+library("readxl")
+l <- read_excel("data/Liste especes mediterranee.xlsx", sheet=1)
+
+# clean names written in the file
+l$family <- str_trim(str_to_lower(l$family))
+l$genus <- str_trim(str_to_lower(l$genus))
+l$species <- str_trim(str_to_lower(l$species))
+
+# remove undetermined species (1 atherinidae sp.)
+l <- filter(l, species != "sp.")
+
+# Join genus and species suffix in species column
+l$species <- str_c(l$genus, " ", l$species)
+
+# check that each genus has the same family
+filter(summarise(group_by(l, genus), n=length(unique(family))), n>1)
+filter(summarise(group_by(l, species), n=length(unique(genus))), n>1)
+
+# remove non-demersal fish
+non_demersal <- c(
+"engraulidae",   # anchois
+"scombridae",    # thons...
+"clupeidae",     # sardines
+"sphyraenidae",  # barracudas
+"exocoetidae",   # poissons volants
+"coryphaenidae", # coryphène
+"chlorophthalmidae",
+"xiphiidae",     # espadons
+"istiophoridae", # marlin
+"trichiuridae",  # sabres
+"molidae",       # poisson lune
+"regalecidae",   # regalec
+"trachipteridae",
+"ammodytidae",   # profond
+"haemulidae",    # ??? TODO check
+"macrouridae",
+"aulopidae",
+"petromyzonidae"
+)
+
+l$demersal <- ! l$family %in% non_demersal
+l_demersal <- filter(l, demersal == TRUE)
+```
+
 According to Louisy:
 
-- Teleost species of North Western Mediterranean are classified in `r length(unique(na.omit(louisy$family)))` families, `r length(unique(na.omit(louisy$genus)))` genera, and `r length(unique(na.omit(louisy$species)))` species. 
+- Teleost species of North Western Mediterranean are classified in `r length(unique(l$family))` families, `r length(unique(l$genus))` genera, and `r length(unique(l$species))` species. 
 
-- Among which, coastal species represent `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera, and `r length(unique(na.omit(l$species)))` species.
+- Among which, dermersal species represent `r length(unique(l_demersal$family))` families, `r length(unique(l_demersal$genus))` genera, and `r length(unique(l_demersal$species))` species.
 
 
