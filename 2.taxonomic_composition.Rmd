@@ -61,3 +61,14 @@ Teleosts species of North Western Mediterranean are classified (according to Lou
 
 Coastal species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera and `r length(unique(na.omit(l$species)))` species. 
 
+
+## Most frequent species
+
+```{r}
+sp_com <- filter(d0, cpue!=0)
+sp_com <- select(sp_com, species, site)
+sp_com <- unique(sp_com)
+sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
+sp_com <- arrange(sp_com, desc(nb_site))
+sp_com <- sp_com %>% head(24)
+```

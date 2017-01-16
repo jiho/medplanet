@@ -180,10 +180,6 @@ dd_test$topography<-as.factor(dd_test$topography)
 test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$topography, data=dd_test)))
 test
 
-
-#PerMANOVA for assemblages
-
-
 ```
 
 
@@ -304,16 +300,19 @@ syn_year <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_y
 # Time lag between site, for each year and each species
 lag <- left_join(syn_site,syn, by = c("year","species"))
 lag <- lag %>% group_by(species,year,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = yweek-ref_yweek)%>%ungroup()
+lag <- lag %>% arrange(species,year, lag_week)
 
 # Time lag between site, for each species
 lag <- left_join(syn_year_site,syn_year, by = c("species"))
 lag <- select(lag, species, site, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
-lag <- lag %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = yweek-ref_yweek)%>%ungroup()
+lag <- lag %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_week = yweek-ref_yweek)%>%ungroup()
+lag <- lag %>% arrange(species,lag_week)
 
 # Time lag between year, for each species
 lag <- left_join(syn_site,syn_year, by = c("species"))
 lag <- select(lag, species, year, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
-lag <- lag %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise(lag_week = yweek-ref_yweek)
+lag <- lag %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise( lag_week = yweek-ref_yweek) %>% ungroup()
+lag <- lag %>% arrange(species, lag_week)
 
 
 ```
