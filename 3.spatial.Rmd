@@ -136,42 +136,17 @@ dd_test <- dd_test %>% filter(!is.na(species))
 head_sp <- select(dd_stat, family, species)
 
 dd_test <- left_join(head_sp, dd_test, by="species")
-dd_test$region <- NA
-dd_test$topography <- NA
 
-#Give a region to each site
-dd_test$region[which(dd_test$site=="Port Vendres")]<-"west_rhone"
-dd_test$region[which(dd_test$site=="Leucate")]<-"west_rhone"
-dd_test$region[which(dd_test$site=="Agde")]<-"west_rhone"
-dd_test$region[which(dd_test$site=="Carry")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Marseille")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Cassis")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="La Ciotat")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Les Embiez")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Port-Cros")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Villefranche")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Bastia")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Saint Florent")]<-"east_rhone"
-dd_test$region[which(dd_test$site=="Bonifacio")]<-"east_rhone"
-# TODO utiliser dd_test$west_rhone <- dd_test$lon < ??
+#Topography, area of sites
+sites$topography <- "gulf_lion"
+sites$topography[which(sites$lon>=5.8)]<-"PACA"
+sites$topography[which(sites$site=="Les Embiez")]<-"PACA"
 
+#Region of sites
+sites$region <- "west_rhone"
+sites$region[which(sites$lon>=4.8)]<-"east_rhone"
 
-#Give a topography to each site
-# Gulf of lion plateau and deep coatal waters of PACA
-dd_test$topography[which(dd_test$site=="Port Vendres")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Leucate")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Agde")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Carry")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Marseille")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Cassis")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="La Ciotat")]<-"gulf_lion"
-dd_test$topography[which(dd_test$site=="Les Embiez")]<-"PACA"
-dd_test$topography[which(dd_test$site=="Port-Cros")]<-"PACA"
-dd_test$topography[which(dd_test$site=="Villefranche")]<-"PACA"
-dd_test$topography[which(dd_test$site=="Bastia")]<-"PACA"
-dd_test$topography[which(dd_test$site=="Saint Florent")]<-"PACA"
-dd_test$topography[which(dd_test$site=="Bonifacio")]<-"PACA"
-# TODO ecrire cela dans un fichier excel, le lire et faire un left_join avec dd_test
+dd_test <- left_join(dd_test, sites, by=c("site"))
 
 
 # Barplot of mean cpue
@@ -187,6 +162,7 @@ ggplot(dd_topography, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, 
 res <- dd_test %>% group_by(species, region) %>% summarise(mean =mean(cpue), sd=sd(cpue))
 dd_test$region<-as.factor(dd_test$region)
 test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$region, data=dd_test)))
+test <- select(test, species, p.value)
 test
 
 #Test differences between topography 
