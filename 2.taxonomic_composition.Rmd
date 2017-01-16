@@ -58,8 +58,12 @@ At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/s
 
 ## Comparison with adult assemblages
 
-Remind : Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
+As written above, larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
 
-Teleosts species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(louisy$family)))` families, `r length(unique(na.omit(louisy$genus)))` genera and `r length(unique(na.omit(louisy$species)))` species. 
+According to Louisy:
 
-Coastal species of North Western Mediterranean are classified (according to Louisy) in `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera and `r length(unique(na.omit(l$species)))` species. 
+- Teleost species of North Western Mediterranean are classified in `r length(unique(na.omit(louisy$family)))` families, `r length(unique(na.omit(louisy$genus)))` genera, and `r length(unique(na.omit(louisy$species)))` species. 
+
+- Among which, coastal species represent `r length(unique(na.omit(l$family)))` families, `r length(unique(na.omit(l$genus)))` genera, and `r length(unique(na.omit(l$species)))` species.
+
+
