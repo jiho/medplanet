@@ -178,7 +178,10 @@ d <- d[-which(d$family == "engraulidae"),]
 d <- d[-which(d$family == "clupeidae"),]
 d <- d[-which(d$family == "scombridae"),]
 d <- d[-which(d$family == "sphyraenidae"),]
+d <- d[-which(d$family == "torpedinidae"),] ## raies
+d <- d[-which(d$family == "myctophidae"),] ## poissons lanternes = pélagiques
 d <- d[-which(d$genus == "trachurus"),]
+
 
 # # check
 # print(arrange(unique(select(d, family, genus, species)), family, genus, species), n=200)
@@ -191,6 +194,7 @@ d <- d[-which(d$genus == "trachurus"),]
 
 # cleanup taxonomic names
 d$family[which(d$family == "ni")] <- "unidentified"
+d$family[which(d$family == "anguilliformes")] <- "unidentified"
 d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
 d$species <- str_c(d$genus, " ", d$species)

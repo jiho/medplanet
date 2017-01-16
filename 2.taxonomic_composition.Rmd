@@ -73,12 +73,8 @@ l$species <- str_trim(str_to_lower(l$species))
 # remove undetermined species (1 atherinidae sp.)
 l <- filter(l, species != "sp.")
 
-# Join genus and species suffix in species column
-l$species <- str_c(l$genus, " ", l$species)
-
 # check that each genus has the same family
 filter(summarise(group_by(l, genus), n=length(unique(family))), n>1)
-filter(summarise(group_by(l, species), n=length(unique(genus))), n>1)
 
 # remove non-demersal fish
 non_demersal <- c(
@@ -95,15 +91,23 @@ non_demersal <- c(
 "molidae",       # poisson lune
 "regalecidae",   # regalec
 "trachipteridae",
-"ammodytidae",   # profond
-"haemulidae",    # ??? TODO check
-"macrouridae",
-"aulopidae",
-"petromyzonidae"
+"ammodytidae",   # profond  # ??? TODO check
+"macrouridae",   # profond
+"aulopidae",     # profond
+"petromyzonidae" # eggs in river 
 )
 
 l$demersal <- ! l$family %in% non_demersal
 l_demersal <- filter(l, demersal == TRUE)
+
+l$family <- str_to_title(l$family)
+l$genus <- str_to_title(l$genus)
+
+l_demersal$family <- str_to_title(l_demersal$family)
+l_demersal$genus <- str_to_title(l_demersal$genus)
+
+# Join genus and species suffix in species column
+l_demersal$species <- str_c(l_demersal$genus, " ", l_demersal$species)
 ```
 
 According to Louisy:
@@ -114,6 +118,15 @@ According to Louisy:
 
 TODO check which families/genera/species are not represented in the larval catches
 
+```{r}
+# Families, genera and species not catched
+
+diff_families <- setdiff(l_demersal$family, d$family)
+sort(diff_families)
+diff_genera <- setdiff(l_demersal$genus, d$genus)
+sort(diff_genera)
+
+```
 
 ## Most frequent species
 
