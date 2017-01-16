@@ -128,15 +128,3 @@ sort(diff_genera)
 
 ```
 
-## Most frequent species
-
-```{r}
-sp_com <- filter(d0, cpue!=0)
-sp_com <- select(sp_com, species, site)
-sp_com <- unique(sp_com)
-sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
-sp_com <- arrange(sp_com, desc(nb_site))
-sp_com <- na.omit(sp_com)
-sp_com <- sp_com %>% head(18) # species observed in more than 7 sites
-freq_species <- as.character(sp_com$species)
-```

@@ -97,21 +97,28 @@ t$sum <- apply(t,1,sum)
 Among the `r length(unique(na.omit(d$species)))` identified species, `r length(rownames(t[which(t$sum == 1),]))` are catched only in one site (not necessary the same) and `r length(rownames(t[which(t$sum >= 10),]))` are catched at least in 10 sites.
 
 ```{r}
-#Species found in only one site
-scarce <- t[which(t$sum == 1),]
-scarce_species <- data.frame(species = as.character(rownames(scarce)))
-list_scarce <- right_join(d, scarce_species, by="species")
-list_scarce <- arrange(unique(select(list_scarce, site, species)), site)
+#Most frequent species (>7sites)
+sp_com <- filter(d0, cpue!=0)
+sp_com <- select(sp_com, species, site)
+sp_com <- unique(sp_com)
+sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
+sp_com <- arrange(sp_com, desc(nb_site))
+sp_com <- na.omit(sp_com)
+sp_com <- sp_com %>% head(18) # species observed in more than 7 sites
+freq_species <- as.character(sp_com$species)
 ```
 
 ```{r}
-#Species found in several site
-cosmo <- t[which(t$sum > 7),]
-cosmo_species <- data.frame(species = as.character(rownames(cosmo)))
-list_cosmo <- right_join(d, cosmo_species,by="species")
-list_cosmo <- unique(select(list_cosmo, species))
+#Most frequent genera (>7sites)
+gen_com <- filter(d0, cpue!=0)
+gen_com <- select(gen_com, genus, site)
+gen_com <- unique(gen_com)
+gen_com <- gen_com %>% group_by(genus)%>% summarise(nb_site=length(site))
+gen_com <- arrange(gen_com, desc(nb_site))
+gen_com <- na.omit(gen_com)
+gen_com <- gen_com %>% head(16) 
+gen_species <- as.character(gen_com$genus)
 ```
-
 TODO do the same with genera
 
 TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
