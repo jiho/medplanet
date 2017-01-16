@@ -112,4 +112,5 @@ According to Louisy:
 
 - Among which, dermersal species represent `r length(unique(l_demersal$family))` families, `r length(unique(l_demersal$genus))` genera, and `r length(unique(l_demersal$species))` species.
 
+TODO check which families/genera/species are not represented in the larval catches
 
