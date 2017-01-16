@@ -84,6 +84,115 @@ TODO redo the same per species for a few species
 
 TODO redo the same for high catches only or catches summarised by level (low, mid, high)
 
+```{r}
+quant <- quantile(dd$cpue, prob = seq(0, 1, length = 100)) 
+# we consider that high catches = > 10 cpue, correspond to only 5% of data
+# quantile(dd$cpue, 0.80) = 2 larvae
+# quantile(dd$cpue, 0.95) = 12 larvae
+# quantile(dd$cpue, 0.99) = 50 larvae
+
+high_catches <- dd[which(dd$cpue> quantile(dd$cpue, 0.95)),] 
+mid_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.95)& dd$cpue> quantile(dd$cpue, 0.80)),]
+low_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.80)),]
+```
+
+For high catches (5% of data, > 12 cpue)
+
+```{r}
+vario_cloud <- ddply(high_catches, ~site, function(x) {
+  delay <- dist(x$days_since_start)
+  # diff <- dist(log1p(x$cpue))
+  diff <- dist(x$cpue)
+  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
+})
+vario_cloud <- filter(vario_cloud, delay < (365*2+10))
+
+# compute average variogram on bins with an ~ equal number of observations
+vario <- vario_cloud
+breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
+vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
+
+diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
+delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
+vario <- full_join(delay, diffs, by="bins")
+
+x_scale <- list(
+  scale_x_continuous(
+    limits=c(0, 715),
+    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
+    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
+    minor=NULL
+  ),
+  theme(axis.text.x=element_text(angle=35, hjust=1))
+)
+
+last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
+ggplot(mapping=aes(x=delay, y=diff)) +
+  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
+  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
+  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
+  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
+  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
+  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
+
+last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
+ggplot(data=vario, mapping=aes(x=delay)) +
+  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
+  geom_path(aes(y=median)) +
+  geom_path(aes(y=mean), linetype="dashed") +
+  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
+  x_scale + scale_y_continuous(limits=c(0,NA)) +
+  labs(x="delay (days)", y="difference in CPUE")
+```
+
+For low catches (80% of data, < 2 cpue)
+
+```{r}
+vario_cloud <- ddply(low_catches, ~site, function(x) {
+  delay <- dist(x$days_since_start)
+  # diff <- dist(log1p(x$cpue))
+  diff <- dist(x$cpue)
+  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
+})
+vario_cloud <- filter(vario_cloud, delay < (365*2+10))
+
+# compute average variogram on bins with an ~ equal number of observations
+vario <- vario_cloud
+breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
+vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
+
+diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
+delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
+vario <- full_join(delay, diffs, by="bins")
+
+x_scale <- list(
+  scale_x_continuous(
+    limits=c(0, 715),
+    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
+    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
+    minor=NULL
+  ),
+  theme(axis.text.x=element_text(angle=35, hjust=1))
+)
+
+last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
+ggplot(mapping=aes(x=delay, y=diff)) +
+  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
+  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
+  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
+  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
+  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
+  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
+
+last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
+ggplot(data=vario, mapping=aes(x=delay)) +
+  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
+  geom_path(aes(y=median)) +
+  geom_path(aes(y=mean), linetype="dashed") +
+  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
+  x_scale + scale_y_continuous(limits=c(0,NA)) +
+  labs(x="delay (days)", y="difference in CPUE")
+```
 
 ## Lunar phase variations
 
@@ -259,7 +368,18 @@ dd <- filter(dd, cpue < 110)
 # create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
+#Select low or high catches
+high_catches <- dd[which(dd$cpue> quantile(dd$cpue, 0.95)),] 
+mid_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.95)& dd$cpue> quantile(dd$cpue, 0.80)),]
+low_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.80)),]
+
 ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+```
+
+In red, high catches, in gren all data, and in blue low catches
+
+```{r}
+ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(data = high_catches, size=0.5, color="#F55D5B", fill="#F55D5B", method="loess")+ geom_smooth(data = low_catches, size=0.5, color="#3399CC", fill="#3399CC", method="loess") + geom_smooth(size=0.5, color="#00CC66", fill="#00CC66", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b") + ylim(0, 110)
 ```
 
 TODO redo that per quantile level (probably has to be done manually with a loess smoother per quantile level).
