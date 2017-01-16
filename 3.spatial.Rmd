@@ -146,6 +146,7 @@ dd_test$region[which(dd_test$site=="Villefranche")]<-"east_rhone"
 dd_test$region[which(dd_test$site=="Bastia")]<-"east_rhone"
 dd_test$region[which(dd_test$site=="Saint Florent")]<-"east_rhone"
 dd_test$region[which(dd_test$site=="Bonifacio")]<-"east_rhone"
+# TODO utiliser dd_test$west_rhone <- dd_test$lon < ??
 
 
 #Give a topography to each site
@@ -163,6 +164,7 @@ dd_test$topography[which(dd_test$site=="Villefranche")]<-"PACA"
 dd_test$topography[which(dd_test$site=="Bastia")]<-"PACA"
 dd_test$topography[which(dd_test$site=="Saint Florent")]<-"PACA"
 dd_test$topography[which(dd_test$site=="Bonifacio")]<-"PACA"
+# TODO ecrire cela dans un fichier excel, le lire et faire un left_join avec dd_test
 
 
 # Barplot of mean cpue
