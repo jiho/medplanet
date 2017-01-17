@@ -11,6 +11,7 @@ library("dplyr")
 library("stringr")
 library("tidyverse")
 library("readxl")
+library("printr")
 
 source("lib_plot.R")    # colour scales and theme
 ```
