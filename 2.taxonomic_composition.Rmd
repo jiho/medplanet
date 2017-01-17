@@ -24,7 +24,7 @@ Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r len
 
 CPUE is presented (still on a log10 scale, beware!) for the most common families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
 
-```{r warning = F}
+```{r warning}
 # NB: do not display warnings. All warnings are about log transformation giving -Inf when using 0, which we know
 
 # families

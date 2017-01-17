@@ -433,8 +433,7 @@ dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(c
 
 test <- kruskal.test(cpue ~ year, data=dd)
 test
-library(PMCMR)
-posthoc.kruskal.dunn.test(cpue~year, dd, p.adjust.method="bonferroni")
+pairwise.wilcox.test(dd$cpue,dd$year, p.adjust.method="bonferroni")
 
 dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
 
