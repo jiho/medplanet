@@ -120,19 +120,12 @@ According to Louisy:
 
 - Among which, dermersal species represent `r length(unique(l_demersal$family))` families, `r length(unique(l_demersal$genus))` genera, and `r length(unique(l_demersal$species))` species.
 
-TODO check which families/genera/species are not represented in the larval catches
-
-Families not catched
+Comparing the list in Louisy and the list from CARE catches, the following families of demersal fish were never caught: 
+`r sort(setdiff(l_demersal$family, d$family))`; and the following genera were never caught either:
 ```{r}
-# Families, genera and species not catched
-diff_families <- setdiff(l_demersal$family, d$family)
-sort(diff_families)
+as.data.frame(filter(l_demersal, ! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus))
 ```
 
-Genera not catched
-```{r}
-diff_genera <- setdiff(l_demersal$genus, d$genus)
-sort(diff_genera)
-```
+TODO percent coverage for families, genera, species.
 
 
