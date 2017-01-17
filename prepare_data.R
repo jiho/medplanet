@@ -260,6 +260,17 @@ d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
 d <- filter(d, cpue != 0)
 
 
+###--- Add information to sites
+
+#Topography, area of sites
+sites$topography <- "gulf_lion"
+sites$topography[which(sites$lon>=5.8)]<-"PACA"   ## east of Cap sicié
+sites$topography[which(sites$site=="Les Embiez")]<-"PACA"
+
+#Region of sites
+sites$region <- "west_rhone"
+sites$region[which(sites$lon>=4.8)]<-"east_rhone"
+
 ## ----
 
 save(d, d0, effort, sites, map, taxo, file="data.rda")

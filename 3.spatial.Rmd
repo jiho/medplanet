@@ -7,11 +7,15 @@ load("data.rda")
 
 # load packages and functions
 library("plyr")
+library("dplyr")
 library("tidyverse")
 library("FactoMineR")
 library("printr")
 library("stringr")
 library("lubridate")
+library("vegan")
+library("reshape")
+library("ggdendro")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -84,8 +88,10 @@ For the other sites, no species is particularly characteristic.
 dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
+```
 
-## CAH clustering
+```{r fig.height=5}
+## CAH clustering for sites based on species abundance
 dd <- vegdist(as.multivar(dd, "site"), "bray")
 hdw<-hclust(dd,method="ward.D")
 dend <- dendro_data(hdw, type = "rectangle")
@@ -94,20 +100,23 @@ ggplot()+
   geom_text(data=label(dend), aes(x=x, y=y, label=label, hjust=1, angle=25), size=3)+
   theme(axis.line.x=element_blank(),axis.ticks.x=element_blank(),axis.text.x=element_blank())+
 ylab("Ultrametric distance")
-
-# ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
-
 ```
 
 ```{r}
-# Compute a Contingency table to find rare and common species
-t <- unique(select(d, site, species))
-t <- as.data.frame.matrix(t(table(t$site, t$species)))
-t$sum <- apply(t,1,sum)
+# ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
+
+## PERMANOVA
+dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+data <- cast(dd, site~species)
+data.env <- left_join(data, sites, by=c("site"))
+data.env <- select(data.env, site, topography, region)
+data <- as.multivar(dd, "site")
+
+adonis(data~region, data.env, permutations = 999, method="bray")
+adonis(data~topography, data.env, permutations = 999, method="bray")
 ```
 
-Among the `r length(unique(na.omit(d$species)))` identified species, `r length(rownames(t[which(t$sum == 1),]))` are catched only in one site (not necessary the same) and `r length(rownames(t[which(t$sum >= 10),]))` are catched at least in 10 sites.
-
+## Most frequent species and genera
 ```{r}
 #Most frequent species (>7sites)
 sp_com <- filter(d0, cpue!=0)
@@ -116,8 +125,9 @@ sp_com <- unique(sp_com)
 sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
 sp_com <- arrange(sp_com, desc(nb_site))
 sp_com <- na.omit(sp_com)
-sp_com <- sp_com %>% head(18) # species observed in more than 7 sites
+sp_com <- sp_com %>% head(18) # species observed in >= 7 sites
 freq_species <- as.character(sp_com$species)
+sort(freq_species)
 ```
 
 ```{r}
@@ -128,8 +138,9 @@ gen_com <- unique(gen_com)
 gen_com <- gen_com %>% group_by(genus)%>% summarise(nb_site=length(site))
 gen_com <- arrange(gen_com, desc(nb_site))
 gen_com <- na.omit(gen_com)
-gen_com <- gen_com %>% head(16) 
-gen_species <- as.character(gen_com$genus)
+gen_com <- gen_com %>% head(18) 
+freq_gen <- as.character(gen_com$genus)
+sort(freq_gen)
 ```
 TODO do the same with genera
 
@@ -149,15 +160,7 @@ head_sp <- select(dd_stat, family, species)
 
 dd_test <- left_join(head_sp, dd_test, by="species")
 
-#Topography, area of sites
-sites$topography <- "gulf_lion"
-sites$topography[which(sites$lon>=5.8)]<-"PACA"
-sites$topography[which(sites$site=="Les Embiez")]<-"PACA"
-
-#Region of sites
-sites$region <- "west_rhone"
-sites$region[which(sites$lon>=4.8)]<-"east_rhone"
-
+#informations of sites
 dd_test <- left_join(dd_test, sites, by=c("site"))
 
 
@@ -174,7 +177,7 @@ ggplot(dd_topography, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, 
 res <- dd_test %>% group_by(species, region) %>% summarise(mean =mean(cpue), sd=sd(cpue))
 dd_test$region<-as.factor(dd_test$region)
 test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$region, data=dd_test)))
-test <- select(test, species, p.value)
+test <- as.data.frame(select(test, species, p.value))
 test
 
 #Test differences between topography 
@@ -182,7 +185,9 @@ test
 res <- dd_test %>% group_by(species, topography) %>% summarise(mean =mean(cpue), sd=sd(cpue))
 dd_test$topography<-as.factor(dd_test$topography)
 test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$topography, data=dd_test)))
+test <- as.data.frame(select(test, species, p.value))
 test
+
 
 ```
 
@@ -308,25 +313,29 @@ syn_year <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_y
 lag <- left_join(syn_site,syn, by = c("year","species"))
 lag <- lag %>% group_by(species,year,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = round(yweek-ref_yweek))%>%ungroup()
 lag <- lag %>% arrange(species,year, lag_week)
-lag
+
 
 # Plot and mean lag
 lag <- lag[-which(lag$species=="Boops boops"),]
 lag <- lag[-which(lag$species=="Oblada melanura"),]
 res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week))
+```
 
+Anomaly for sites 
+```{r fig.height=7}
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
+```
 
-
+```{r}
 
 # Time lag between site, all years include
 lag <- left_join(syn_year_site,syn_year, by = c("species"))
 lag <- select(lag, species, site, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
 lag <- lag %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_week = round(yweek-ref_yweek,0))%>%ungroup()
 lag <- lag %>% arrange(species,lag_week)
-lag
+
 
 
 # Time lag between year, for each species
@@ -334,7 +343,7 @@ lag <- left_join(syn_site,syn_year, by = c("species"))
 lag <- select(lag, species, year, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
 lag <- lag %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise(lag_week = round(yweek-ref_yweek,0)) %>% ungroup()
 lag <- lag %>% arrange(species, lag_week)
-lag
+
 
 
 # Plot and mean lag
@@ -342,6 +351,10 @@ lag <- lag[-which(lag$species=="Boops boops"),]
 lag <- lag[-which(lag$species=="Oblada melanura"),]
 res <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week))
 
+```
+
+Anomaly for year 
+```{r fig.height=4}
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
