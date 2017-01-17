@@ -94,12 +94,13 @@ autoplot(ca, size=1)
 ## CAH clustering for sites based on species abundance
 dd <- vegdist(as.multivar(dd, "site"), "bray")
 hdw<-hclust(dd,method="ward.D")
-dend <- dendro_data(hdw, type = "rectangle")
-ggplot()+ 
-  geom_segment(data=segment(dend),aes(x = x, y = y, xend = xend, yend = yend)) + 
-  geom_text(data=label(dend), aes(x=x, y=y, label=label, hjust=1, angle=25), size=3)+
-  theme(axis.line.x=element_blank(),axis.ticks.x=element_blank(),axis.text.x=element_blank())+
-ylab("Ultrametric distance")
+plot(hdw, hang=-1)
+# dend <- dendro_data(hdw, type = "rectangle")
+# ggplot()+ 
+#   geom_segment(data=segment(dend),aes(x = x, y = y, xend = xend, yend = yend)) + 
+#   geom_text(data=label(dend), aes(x=x, y=y, label=label, hjust=1, angle=25), size=3)+
+#   theme(axis.line.x=element_blank(),axis.ticks.x=element_blank(),axis.text.x=element_blank())+
+#   ylab("Ultrametric distance")
 ```
 
 ```{r}
