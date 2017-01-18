@@ -200,6 +200,15 @@ ggplot(data=vario, mapping=aes(x=delay)) +
   x_scale + scale_y_continuous(limits=c(0,NA)) +
   labs(x="delay (days)", y="difference in CPUE")
 ```
+These plots can be interpreted as follows:
+
+- from one day to the next (left extreme of the plot), the median difference in CPUE is about 0.5 to 1 fish/CARE/night/site, when the median CPUE is `r median(dd$cpue)`. In other words, the variability is considerably greater than the observation, meaning that, in the vast majority of cases, how much you catch today does not allow to predict how much you will catch tomorrow.
+- variance is even higher from one lunar cycle to the next (one month delay).
+- a clear ~ 6 months long oscillation is visible, which probably matches the seasonal component highlighted above:
+    - high catches in spring-summer and somewhat higher catches in November (6 months between May and Nov),
+    - and, more importantly, steady, low catches in Sept-Oct and from Jan to April (6 months between Sept and March).
+
+Overall, catches are as variable in the short term (day to day) as in the long term (month to month or year to year). This, combined with the importance of the large peaks of settlement for the total catch, has important consequences for *sampling strategies*. Indeed, sampling too sparsely in time will likely lead to miss large peaks and change the interpretation of the data completely. Actually, from this analysis, the only safe sampling strategy would seem to be to sample *every single day*.
 
 ## Lunar phase variations
 
