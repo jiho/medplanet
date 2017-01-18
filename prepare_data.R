@@ -1,3 +1,7 @@
+#
+# Read data form all data sources, add metadata and compile everything
+#
+
 library("readxl")
 library("stringr")
 library("plyr")
@@ -5,14 +9,7 @@ library("dplyr")
 library("lubridate")
 library("ggplot2")
 
-# library("readr")
-# library("plyr")
-# library("dplyr")
-# library("lubridate")
-# library("reshape2")
-# library("tidyr")
-# library("ggplot2")
-
+# transform lat and lon from ºN notation to decimatl degrees
 parse_latlon <- function(x) {
   library("stringr")
   # get different pieces
@@ -31,7 +28,6 @@ parse_latlon <- function(x) {
 d <- read_excel("data/ecocean/Compil Données pêches - Ecocean.xlsx", sheet=1, skip=1)
 d1 <- read_excel("data/ecocean/Donnees peches Girel 2013.xlsx", sheet=1, skip=1)
 d <- rbind(d, d1)
-
 
 # cleanup data
 d$lat <- parse_latlon(d$lat)
@@ -241,7 +237,7 @@ d$days_since_start <- as.numeric(difftime(d$date, start, units="days"))
 d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")))
 
 
-## Add zero catches all non-observed taxa ----
+## Add zero catches for all non-observed taxa ----
 
 taxo <- unique(select(d, family, genus, species))
 taxo <- arrange(taxo, family, genus, species)
@@ -260,17 +256,18 @@ d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
 d <- filter(d, cpue != 0)
 
 
-###--- Add information to sites
+## Add information to sites ----
 
 #Topography, area of sites
 sites$topography <- "gulf_lion"
-sites$topography[which(sites$lon>=5.8)]<-"PACA"   ## east of Cap sicié
-sites$topography[which(sites$site=="Les Embiez")]<-"PACA"
+sites$topography[which(sites$lon>=5.8)] <- "PACA"   ## east of Cap sicié
+sites$topography[which(sites$site=="Les Embiez")] <- "PACA"
 
 #Region of sites
 sites$region <- "west_rhone"
 sites$region[which(sites$lon>=4.8)]<-"east_rhone"
 
-## ----
+
+## Save data ----
 
 save(d, d0, effort, sites, map, taxo, file="data.rda")
