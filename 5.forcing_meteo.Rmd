@@ -1,3 +1,10 @@
+---
+output: 
+  html_document:
+    theme: null
+    css: document.css
+---
+
 ```{r load, message=FALSE, echo=FALSE}
 # set knitr options
 source("lib_knitr.R")
