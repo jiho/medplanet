@@ -13,6 +13,7 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
+library("reshape")
 library("plyr")
 library("dplyr")
 library("tidyverse")
@@ -21,7 +22,6 @@ library("printr")
 library("stringr")
 library("lubridate")
 library("vegan")
-library("reshape")
 library("ggdendro")
 
 source("lib_plot.R")        # colour scales and theme

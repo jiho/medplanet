@@ -2,6 +2,13 @@
 # Clean and recompile everything
 #
 
+# force order of package loading, just to be sure
+library("reshape")
+library("reshape2")
+library("plyr")
+library("dplyr")
+
+
 ## Cleanup cache and html ----
 
 cached_dirs <- list.files(".", pattern = "(_cache)|(_files)")
