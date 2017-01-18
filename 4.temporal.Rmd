@@ -416,6 +416,8 @@ ggplot(dd) +
   labs(y="cpue (scaled per species and year)") + no_y
 ```
 
+
+
 TODO describe with Robin's time consistency index or use the same approach as for synchrony between sites (anomaly to the average)
 
 ## Abundance among years
@@ -428,16 +430,22 @@ effort %>% mutate(year=lubridate::year(date)) %>% filter(year != 2016) %>% group
 
 In total CPUE, pooling all taxa together, the catch seems similar over the years, with possibly a shift towards higher catches in 2014 and 2015. 
 
+```{r}
+dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+
+ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
+```
+
+Pairwise wilcoxon test pvalues
 ```{r warning=FALSE}
 dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
 test <- kruskal.test(cpue ~ year, data=dd)
 test
-pairwise.wilcox.test(dd$cpue,dd$year, p.adjust.method="bonferroni")
+p_test<-pairwise.wilcox.test(dd$cpue,dd$year, p.adjust.method="bonferroni")
+as.data.frame(p_test$p.value)
 
 dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
-
-ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
 ```
 
 TODO significance tests kruskal + pairwise.wilcox
