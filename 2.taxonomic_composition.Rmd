@@ -126,6 +126,12 @@ Comparing the list in Louisy and the list from CARE catches, the following famil
 as.data.frame(filter(l_demersal, ! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus))
 ```
 
+To resume :
+
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in louisy were catched in care. 
+
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as demersal fish were catched in care.
+
 TODO percent coverage for families, genera, species.
 
 
