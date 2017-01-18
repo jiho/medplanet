@@ -218,14 +218,24 @@ map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
 )
 map
 
-# plot sites to check
+
+# manually define regions based on topography or ocean features
+sites$topography <- "Gulf of Lion"
+sites$topography[which(sites$lon >= 5.7)] <- "Ligurian sea"   ## east of Cap sicié
+
+sites$region <- "West of Rhone"
+sites$region[which(sites$lon >= 4.8)] <- "East of Rhone"
+
+# set position to avoid overplotting
 sites$hjust <- ifelse(sites$lon<4, -0.1, 1.1)
 sites$hjust[sites$site %in% c("Marseille", "La Ciotat")] <- -0.1
-
 sites$vjust <- 0.5
 sites$vjust[sites$site %in% c("Les Embiez", "Port-Cros")] <- 1
 sites$vjust[sites$site %in% c("Bastia", "Carry")] <- 0
-map + geom_point(data=sites) + geom_text(aes(label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
+
+# plot sites to check
+map + geom_point(aes(colour=topography), data=sites) + geom_text(aes(colour=topography, label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
+map + geom_point(aes(colour=region), data=sites) + geom_text(aes(colour=region, label=site, hjust=hjust, vjust=vjust), data=sites, size=3)
 
 # extract date components
 d$year <- factor(year(d$date))
@@ -254,18 +264,6 @@ d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
 
 # remove 0 catches from d
 d <- filter(d, cpue != 0)
-
-
-## Add information to sites ----
-
-#Topography, area of sites
-sites$topography <- "gulf_lion"
-sites$topography[which(sites$lon>=5.8)] <- "PACA"   ## east of Cap sicié
-sites$topography[which(sites$site=="Les Embiez")] <- "PACA"
-
-#Region of sites
-sites$region <- "west_rhone"
-sites$region[which(sites$lon>=4.8)]<-"east_rhone"
 
 
 ## Save data ----
