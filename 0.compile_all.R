@@ -24,7 +24,7 @@ file.remove("data.rda")
 
 source("prepare_data.R")
 
-rmd_files <- list.files(".", pattern = "[1-9].*?\\.Rmd")
+rmd_files <- list.files(".", pattern = glob2rx("*.Rmd"))
 for(file in rmd_files) {
   rmarkdown::render(file, envir=new.env())
 }
