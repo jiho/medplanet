@@ -1,7 +1,7 @@
 ```{r options, echo=FALSE}
 suppressPackageStartupMessages(library("knitr"))
 opts_chunk$set(comment="#", tidy=FALSE, echo=F, fig.width=5.4, fig.height=3, dpi=100, cache=T, fig.retina=2)
-options(markdown.HTML.stylesheet="~/Code/niceCSS/document.css")
+#options(markdown.HTML.stylesheet="~/Code/niceCSS/document.css")
 ```
 
 ```{r data}
@@ -26,7 +26,7 @@ suppressPackageStartupMessages(library("dplyr"))
 
 # prepare graphics
 theme_set(
-  theme_grey(10, "Source Sans Pro") +
+  theme_grey(10) +
   theme(
     plot.margin=unit(c(0,0,0,0), "mm"),
     axis.text = element_text(size = rel(0.9))
