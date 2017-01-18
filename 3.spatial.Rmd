@@ -316,10 +316,13 @@ lag <- lag %>% group_by(species,year,site, ref_date, ref_yweek, date, yweek) %>%
 lag <- lag %>% arrange(species,year, lag_week)
 
 
-# Plot and mean lag
+# Plot and mean lag for sites then for years
 lag <- lag[-which(lag$species=="Boops boops"),]
 lag <- lag[-which(lag$species=="Oblada melanura"),]
 res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week))
+
+# Plot and mean lag
+res_year <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week))
 ```
 
 Anomaly for sites 
@@ -329,6 +332,15 @@ ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
+```
+
+Anomaly for years 
+
+```{r fig.height=7}
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
 ```
 
 ```{r}
@@ -346,19 +358,5 @@ lag <- select(lag, species, year, date = ref_date.x, yweek = ref_yweek.x, ref_da
 lag <- lag %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise(lag_week = round(yweek-ref_yweek,0)) %>% ungroup()
 lag <- lag %>% arrange(species, lag_week)
 
-
-
-# Plot and mean lag
-lag <- lag[-which(lag$species=="Boops boops"),]
-lag <- lag[-which(lag$species=="Oblada melanura"),]
-res <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week))
 ```
 
-Anomaly for year
-
-```{r fig.height=4}
-ggplot(lag) +
-  geom_histogram(aes(x=lag_week),binwidth=1) +
-  geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
-```
