@@ -9,6 +9,7 @@ knitr::opts_chunk$set(
   fig.width=5.4, fig.height=3, dpi=100, fig.retina=2,
   # use cache to speed things up
   cache=TRUE
+  # cache=FALSE
 )
 
 # avoid scientific notation and too many digits
