@@ -293,7 +293,7 @@ TODO plot, for each site and each species, the anomaly with respect to the mean 
 
 ```{r}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue))
+dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
 
 # rescale abundances per species, site and year, to get a comparable peak per year
 dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
@@ -302,22 +302,62 @@ dd <- dd %>% arrange(species, year, site)
 dd <- filter(dd, cpue!=0)
 
 
-#Compute mean date and week of arrival for each species per site and year
-syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup() # mean because some species have twice the same max abundance
+## Beginning of the season for winter species
+winter <- rbind(dd[which(dd$species=="Sarpa salpa"),],dd[which(dd$species=="Pagellus bogaraveo"),])
 
-## Week of arrival for sites, by species
-syn_site <- syn %>% group_by(site, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup() 
+winter$fake_date <- "2012-10-01"
 
-## Week of arrival for years, by species
-syn_year <- syn %>% group_by(year, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup() # ref all sites includes
+winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
+winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
 
-## Week of arrival by species
-syn_species <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek), earliest = min(yweek), lastest = max(yweek)) %>% ungroup() # ref all sites and year includes
+winter$season <- "2012-2013"
+winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
+winter$season[which(winter$shift_day>731 & winter$shift_day<1096)] <- "2014-2015"
+winter$season[which(winter$shift_day>1096)] <- "2015-2016"
+
+winter$shift_day <- winter$shift_day%%365
+winter$shift_week <- winter$shift_week%%52
+
+##Check the mean arrival by season
+mean <- winter %>% group_by(season, species) %>% summarise(day=mean(shift_day), week=mean(shift_week))%>%ungroup()
 
 
-### Compute time lag between sites for each year, by species
-lag <- left_join(syn_year,syn, by = c("year","species"))
-lag <- lag %>% group_by(species,year,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_day = date-ref_date, lag_week = round(yweek-ref_yweek))%>%ungroup()
+## So if we remove the season 2015-2016 (because of not data in begging 2016) we could be
+## compare years MAYBE ???. We can consider 2012-2013 = 2012, 2013-2014 = 2013, 2014-2015 = 2014
+winter$fake_year <- NA
+winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
+winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
+winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
+winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
+
+syn_winter <- winter %>% group_by(fake_year, species) %>% summarise(ref_day=mean(shift_day), ref_week=mean(shift_week)) %>% ungroup()
+
+
+## We have several day of arrival for each site (1256 observation in total, 1244 without end 2015) 
+## and we want to compute the lag time between
+## each sample with the ref time of the year, in order to plot anomalies 
+
+## Create 2 data.frame with fake date for winter species, one for ref_time and other 
+## for sample
+syn_winter <- select(syn_winter,  year=fake_year, species, ref_day, ref_week)
+winter <- select(winter, year=fake_year, species, site, yday=shift_day, yweek=shift_week)
+
+##Summer species
+summer <- dd[-which(dd$species=="Sarpa salpa"),] 
+summer <- summer[-which(summer$species=="Pagellus bogaraveo"),] 
+summer <- select(summer, year, species, site, yday, yweek)
+syn_summer <- summer %>% group_by(year, species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek))%>%ungroup() 
+
+
+## All sites included, mean arrival of larvae by species(winter species + summer species) 
+## by year was : 
+syn_year <- rbind(syn_summer, syn_winter)
+samples <- rbind(as.data.frame(summer), as.data.frame(winter))
+
+
+### Compute time lag between site (by samples) for each year and each species
+lag <- left_join(syn_year,samples, by = c("year","species"))
+lag <- lag %>% group_by(species,year,site, ref_day, ref_week, yday, yweek) %>% summarise(lag_day = yday-ref_day, lag_week = round(yweek-ref_week))%>%ungroup()
 lag <- lag %>% arrange(species,year, lag_week)
 
 # Plot and mean lag for sites 
@@ -349,20 +389,6 @@ ggplot(lag) +
   facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
 ```
 
-```{r}
-# Time lag between year, by species species
-lag_year <- left_join(syn_year,syn_species, by = c("species"))
-lag_year <- select(lag_year, species, year, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
-lag_year <- lag_year %>% group_by(species, year, ref_date, ref_yweek,date, yweek) %>% summarise(lag_year_week = round(yweek-ref_yweek,0)) %>% ungroup()
-lag_year <- lag_year %>% arrange(species, lag_year_week)
-
-# Time lag between site, all years include
-lag_site <- left_join(syn_site,syn_species, by = c("species"))
-lag_site <- select(lag_site, species, site, date = ref_date.x, yweek = ref_yweek.x, ref_date = ref_date.y, ref_yweek = ref_yweek.y)
-lag_site <- lag_site %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_site_week = round(yweek-ref_yweek,0))%>%ungroup()
-lag_site <- lag_site %>% arrange(species,lag_site_week)
-```
-
 
 ## Understand anomaly between sites 
 
@@ -371,45 +397,17 @@ dd_test <- select(d0, site, species, cpue)
 dd_test <- dd_test %>% filter(!is.na(species))
 head_sp <- select(dd_stat, family, species)
 dd_test <- left_join(head_sp, dd_test, by="species")
+dd_test$species <- abbrev_sp(dd_test$species, n=4)
+```
 
-# Barplot of mean cpue
-dd_site <- dd_test %>% group_by(site, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
-dd_site$species <- abbrev_sp(dd_site$species, n=4)
-
-ggplot(dd_site, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_wrap(~site, ncol=3) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,30) 
+```{r fig.height=8, fig.width=6}
+ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1))
 ```
 
 ```{r}
+## Old syn
+syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup() 
+syn_species <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek), earliest = min(yweek), lastest = max(yweek)) %>% ungroup()
+
 as.data.frame(syn_species)
 ```
-
-Leucate : `r sort(unique(syn_site$species[which(syn_site$site=="Leucate")]))`
-
-Port-Vendres : `r sort(unique(syn_site$species[which(syn_site$site=="Port Vendres")]))`
-
-Agde : `r sort(unique(syn_site$species[which(syn_site$site=="Agde")]))`
-
-Carry : `r sort(unique(syn_site$species[which(syn_site$site=="Carry")]))`
-
-Marseille : `r sort(unique(syn_site$species[which(syn_site$site=="Marseille")]))`
-
-Cassis : `r sort(unique(syn_site$species[which(syn_site$site=="Cassis")]))`
-
-La Ciotat : `r sort(unique(syn_site$species[which(syn_site$site=="La Ciotat")]))`
-
-Les Embiez : `r sort(unique(syn_site$species[which(syn_site$site=="Les Embiez")]))`
-
-Port-Cros : `r sort(unique(syn_site$species[which(syn_site$site=="Port-Cros")]))`
-
-Villefranche : `r sort(unique(syn_site$species[which(syn_site$site=="Villefranche")]))`
-
-Saint Florent : `r sort(unique(syn_site$species[which(syn_site$site=="Saint Florent")]))`
-
-Bastia : `r sort(unique(syn_site$species[which(syn_site$site=="Bastia")]))`
-
-Bonifacio : `r sort(unique(syn_site$species[which(syn_site$site=="Bonifacio")]))`
-
-
-
-
-
