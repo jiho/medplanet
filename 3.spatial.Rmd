@@ -293,25 +293,17 @@ TODO plot, for each site and each species, the anomaly with respect to the mean 
 
 ```{r}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
-
-# create a new weekly date coordinate
-dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
-# and a new fake one starting all the same year
-dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue))
 
 # rescale abundances per species, site and year, to get a comparable peak per year
 dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
 dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+dd <- dd %>% arrange(species, year, site)
+dd <- filter(dd, cpue!=0)
 
-# rename species for display
-dd$species_abbr <- abbrev_sp(dd$species, n=4)
 
 #Compute mean date and week of arrival for each species per site and year
-syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = max(cpue)) %>% ungroup()
-syn <- filter(syn, cpue !=0)
-syn <- inner_join(syn, dd, by = c("year", "site", "species","cpue"))
-syn <- syn %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup() # mean because some species have twice the same max abundance
+syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup() # mean because some species have twice the same max abundance
 
 ## Week of arrival for sites, by species
 syn_site <- syn %>% group_by(site, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup() 
@@ -320,7 +312,7 @@ syn_site <- syn %>% group_by(site, species) %>% summarise(ref_date = mean(date),
 syn_year <- syn %>% group_by(year, species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek))%>%ungroup() # ref all sites includes
 
 ## Week of arrival by species
-syn_species <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek)) %>% ungroup() # ref all sites and year includes
+syn_species <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek), earliest = min(yweek), lastest = max(yweek)) %>% ungroup() # ref all sites and year includes
 
 
 ### Compute time lag between sites for each year, by species
@@ -331,7 +323,7 @@ lag <- lag %>% arrange(species,year, lag_week)
 # Plot and mean lag for sites 
 lag <- lag[-which(lag$species=="Boops boops"),]
 lag <- lag[-which(lag$species=="Oblada melanura"),]
-res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week))
+res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week), median=median(lag_week))
 ```
 
 Anomaly for sites 
@@ -347,7 +339,7 @@ Anomaly of larvae arrival (in week) between years
 
 ```{r}
 # Plot and mean lag
-res_year <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week))
+res_year <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week), median = median(lag_week))
 ```
 
 ```{r fig.height=4}
@@ -370,4 +362,54 @@ lag_site <- select(lag_site, species, site, date = ref_date.x, yweek = ref_yweek
 lag_site <- lag_site %>% group_by(species,site, ref_date, ref_yweek, date, yweek) %>% summarise(lag_site_week = round(yweek-ref_yweek,0))%>%ungroup()
 lag_site <- lag_site %>% arrange(species,lag_site_week)
 ```
+
+
+## Understand anomaly between sites 
+
+```{r}
+dd_test <- select(d0, site, species, cpue)
+dd_test <- dd_test %>% filter(!is.na(species))
+head_sp <- select(dd_stat, family, species)
+dd_test <- left_join(head_sp, dd_test, by="species")
+
+# Barplot of mean cpue
+dd_site <- dd_test %>% group_by(site, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
+dd_site$species <- abbrev_sp(dd_site$species, n=4)
+
+ggplot(dd_site, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_wrap(~site, ncol=3) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,30) 
+```
+
+```{r}
+as.data.frame(syn_species)
+```
+
+Leucate : `r sort(unique(syn_site$species[which(syn_site$site=="Leucate")]))`
+
+Port-Vendres : `r sort(unique(syn_site$species[which(syn_site$site=="Port Vendres")]))`
+
+Agde : `r sort(unique(syn_site$species[which(syn_site$site=="Agde")]))`
+
+Carry : `r sort(unique(syn_site$species[which(syn_site$site=="Carry")]))`
+
+Marseille : `r sort(unique(syn_site$species[which(syn_site$site=="Marseille")]))`
+
+Cassis : `r sort(unique(syn_site$species[which(syn_site$site=="Cassis")]))`
+
+La Ciotat : `r sort(unique(syn_site$species[which(syn_site$site=="La Ciotat")]))`
+
+Les Embiez : `r sort(unique(syn_site$species[which(syn_site$site=="Les Embiez")]))`
+
+Port-Cros : `r sort(unique(syn_site$species[which(syn_site$site=="Port-Cros")]))`
+
+Villefranche : `r sort(unique(syn_site$species[which(syn_site$site=="Villefranche")]))`
+
+Saint Florent : `r sort(unique(syn_site$species[which(syn_site$site=="Saint Florent")]))`
+
+Bastia : `r sort(unique(syn_site$species[which(syn_site$site=="Bastia")]))`
+
+Bonifacio : `r sort(unique(syn_site$species[which(syn_site$site=="Bonifacio")]))`
+
+
+
+
 
