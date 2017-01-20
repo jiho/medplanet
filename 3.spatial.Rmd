@@ -446,8 +446,9 @@ the species catched or realy by a lag time between sites.
 ```{r}
 dd_test <- select(d0, site, species, cpue)
 dd_test <- dd_test %>% filter(!is.na(species))
-head_sp <- select(dd_stat, family, species)
-dd_test <- left_join(head_sp, dd_test, by="species")
+# head_sp <- select(dd_stat, family, species)
+# dd_test <- left_join(head_sp, dd_test, by="species")
+dd_test <- filter(dd_test, species %in% abundant_species)
 dd_test$species <- abbrev_sp(dd_test$species, n=4)
 ```
 
