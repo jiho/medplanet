@@ -110,6 +110,8 @@ plot(hdw, hang=-1)
 #   ylab("Ultrametric distance")
 ```
 
+Results of one-way PerMANOVA (to do a two-way ??) based on Bray Curtis distance matrix
+
 ```{r}
 # ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
 
@@ -184,8 +186,11 @@ ggplot(dd_region, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax
 
 dd_topography <- dd_test %>% group_by(topography, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
 ggplot(dd_topography, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~topography) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
+```
 
+Results of Kruskal-Wallis tests
 
+```{r}
 #Test differences between region but only three site in east rhone ...
 # All species included
 res <- dd_test %>% group_by(species, region) %>% summarise(mean =mean(cpue), sd=sd(cpue))
@@ -201,8 +206,6 @@ dd_test$topography<-as.factor(dd_test$topography)
 test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$topography, data=dd_test)))
 test <- as.data.frame(select(test, species, p.value))
 test
-
-
 ```
 
 
