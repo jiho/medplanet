@@ -120,8 +120,9 @@ data.env <- left_join(data, sites, by=c("site"))
 data.env <- select(data.env, site, topography, region)
 data <- as.multivar(dd, "site")
 
-adonis(data~region, data.env, permutations = 999, method="bray")
-adonis(data~topography, data.env, permutations = 999, method="bray")
+as.data.frame((adonis(data~region, data.env, permutations = 999, method="bray"))$aov.tab)
+
+(adonis(data~topography, data.env, permutations = 999, method="bray"))$aov.tab
 ```
 
 ## Most frequent species and genera
@@ -303,7 +304,8 @@ dd <- filter(dd, cpue!=0)
 
 
 ## Beginning of the season for winter species
-winter <- rbind(dd[which(dd$species=="Sarpa salpa"),],dd[which(dd$species=="Pagellus bogaraveo"),])
+winter <- rbind(dd[which(dd$species=="Sarpa salpa"),],dd[which(dd$species=="Pagellus acarne"),],
+                dd[which(dd$species=="Pagellus bogaraveo"),])
 
 winter$fake_date <- "2012-10-01"
 
@@ -344,6 +346,7 @@ winter <- select(winter, year=fake_year, species, site, yday=shift_day, yweek=sh
 
 ##Summer species
 summer <- dd[-which(dd$species=="Sarpa salpa"),] 
+summer <- summer[-which(summer$species=="Pagellus acarne"),] 
 summer <- summer[-which(summer$species=="Pagellus bogaraveo"),] 
 summer <- select(summer, year, species, site, yday, yweek)
 syn_summer <- summer %>% group_by(year, species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek))%>%ungroup() 
@@ -366,13 +369,21 @@ lag <- lag[-which(lag$species=="Oblada melanura"),]
 res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week), median=median(lag_week))
 ```
 
-Anomaly for sites 
+Anomaly of larvae arrival (in week) between sites
+
+- Trends in time arrival seem to be different between sites. The first sites to recruit are Bastia, Saint-Florent, Bonifacio and Villefranche. This sites are some weeks in front of the mean date of larvae arrival. 
+- Then Port-Cros, Les Embiez, La Ciotat and Cassis recruits in the same period
+- Finally Marseille, Agde, Port-Vendres and Leucate recruite are the lastest site to recruit. (Carry is in front of but only 3 species, S.maris, C.chromis and D.annularis wich recruit early in year)
+
+These differences could be due to a difference in sampling effort ?? Some sites which recruits earlier could be result of sampling only year for which time arrival of larvae was earlier than years of sampling of the other sites. 
+However, there is no difference recorded between years ...
+So differences between sites maybe due to the species catched in each site ?? 
 
 ```{r fig.height=7}
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
+  facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
 Anomaly of larvae arrival (in week) between years 
@@ -382,15 +393,21 @@ Anomaly of larvae arrival (in week) between years
 res_year <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week), median = median(lag_week))
 ```
 
+All sites and species included, no difference was observed between years in time arrival of larvae. However, for some species, B.Boops, S.smaris, D.annularis, O.melanura, M.surmuletus, temporal plot (cf 4.temporal Rmd) show that 2014 is in front of the other years. 
+
+
 ```{r fig.height=4}
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") #+ geom_density(aes(x=lag_week))
+  facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
 
 ## Understand anomaly between sites 
+
+Abundance distribution of species by site, to understand if time arrival anomaly between site is due to 
+the species catched or realy by a lag time between sites. 
 
 ```{r}
 dd_test <- select(d0, site, species, cpue)
@@ -401,13 +418,16 @@ dd_test$species <- abbrev_sp(dd_test$species, n=4)
 ```
 
 ```{r fig.height=8, fig.width=6}
-ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1))
+ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1)) + ylab("log(cpue)")
 ```
 
-```{r}
-## Old syn
-syn <- dd %>% group_by(year, site, species) %>% summarise(cpue = mean(cpue), date = mean(date), yweek=mean(yweek)) %>% ungroup() 
-syn_species <- syn %>% group_by(species) %>% summarise(ref_date = mean(date), ref_yweek=mean(yweek), earliest = min(yweek), lastest = max(yweek)) %>% ungroup()
+Summary on arrival by species after corrected date for winter species
 
-as.data.frame(syn_species)
+```{r}
+## Mean arrival day and week by species (all years and sites included) with date corrected
+## for winter species
+
+syn <- samples %>% group_by(species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek), first_quart = quantile(yweek,0.25), third_quart = quantile(yweek,0.75)) %>% ungroup()
+
+as.data.frame(syn)
 ```
