@@ -102,6 +102,53 @@ ggplot(dd) + geom_boxplot(aes(x=region, y=cpue)) + ylim(0, 10)
 *No statistical difference* can be detected between these regions.
 
 
+### Per species
+
+The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions.
+
+```{r}
+# keep only abundant species, but B boops which is not caught in the West
+d_abund <- filter(d0, species %in% abundant_species, species != "Boops boops")
+
+# # remove the extreme values for S smaris
+d_abund <- filter(d_abund, cpue < 200)
+
+# add site characteristics
+d_abund <- left_join(d_abund, sites, by="site")
+
+# topography
+descriptive_stats <- d_abund %>%
+  group_by(sp, topography) %>%
+  summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
+  spread(key=topography, value=stats)
+
+test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ topography, data=.)))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+```
+```{r}
+# and the corresponding plot...
+ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~topography) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
+# TODO use violins + log transform, as in taxonomic composition
+
+# same for region
+descriptive_stats <- d_abund %>%
+  group_by(sp, region) %>%
+  summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
+  spread(key=region, value=stats)
+
+test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=.)))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+```
+```{r}
+# and the corresponding plot...
+ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~region) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
+# TODO use violins + log transform, as in taxonomic composition
+```
+
 
 ## Species composition among sites
 
@@ -168,54 +215,6 @@ TODO do the same with genera
 
 TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
 
-## Influence of local site variables
-
-```{r}
-dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
-dd_stat <- dd_stat %>% head(12)
-abundant_species <- dd_stat$species
-
-dd_test <- select(d0, site, species, cpue)
-dd_test <- dd_test %>% filter(!is.na(species))
-head_sp <- select(dd_stat, family, species)
-
-dd_test <- left_join(head_sp, dd_test, by="species")
-
-#informations of sites
-dd_test <- left_join(dd_test, sites, by=c("site"))
-
-
-# Barplot of mean cpue
-dd_region <- dd_test %>% group_by(region, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
-ggplot(dd_region, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~region) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
-
-dd_topography <- dd_test %>% group_by(topography, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
-ggplot(dd_topography, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~topography) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
-```
-
-Results of Kruskal-Wallis tests
-
-```{r}
-#Test differences between region but only three site in east rhone ...
-# All species included
-res <- dd_test %>% group_by(species, region) %>% summarise(mean =mean(cpue), sd=sd(cpue))
-dd_test$region<-as.factor(dd_test$region)
-test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$region, data=dd_test)))
-test <- as.data.frame(select(test, species, p.value))
-test
-
-#Test differences between topography 
-#All species included
-res <- dd_test %>% group_by(species, topography) %>% summarise(mean =mean(cpue), sd=sd(cpue))
-dd_test$topography<-as.factor(dd_test$topography)
-test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$topography, data=dd_test)))
-test <- as.data.frame(select(test, species, p.value))
-test
-```
-
-
-TODO substrate, geomorphology, latitude, depth, etc.
 
 
 ## Synchronicity among sites
