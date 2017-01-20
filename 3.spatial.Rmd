@@ -182,6 +182,9 @@ dd_sp
 More species are caught in Villefranche probably because sampling is done in winter too.
 
 TODO compute effort (nb of nights deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites. This can be compared to theoretical assumptions (see species-area relationships).
+
+### Site-species associations
+
 Through a Correspondence Analysis we can study the *relative* proportions of the dominant species at each site. On the plot, sites are close to the species which were most common at this site compared to other species and other sites. So overall, the following sites are characterised by a larger proportion of the following species:
 
 - Marseille and Villefranche: *O melanuara*, *B boops*, *D annularis*
@@ -196,11 +199,15 @@ ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
 ```
 
+Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
+
 ```{r fig.height=5}
-## CAH clustering for sites based on species abundance
-dd <- vegdist(as.multivar(dd, "site"), "bray")
-hdw<-hclust(dd,method="ward.D")
+# HAC clustering for sites based on community composition
+dist_matrix <- vegdist(as.multivar(dd, "site"), "bray")
+# investigate using chi2 distance (decostand+dist) which should give something closer to the CA or clustering the output of the CA with euclidian distance
+hdw <- hclust(dist_matrix, method="ward.D")
 plot(hdw, hang=-1)
+# TODO add cutoff based on some criterion and plot groups as colors, on the dendrogram or/and on the CA output
 # dend <- dendro_data(hdw, type = "rectangle")
 # ggplot()+ 
 #   geom_segment(data=segment(dend),aes(x = x, y = y, xend = xend, yend = yend)) + 
@@ -209,21 +216,18 @@ plot(hdw, hang=-1)
 #   ylab("Ultrametric distance")
 ```
 
-Results of one-way PerMANOVA (to do a two-way ??) based on Bray Curtis distance matrix
+Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
 
 ```{r}
-# ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
-
-## PERMANOVA
-dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
-data <- cast(dd, site~species)
+data <- cast(dd, site~species, value = "mean")
+# TODO cleanup code and use as.multivar
 data.env <- left_join(data, sites, by=c("site"))
 data.env <- select(data.env, site, topography, region)
 data <- as.multivar(dd, "site")
 
-as.data.frame((adonis(data~region, data.env, permutations = 999, method="bray"))$aov.tab)
+adonis(data~region, data.env, permutations = 999, method="bray")$aov.tab
 
-(adonis(data~topography, data.env, permutations = 999, method="bray"))$aov.tab
+adonis(data~topography, data.env, permutations = 999, method="bray")$aov.tab
 ```
 
 TODO do the same with genera
