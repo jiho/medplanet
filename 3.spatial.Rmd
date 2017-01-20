@@ -151,6 +151,11 @@ gen_com <- gen_com %>% head(18)
 freq_gen <- as.character(gen_com$genus)
 sort(freq_gen)
 ```
+
+Among these most frequent species (recorded in > 7 sites), only 2 species of the 12 most abundant species (Oblada melanura and Boops boops) were not in this list. 
+So, to investigate the lag time of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
+
+
 TODO do the same with genera
 
 TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
