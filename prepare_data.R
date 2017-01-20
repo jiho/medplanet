@@ -225,9 +225,11 @@ map
 # manually define regions based on topography or ocean features
 sites$topography <- "Gulf of Lion"
 sites$topography[which(sites$lon >= 5.7)] <- "Ligurian sea"   ## east of Cap sicié
+sites$topography <- factor(sites$topography)
 
 sites$region <- "West of Rhone"
 sites$region[which(sites$lon >= 4.8)] <- "East of Rhone"
+sites$region <- factor(sites$region, levels=sort(unique(sites$region), decreasing = TRUE))
 
 # set position to avoid overplotting
 sites$hjust <- ifelse(sites$lon<4, -0.1, 1.1)
