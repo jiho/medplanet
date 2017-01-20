@@ -92,7 +92,7 @@ Through a Correspondence Analysis we can study the *relative* proportions of the
 For the other sites, no species is particularly characteristic.
 
 ```{r fig.height=5}
-dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
 ```
@@ -116,7 +116,7 @@ Results of one-way PerMANOVA (to do a two-way ??) based on Bray Curtis distance 
 # ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
 
 ## PERMANOVA
-dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 data <- cast(dd, site~species)
 data.env <- left_join(data, sites, by=c("site"))
 data.env <- select(data.env, site, topography, region)
@@ -126,37 +126,6 @@ as.data.frame((adonis(data~region, data.env, permutations = 999, method="bray"))
 
 (adonis(data~topography, data.env, permutations = 999, method="bray"))$aov.tab
 ```
-
-## Most frequent species and genera
-```{r}
-#Most frequent species (>7sites)
-sp_com <- filter(d0, cpue!=0)
-sp_com <- select(sp_com, species, site)
-sp_com <- unique(sp_com)
-sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
-sp_com <- arrange(sp_com, desc(nb_site))
-sp_com <- na.omit(sp_com)
-sp_com <- sp_com %>% head(18) # species observed in >= 7 sites
-freq_species <- as.character(sp_com$species)
-sort(freq_species)
-```
-
-```{r}
-#Most frequent genera (>7sites)
-gen_com <- filter(d0, cpue!=0)
-gen_com <- select(gen_com, genus, site)
-gen_com <- unique(gen_com)
-gen_com <- gen_com %>% group_by(genus)%>% summarise(nb_site=length(site))
-gen_com <- arrange(gen_com, desc(nb_site))
-gen_com <- na.omit(gen_com)
-gen_com <- gen_com %>% head(18) 
-freq_gen <- as.character(gen_com$genus)
-sort(freq_gen)
-```
-
-Among these most frequent species (recorded in > 7 sites), only 2 species of the 12 most abundant species (Oblada melanura and Boops boops) were not in this list. 
-So, to investigate the lag time of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
-
 
 TODO do the same with genera
 
@@ -168,7 +137,7 @@ TODO interpret in terms of spatial structure among sites (i.e. compare position 
 dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
 dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
 dd_stat <- dd_stat %>% head(12)
-common_species <- dd_stat$species
+abundant_species <- dd_stat$species
 
 dd_test <- select(d0, site, species, cpue)
 dd_test <- dd_test %>% filter(!is.na(species))
@@ -216,7 +185,7 @@ TODO substrate, geomorphology, latitude, depth, etc.
 
 ```{r fig.height=8}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
 
 # create a new weekly date coordinate
 dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
@@ -300,9 +269,11 @@ TODO plot, for each site and each species, the anomaly with respect to the mean 
 
 ## Synchronicity secund part
 
+To investigate the time lag of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
+
 ```{r}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
+dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
 
 # rescale abundances per species, site and year, to get a comparable peak per year
 dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
