@@ -163,6 +163,7 @@ TODO use quantiles and test the difference between sites/regions for high catche
 
 ## Species composition among sites
 
+### Taxonomic richness
 
 Total number of family, genus and species catched by sampling site.
 
@@ -178,6 +179,9 @@ dd_sp <- arrange(dd_sp, nb.species)
 dd_sp
 ```
 
+More species are caught in Villefranche probably because sampling is done in winter too.
+
+TODO compute effort (nb of nights deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites. This can be compared to theoretical assumptions (see species-area relationships).
 Through a Correspondence Analysis we can study the *relative* proportions of the dominant species at each site. On the plot, sites are close to the species which were most common at this site compared to other species and other sites. So overall, the following sites are characterised by a larger proportion of the following species:
 
 - Marseille and Villefranche: *O melanuara*, *B boops*, *D annularis*
