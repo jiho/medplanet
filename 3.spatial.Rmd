@@ -117,7 +117,9 @@ d_abund <- filter(d_abund, cpue < 200)
 
 # add site characteristics
 d_abund <- left_join(d_abund, sites, by="site")
+```
 
+```{r}
 # topography
 descriptive_stats <- d_abund %>%
   group_by(sp, topography) %>%
@@ -129,11 +131,14 @@ test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ topography, d
 # make a nice table with both
 left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
 ```
+
 ```{r}
 # and the corresponding plot...
 ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~topography) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
 # TODO use violins + log transform, as in taxonomic composition
+```
 
+```{r}
 # same for region
 descriptive_stats <- d_abund %>%
   group_by(sp, region) %>%
@@ -145,6 +150,7 @@ test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=
 # make a nice table with both
 left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
 ```
+
 ```{r}
 # and the corresponding plot...
 ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~region) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
