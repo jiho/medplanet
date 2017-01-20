@@ -193,6 +193,9 @@ d$family[which(d$family == "ni")] <- "unidentified"
 d$family[which(d$family == "anguilliformes")] <- "unidentified"
 d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
+# abbreviated species
+d$sp <- str_c(str_sub(d$genus, 1, 1), ". ", d$species)
+# full species
 d$species <- str_c(d$genus, " ", d$species)
 
 
@@ -249,8 +252,8 @@ d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")
 
 ## Add zero catches for all non-observed taxa ----
 
-taxo <- unique(select(d, family, genus, species))
-taxo <- arrange(taxo, family, genus, species)
+taxo <- unique(select(d, family, genus, species, sp))
+taxo <- arrange(taxo, family, genus, species, sp)
 
 d0 <- ddply(d, ~date+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
   x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
