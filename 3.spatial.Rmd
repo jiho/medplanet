@@ -33,6 +33,8 @@ source("lib_factorial.R")   # extract and plot info from CAs
 
 ## Abundances among sites
 
+### Total community
+
 Grouping all taxa, the catch per night is highly variable among sites, with some very extreme events yielding very high catches (NB: q25 and q75 are the quantiles at 25% and 75%, the median is the quantile at 50%; those are less sensitive than the mean to extreme values and represent the "general case" better).
 
 ```{r}
@@ -41,8 +43,10 @@ dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
 # ggplot(dd) + geom_path(aes(x=cpue, linetype=site, color=site, y=..scaled..), stat="density", bw=0.2) + theme(legend.position=c(0.8, 0.8), legend.key.width=unit(10, "mm")) + labs(y="Scaled probability density")
 # last_plot() + scale_x_continuous(trans="identity", limits=c(0,10))
 
-dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+dd_summary <- dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+dd_summary
 ```
+
 ```{r}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue)) + coord_flip()
 ```
@@ -54,15 +58,47 @@ overall_med_cpue <- median(dd$cpue)
 cpue_per_site$good <- cpue_per_site$med > overall_med_cpue
 ```
 
-Excluding those extreme events and focusing on the more common, low, catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). There does not seem to be a large scale geographical pattern to this (sites are ordered from West to East).
+Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). NB: Keeping only low catches eliminates `r nrow(filter(dd, cpue >= 10))` records from `r nrow(dd)`.
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
 ```
 
-TODO test significant diff between all couples of sites, East and West sites, continent vs corsica. kruskal.test, pairwise.wilcox.test
+Same on a map with q75 in blue, median in black, and q25 in grey.
 
-TODO try to cluster some spatial structure. how???
+```{r}
+# add site coordinates
+dd_summary <- left_join(dd_summary, sites, by="site")
+map +
+  geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour="#6EB9CC", alpha=0.5) +
+  geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, alpha=0.7) +
+  geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour="white", alpha=0.5) +
+  scale_size_area(max_size=20, guide="none")
+```
+
+There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)...
+
+Compare Gulf of Lyon vs Ligurian Sea
+
+```{r}
+# add regions for each site
+dd <- left_join(dd, sites, by="site")
+
+# test
+wilcox.test(cpue ~ topography, data=dd)
+ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue)) + ylim(0, 10)
+```
+
+and influence of Rhône
+
+```{r}
+# test
+wilcox.test(cpue ~ region, data=dd)
+# plot, excluding high catches
+ggplot(dd) + geom_boxplot(aes(x=region, y=cpue)) + ylim(0, 10)
+```
+
+*No statistical difference* can be detected between these regions.
 
 
 
