@@ -420,6 +420,8 @@ ggplot(lag) +
   facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
+TODO test with t.test or wilcox.test (one sample)
+
 Anomaly of larvae arrival (in week) between years 
 
 ```{r}

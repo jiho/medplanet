@@ -400,6 +400,8 @@ ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smoo
 
 TODO redo that per quantile level (probably has to be done manually with a loess smoother per quantile level).
 
+TODO CA to delinate assemblages (potentially per season).
+
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
 ```{r fig.height=7}
