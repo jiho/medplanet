@@ -68,17 +68,17 @@ ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin(na.rm=T) + geom_point(al
 # species
 dd <- d0 %>%
   filter(!is.na(species)) %>%
-  group_by(date, site, family, species) %>%
+  group_by(date, site, family, species, sp) %>%
   summarise(cpue=sum(cpue))
 dd_stat <- dd %>%
-  group_by(family, species) %>%
+  group_by(family, species, sp) %>%
   summarise(mean=mean(cpue), median=median(cpue)) %>%
   ungroup() %>% arrange(desc(mean))
 dd_stat <- dd_stat %>% head(12)
 # TODO same as for families
 abundant_species <- dd_stat$species
 dd$species <- factor(dd$species, levels=dd_stat$species)
-ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+ggplot(na.omit(dd), aes(x=sp, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
 
 # add the list of common taxa to what was already in "data.rda"
 save(abundant_families, abundant_genera, abundant_species, list=load("data.rda"), file="data.rda")
