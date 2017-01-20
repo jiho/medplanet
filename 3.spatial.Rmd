@@ -87,7 +87,7 @@ dd <- left_join(dd, sites, by="site")
 
 # test
 wilcox.test(cpue ~ topography, data=dd)
-ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue)) + ylim(0, 10)
+ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
 and influence of Rhône
@@ -96,7 +96,7 @@ and influence of Rhône
 # test
 wilcox.test(cpue ~ region, data=dd)
 # plot, excluding high catches
-ggplot(dd) + geom_boxplot(aes(x=region, y=cpue)) + ylim(0, 10)
+ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
 *No statistical difference* can be detected between these regions.
