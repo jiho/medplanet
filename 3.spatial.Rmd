@@ -79,6 +79,8 @@ map +
 
 There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)...
 
+TODO test differences among sites (ANOVA + Tuckey or Kuskal + pairwise wilcox).
+
 Compare Gulf of Lyon vs Ligurian Sea
 
 ```{r}
