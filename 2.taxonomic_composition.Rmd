@@ -21,6 +21,7 @@ library("readxl")
 library("printr")
 
 source("lib_plot.R")    # colour scales and theme
+source("lib_data_manip.R")
 ```
 
 
@@ -89,29 +90,44 @@ At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/s
 
 ### Distribution
 
-There are `r nrow(sites)`. Here we sort families, genera and species according to the number of sites they are caught in, stopping at 7 sites (about half the total):
+There are `r nrow(sites)`. Here we sort families, genera and species according to the number of sites they are caught in:
 
 ```{r freq_sp}
-common <- function(d, level) {
-  d %>%
+# compute commonality = number of sites in which a taxon is caught
+commonality <- function(d, level) {
+  d_common <- d %>%
     filter_(str_c("!is.na(",level,")")) %>%
     group_by_(level) %>%
     summarise(n_sites=length(unique(site))) %>%
-    arrange(desc(n_sites)) %>%
-    filter(n_sites > 7)
+    arrange(desc(n_sites))
+  d_common[[level]] <- ordered(d_common[[level]])
+  return(d_common)
 }
 
-common_families <- common(d, "family")
-common_genera <- common(d, "genus")
-common_species <- common(d, "species")
+# plot taxa in order of commonality
+com_families <- commonality(d, "family")
+ggplot(head(com_families, 20)) + geom_bar(aes(x=family, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
-# display them
-common_families
-common_genera
-common_species
+com_genera <- commonality(d, "genus")
+ggplot(head(com_genera, 20)) + geom_bar(aes(x=genus, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
+
+com_species <- commonality(d, "species")
+# add abbreviated species
+suppressWarnings(com_species <- left_join(com_species, select(taxo, species, sp), by="species"))
+com_species$sp <- ordered(com_species$sp)
+ggplot(head(com_species, 20)) + geom_bar(aes(x=sp, y=n_sites), stat="identity") + scale_y_continuous(breaks=c(0,5,10)) + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
-These most frequent species are mostly the same as the most abundant ones, except for *Oblada melanura* and *Boops boops* which are abundant but present in only 3 sites.
+These most common species are mostly the same as the most abundant ones, except for *Oblada melanura* and *Boops boops* which are abundant but present in only 3 sites.
+
+```{r}
+# keep only most common ones
+common_families <- filter(com_families, n_sites > 7)$family
+common_genera <- filter(com_genera, n_sites > 7)$genus
+common_species <- filter(com_species, n_sites > 7)$species
+save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
+```
+
 
 ## Comparison with adult assemblages
 
