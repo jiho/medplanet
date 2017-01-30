@@ -17,3 +17,6 @@ sum_tbl <- function(x, var) {
   )
   summarise_(x, .dots=funs)
 }
+
+# force the order of levels of a factor to be what it is in the original data
+ordered <- function(x) {factor(x, levels=unique(x))}

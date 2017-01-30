@@ -34,7 +34,7 @@ At which scale do abundances vary the most: do they mostly depend on season, mon
 This is done within each site, for all sampled nights, for the most common species (for which catches are relatively steady). The results below are for all pairwise differences (top) and some summaries --quartiles, median and mean-- (red lines on top, bottom).
 
 ```{r}
-dd <- d0 %>% filter(species %in% common_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
 
 # summary(dd$cpue)
 #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
@@ -288,19 +288,19 @@ If we look at the total number of larvae caught, a large proportion of it is cau
 ```{r fig.height=5}
 moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
-ggplot(filter(d0m, species %in% common_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
+ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
 
 # # density
-# ggplot(filter(d0m, species %in% common_species)) + geom_density(aes(x=moon_phase, weight=cpue, y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
+# ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=cpue, y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
 #
 # # density logged
-# ggplot(filter(d0m, species %in% common_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
+# ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
 # # does not change much
 
-ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
 
 # # log10 transformed
-# ggplot(filter(d0m, species %in% common_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
+# ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
 ```
 
 Even when we reduce the data to summer months (May to August, included), during which the catches are better overall, the moon phase signal is still mostly indiscernible in instantaneous CPUE.
@@ -310,7 +310,7 @@ Even when we reduce the data to summer months (May to August, included), during 
 in_summer <- function(x) {
   month(x) %in% 5:8
 }
-ggplot(filter(d0m, species %in% common_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% common_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
+ggplot(filter(d0m, species %in% abundant_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
 ```
 
 TODO scale by sampling effort: compute *mean* of CPUE per lunar period (quarter?)
@@ -323,7 +323,7 @@ Another way to look at it is to regress CPUE on moon phase. Using quantile regre
 suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
 
 # select data: common species, in summer, without extreme Spicara
-dd <- filter(d0m, species %in% common_species, in_summer(date), cpue < 250)
+dd <- filter(d0m, species %in% abundant_species, in_summer(date), cpue < 250)
 
 # only consider distance to the new moon, irrespective of direction
 dd$moon_phase <- abs(dd$moon_phase)
@@ -400,10 +400,12 @@ ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smoo
 
 TODO redo that per quantile level (probably has to be done manually with a loess smoother per quantile level).
 
+TODO CA to delinate assemblages (potentially per season).
+
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
 ```{r fig.height=7}
-dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
+dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
 
 # create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
@@ -475,7 +477,7 @@ When inspecting the dynamics per species the characteristic year-species couples
 - 2014: *B boops*, *D annularis*, *O melanuara*
 
 ```{r fig.height=5}
-dd <- d0 %>% filter(year != 2016, species %in% common_species) %>% group_by(year, species) %>% summarise(tot=sum(cpue), mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
+dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(year, species) %>% summarise(tot=sum(cpue), mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
 
 # relative abundance
 # ggplot(dd) + geom_bar(aes(x=year, y=mean), stat="identity") + facet_wrap(~species, scales="free_y") + theme(axis.text.x=element_text(angle=30, hjust=1))

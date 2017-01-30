@@ -33,6 +33,8 @@ source("lib_factorial.R")   # extract and plot info from CAs
 
 ## Abundances among sites
 
+### Total community
+
 Grouping all taxa, the catch per night is highly variable among sites, with some very extreme events yielding very high catches (NB: q25 and q75 are the quantiles at 25% and 75%, the median is the quantile at 50%; those are less sensitive than the mean to extreme values and represent the "general case" better).
 
 ```{r}
@@ -41,8 +43,10 @@ dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
 # ggplot(dd) + geom_path(aes(x=cpue, linetype=site, color=site, y=..scaled..), stat="density", bw=0.2) + theme(legend.position=c(0.8, 0.8), legend.key.width=unit(10, "mm")) + labs(y="Scaled probability density")
 # last_plot() + scale_x_continuous(trans="identity", limits=c(0,10))
 
-dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+dd_summary <- dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+dd_summary
 ```
+
 ```{r}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue)) + coord_flip()
 ```
@@ -54,20 +58,112 @@ overall_med_cpue <- median(dd$cpue)
 cpue_per_site$good <- cpue_per_site$med > overall_med_cpue
 ```
 
-Excluding those extreme events and focusing on the more common, low, catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). There does not seem to be a large scale geographical pattern to this (sites are ordered from West to East).
+Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). NB: Keeping only low catches eliminates `r nrow(filter(dd, cpue >= 10))` records from `r nrow(dd)`.
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
 ```
 
-TODO test significant diff between all couples of sites, East and West sites, continent vs corsica. kruskal.test, pairwise.wilcox.test
+Same on a map with q75 in blue, median in green, and q25 in yellow.
 
-TODO try to cluster some spatial structure. how???
+```{r}
+# add site coordinates
+dd_summary <- left_join(dd_summary, sites, by="site")
+cols <- viridis.colors(4)[-1]
+map +
+  geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
+  geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
+  geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
+  scale_size_area(max_size=20, guide="none")
+```
+
+There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)...
+
+TODO test differences among sites (ANOVA + Tuckey or Kuskal + pairwise wilcox).
+
+Compare Gulf of Lyon vs Ligurian Sea
+
+```{r}
+# add regions for each site
+dd <- left_join(dd, sites, by="site")
+
+# test
+wilcox.test(cpue ~ topography, data=dd)
+ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
+```
+
+and influence of Rhône
+
+```{r}
+# test
+wilcox.test(cpue ~ region, data=dd)
+# plot, excluding high catches
+ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
+```
+
+*No statistical difference* can be detected between these regions.
 
 
+### Per species
+
+The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions.
+
+```{r}
+# keep only abundant species, but B boops which is not caught in the West
+d_abund <- filter(d0, species %in% abundant_species, species != "Boops boops")
+
+# # remove the extreme values for S smaris
+d_abund <- filter(d_abund, cpue < 200)
+
+# add site characteristics
+d_abund <- left_join(d_abund, sites, by="site")
+```
+
+```{r}
+# topography
+descriptive_stats <- d_abund %>%
+  group_by(sp, topography) %>%
+  summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
+  spread(key=topography, value=stats)
+
+test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ topography, data=.)))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+```
+
+```{r}
+# and the corresponding plot...
+ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~topography) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
+# TODO use violins + log transform, as in taxonomic composition
+```
+
+```{r}
+# same for region
+descriptive_stats <- d_abund %>%
+  group_by(sp, region) %>%
+  summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
+  spread(key=region, value=stats)
+
+test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=.)))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+```
+
+```{r}
+# and the corresponding plot...
+ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~region) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
+# TODO use violins + log transform, as in taxonomic composition
+```
+
+Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
+
+TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
 
 ## Species composition among sites
 
+### Taxonomic richness
 
 Total number of family, genus and species catched by sampling site.
 
@@ -83,6 +179,12 @@ dd_sp <- arrange(dd_sp, nb.species)
 dd_sp
 ```
 
+More species are caught in Villefranche probably because sampling is done in winter too.
+
+TODO compute effort (nb of nights deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites. This can be compared to theoretical assumptions (see species-area relationships).
+
+### Site-species associations
+
 Through a Correspondence Analysis we can study the *relative* proportions of the dominant species at each site. On the plot, sites are close to the species which were most common at this site compared to other species and other sites. So overall, the following sites are characterised by a larger proportion of the following species:
 
 - Marseille and Villefranche: *O melanuara*, *B boops*, *D annularis*
@@ -92,16 +194,20 @@ Through a Correspondence Analysis we can study the *relative* proportions of the
 For the other sites, no species is particularly characteristic.
 
 ```{r fig.height=5}
-dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
 ```
 
+Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
+
 ```{r fig.height=5}
-## CAH clustering for sites based on species abundance
-dd <- vegdist(as.multivar(dd, "site"), "bray")
-hdw<-hclust(dd,method="ward.D")
+# HAC clustering for sites based on community composition
+dist_matrix <- vegdist(as.multivar(dd, "site"), "bray")
+# investigate using chi2 distance (decostand+dist) which should give something closer to the CA or clustering the output of the CA with euclidian distance
+hdw <- hclust(dist_matrix, method="ward.D")
 plot(hdw, hang=-1)
+# TODO add cutoff based on some criterion and plot groups as colors, on the dendrogram or/and on the CA output
 # dend <- dendro_data(hdw, type = "rectangle")
 # ggplot()+ 
 #   geom_segment(data=segment(dend),aes(x = x, y = y, xend = xend, yend = yend)) + 
@@ -110,113 +216,31 @@ plot(hdw, hang=-1)
 #   ylab("Ultrametric distance")
 ```
 
-Results of one-way PerMANOVA (to do a two-way ??) based on Bray Curtis distance matrix
+Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
 
 ```{r}
-# ggplot(dd) + geom_bar(aes(x=species, y=cpue), stat="identity") + facet_grid(site~., scale="free_y") + theme(axis.text.x=element_text(angle=20, hjust=1))
-
-## PERMANOVA
-dd <- d0 %>% filter(species %in% common_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
-data <- cast(dd, site~species)
+data <- cast(dd, site~species, value = "mean")
+# TODO cleanup code and use as.multivar
 data.env <- left_join(data, sites, by=c("site"))
 data.env <- select(data.env, site, topography, region)
 data <- as.multivar(dd, "site")
 
-as.data.frame((adonis(data~region, data.env, permutations = 999, method="bray"))$aov.tab)
+adonis(data~region, data.env, permutations = 999, method="bray")$aov.tab
 
-(adonis(data~topography, data.env, permutations = 999, method="bray"))$aov.tab
+adonis(data~topography, data.env, permutations = 999, method="bray")$aov.tab
 ```
-
-## Most frequent species and genera
-```{r}
-#Most frequent species (>7sites)
-sp_com <- filter(d0, cpue!=0)
-sp_com <- select(sp_com, species, site)
-sp_com <- unique(sp_com)
-sp_com <- sp_com %>% group_by(species)%>% summarise(nb_site=length(site))
-sp_com <- arrange(sp_com, desc(nb_site))
-sp_com <- na.omit(sp_com)
-sp_com <- sp_com %>% head(18) # species observed in >= 7 sites
-freq_species <- as.character(sp_com$species)
-sort(freq_species)
-```
-
-```{r}
-#Most frequent genera (>7sites)
-gen_com <- filter(d0, cpue!=0)
-gen_com <- select(gen_com, genus, site)
-gen_com <- unique(gen_com)
-gen_com <- gen_com %>% group_by(genus)%>% summarise(nb_site=length(site))
-gen_com <- arrange(gen_com, desc(nb_site))
-gen_com <- na.omit(gen_com)
-gen_com <- gen_com %>% head(18) 
-freq_gen <- as.character(gen_com$genus)
-sort(freq_gen)
-```
-
-Among these most frequent species (recorded in > 7 sites), only 2 species of the 12 most abundant species (Oblada melanura and Boops boops) were not in this list. 
-So, to investigate the lag time of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
-
 
 TODO do the same with genera
 
 TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
 
-## Influence of local site variables
-
-```{r}
-dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
-dd_stat <- dd_stat %>% head(12)
-common_species <- dd_stat$species
-
-dd_test <- select(d0, site, species, cpue)
-dd_test <- dd_test %>% filter(!is.na(species))
-head_sp <- select(dd_stat, family, species)
-
-dd_test <- left_join(head_sp, dd_test, by="species")
-
-#informations of sites
-dd_test <- left_join(dd_test, sites, by=c("site"))
-
-
-# Barplot of mean cpue
-dd_region <- dd_test %>% group_by(region, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
-ggplot(dd_region, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~region) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
-
-dd_topography <- dd_test %>% group_by(topography, species) %>% summarise(mean = mean(cpue), sd=sd(cpue))
-ggplot(dd_topography, aes(x = species, y = mean))+ geom_errorbar(aes(ymin=mean, ymax=mean+sd), width=0.2)+geom_bar(stat='identity') + facet_grid(~topography) +theme(axis.text.x=element_text(angle=25, hjust=1))+ylim(0,6)
-```
-
-Results of Kruskal-Wallis tests
-
-```{r}
-#Test differences between region but only three site in east rhone ...
-# All species included
-res <- dd_test %>% group_by(species, region) %>% summarise(mean =mean(cpue), sd=sd(cpue))
-dd_test$region<-as.factor(dd_test$region)
-test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$region, data=dd_test)))
-test <- as.data.frame(select(test, species, p.value))
-test
-
-#Test differences between topography 
-#All species included
-res <- dd_test %>% group_by(species, topography) %>% summarise(mean =mean(cpue), sd=sd(cpue))
-dd_test$topography<-as.factor(dd_test$topography)
-test <- dd_test %>% group_by(species) %>% do(tidy(kruskal.test(.$cpue ~ .$topography, data=dd_test)))
-test <- as.data.frame(select(test, species, p.value))
-test
-```
-
-
-TODO substrate, geomorphology, latitude, depth, etc.
 
 
 ## Synchronicity among sites
 
 ```{r fig.height=8}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
 
 # create a new weekly date coordinate
 dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
@@ -300,9 +324,11 @@ TODO plot, for each site and each species, the anomaly with respect to the mean 
 
 ## Synchronicity secund part
 
+To investigate the time lag of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
+
 ```{r}
 # mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% common_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
+dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
 
 # rescale abundances per species, site and year, to get a comparable peak per year
 dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
@@ -394,6 +420,8 @@ ggplot(lag) +
   facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
+TODO test with t.test or wilcox.test (one sample)
+
 Anomaly of larvae arrival (in week) between years 
 
 ```{r}
@@ -420,8 +448,9 @@ the species catched or realy by a lag time between sites.
 ```{r}
 dd_test <- select(d0, site, species, cpue)
 dd_test <- dd_test %>% filter(!is.na(species))
-head_sp <- select(dd_stat, family, species)
-dd_test <- left_join(head_sp, dd_test, by="species")
+# head_sp <- select(dd_stat, family, species)
+# dd_test <- left_join(head_sp, dd_test, by="species")
+dd_test <- filter(dd_test, species %in% abundant_species)
 dd_test$species <- abbrev_sp(dd_test$species, n=4)
 ```
 

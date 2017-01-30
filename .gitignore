@@ -7,3 +7,4 @@ figure/*
 *_files/*
 *.html
 .Rproj.user
+.Rhistory

@@ -21,6 +21,7 @@ library("readxl")
 library("printr")
 
 source("lib_plot.R")    # colour scales and theme
+source("lib_data_manip.R")
 ```
 
 
@@ -28,43 +29,104 @@ source("lib_plot.R")    # colour scales and theme
 
 ## Description
 
+### Abundance
+
 Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species. 
 
-CPUE is presented (still on a log10 scale, beware!) for the most common families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
+CPUE is presented (still on a log10 scale, beware!) for the most abundant families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
 
 ```{r plots, warning=FALSE}
 # NB: do not display warnings. All warnings are about log transformation giving -Inf when using 0, which we know
 
 # families
-dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site, family) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+dd <- d0 %>%
+  filter(!is.na(family)) %>%
+  group_by(date, site, family) %>%
+  summarise(cpue=sum(cpue))
+dd_stat <- dd %>%
+  group_by(family) %>%
+  summarise(mean=mean(cpue), median=median(cpue)) %>%
+  ungroup() %>% arrange(desc(mean)) %>% head(12)
 # TODO check if there are some other interesting families beyond these 12
-common_families <- dd_stat$family
+abundant_families <- dd_stat$family
 dd$family <- factor(dd$family, levels=dd_stat$family)
 ggplot(na.omit(dd), aes(x=family, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
 
 # genera
-dd <- d0 %>% filter(!is.na(genus)) %>% group_by(date, site, family, genus) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family, genus) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean)) %>% head(12)
+dd <- d0 %>%
+  filter(!is.na(genus)) %>%
+  group_by(date, site, family, genus) %>%
+  summarise(cpue=sum(cpue))
+dd_stat <- dd %>%
+  group_by(family, genus) %>%
+  summarise(mean=mean(cpue), median=median(cpue)) %>%
+  ungroup() %>% arrange(desc(mean)) %>% head(12)
 # TODO same as for families
-common_genera <- dd_stat$genus
+abundant_genera <- dd_stat$genus
 dd$genus <- factor(dd$genus, levels=dd_stat$genus)
 ggplot(na.omit(dd), aes(x=genus, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
 
 # species
-dd <- d0 %>% filter(!is.na(species)) %>% group_by(date, site, family, species) %>% summarise(cpue=sum(cpue))
-dd_stat <- dd %>% group_by(family, species) %>% summarise(mean=mean(cpue), median=median(cpue)) %>% ungroup() %>% arrange(desc(mean))
+dd <- d0 %>%
+  filter(!is.na(species)) %>%
+  group_by(date, site, family, species, sp) %>%
+  summarise(cpue=sum(cpue))
+dd_stat <- dd %>%
+  group_by(family, species, sp) %>%
+  summarise(mean=mean(cpue), median=median(cpue)) %>%
+  ungroup() %>% arrange(desc(mean))
 dd_stat <- dd_stat %>% head(12)
 # TODO same as for families
-common_species <- dd_stat$species
+abundant_species <- dd_stat$species
 dd$species <- factor(dd$species, levels=dd_stat$species)
-ggplot(na.omit(dd), aes(x=species, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
+ggplot(na.omit(dd), aes(x=sp, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=25, hjust=1))
 
 # add the list of common taxa to what was already in "data.rda"
-save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
+save(abundant_families, abundant_genera, abundant_species, list=load("data.rda"), file="data.rda")
 ```
 
-At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most common taxa in CARE catches are not surprising given what we know of the coastal adult populations.
+At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most abundant taxa in CARE catches are not surprising given what we know of the coastal adult populations.
+
+
+### Distribution
+
+There are `r nrow(sites)`. Here we sort families, genera and species according to the number of sites they are caught in:
+
+```{r freq_sp}
+# compute commonality = number of sites in which a taxon is caught
+commonality <- function(d, level) {
+  d_common <- d %>%
+    filter_(str_c("!is.na(",level,")")) %>%
+    group_by_(level) %>%
+    summarise(n_sites=length(unique(site))) %>%
+    arrange(desc(n_sites))
+  d_common[[level]] <- ordered(d_common[[level]])
+  return(d_common)
+}
+
+# plot taxa in order of commonality
+com_families <- commonality(d, "family")
+ggplot(head(com_families, 20)) + geom_bar(aes(x=family, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
+
+com_genera <- commonality(d, "genus")
+ggplot(head(com_genera, 20)) + geom_bar(aes(x=genus, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
+
+com_species <- commonality(d, "species")
+# add abbreviated species
+suppressWarnings(com_species <- left_join(com_species, select(taxo, species, sp), by="species"))
+com_species$sp <- ordered(com_species$sp)
+ggplot(head(com_species, 20)) + geom_bar(aes(x=sp, y=n_sites), stat="identity") + scale_y_continuous(breaks=c(0,5,10)) + theme(axis.text.x=element_text(angle=35, hjust=1))
+```
+
+These most common species are mostly the same as the most abundant ones, except for *Oblada melanura* and *Boops boops* which are abundant but present in only 3 sites.
+
+```{r}
+# keep only most common ones
+common_families <- filter(com_families, n_sites > 7)$family
+common_genera <- filter(com_genera, n_sites > 7)$genus
+common_species <- filter(com_species, n_sites > 7)$species
+save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
+```
 
 
 ## Comparison with adult assemblages
@@ -127,18 +189,18 @@ According to Louisy:
 
 - Among which, dermersal species represent `r length(unique(l_demersal$family))` families, `r length(unique(l_demersal$genus))` genera, and `r length(unique(l_demersal$species))` species.
 
-Comparing the list in Louisy and the list from CARE catches, the following families of demersal fish were never caught: 
-`r sort(setdiff(l_demersal$family, d$family))`; and the following genera were never caught either:
+Comparing the list in Louisy and the list from CARE catches, the following families of demersal fish were never caught:
+
+`r (uncaught_families <- sort(setdiff(l_demersal$family, d$family)))`.
+
+Among families which are caught, the following genera were never caught either:
+
 ```{r}
-as.data.frame(filter(l_demersal, ! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus))
+filter(l_demersal, ! family %in% uncaught_families &! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus)
 ```
 
-To resume :
+To summarise :
 
-- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in louisy were catched in care. 
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families, `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in Louisy were catched in CAREs. 
 
-- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as demersal fish were catched in care.
-
-TODO percent coverage for families, genera, species.
-
-
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as demersal fish were catched in CAREs.
