@@ -25,7 +25,7 @@ parse_latlon <- function(x) {
 
 ## Read ECOCEAN ----
 
-d <- read_excel("data/ecocean/Compil Données pêches - Ecocean.xlsx", sheet=1, skip=1)
+d <- read_excel("data/ecocean/Compil Donnees peches - Ecocean.xlsx", sheet=1, skip=1)
 d1 <- read_excel("data/ecocean/Donnees peches Girel 2013.xlsx", sheet=1, skip=1)
 d <- rbind(d, d1)
 
@@ -51,7 +51,7 @@ ecocean <- d
 ## Read SUBLIMO ----
 
 # read and merge all data
-catches <- read_excel("data/sublimo/bdd nettoyé 012015.xlsx", sheet=1, skip=1)
+catches <- read_excel("data/sublimo/bdd nettoye 012015.xlsx", sheet=1, skip=1)
 # env <- read_excel("data/sublimo/Environnement 2012_2015.xlsx", sheet=1, skip=1)
 coord <- read_excel("data/sublimo/coordinates.xlsx", sheet=1)
 
