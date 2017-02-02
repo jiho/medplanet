@@ -23,6 +23,8 @@ library("stringr")
 library("lubridate")
 library("vegan")
 library("ggdendro")
+library("dendextend")
+library("NbClust")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -204,16 +206,18 @@ Another way to look at this data is through hierachical clustering using the Bra
 ```{r fig.height=5}
 # HAC clustering for sites based on community composition
 dist_matrix <- vegdist(as.multivar(dd, "site"), "bray")
+hdw <- hclust(dist_matrix, method="ward.D2")
+dend <- as.dendrogram(hdw)
+dend %>% set("branches_k_color", k = 5) %>% set("labels_col", k=5) %>% plot(las=1, ylab="Heigh")
+
 # investigate using chi2 distance (decostand+dist) which should give something closer to the CA or clustering the output of the CA with euclidian distance
-hdw <- hclust(dist_matrix, method="ward.D")
-plot(hdw, hang=-1)
+dd <- decostand(as.multivar(dd, "site"), method=chi.square)
+dist_matrix <- vegdist(dd, "euclidean")
+hdw <- hclust(dist_matrix, method="ward.D2")
+dend <- as.dendrogram(hdw)
+dend %>% set("branches_k_color", k = 5) %>% set("labels_col", k=5) %>% plot(las=1, ylab="Heigh")
+
 # TODO add cutoff based on some criterion and plot groups as colors, on the dendrogram or/and on the CA output
-# dend <- dendro_data(hdw, type = "rectangle")
-# ggplot()+ 
-#   geom_segment(data=segment(dend),aes(x = x, y = y, xend = xend, yend = yend)) + 
-#   geom_text(data=label(dend), aes(x=x, y=y, label=label, hjust=1, angle=25), size=3)+
-#   theme(axis.line.x=element_blank(),axis.ticks.x=element_blank(),axis.text.x=element_blank())+
-#   ylab("Ultrametric distance")
 ```
 
 Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
