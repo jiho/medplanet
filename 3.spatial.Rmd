@@ -22,6 +22,8 @@ library("printr")
 library("stringr")
 library("lubridate")
 library("vegan")
+
+library("cluster")
 library("ggdendro")
 library("dendextend")
 library("NbClust")
@@ -178,12 +180,23 @@ dd_sp <- ddply(dd_tax, ~ site, summarise, nb.family = length(unique(na.omit(fami
                           nb.species = length(unique(na.omit(species))))
 
 dd_sp <- arrange(dd_sp, nb.species)
+
+## Number of nights 
+dd_night <- d %>% group_by(site) %>% summarise(nb_night=length(unique(date)))
+dd_sp <- left_join(dd_sp, dd_night, by=c("site"))
+
 dd_sp
 ```
 
 More species are caught in Villefranche probably because sampling is done in winter too.
 
 TODO compute effort (nb of nights deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites. This can be compared to theoretical assumptions (see species-area relationships).
+
+```{r}
+## Plot species-nigths accumulation curves
+
+
+```
 
 ### Site-species associations
 
@@ -211,11 +224,15 @@ dend <- as.dendrogram(hdw)
 dend %>% set("branches_k_color", k = 5) %>% set("labels_col", k=5) %>% plot(las=1, ylab="Heigh")
 
 # investigate using chi2 distance (decostand+dist) which should give something closer to the CA or clustering the output of the CA with euclidian distance
-dd <- decostand(as.multivar(dd, "site"), method=chi.square)
-dist_matrix <- vegdist(dd, "euclidean")
+dd_stand <- decostand(as.multivar(dd, "site"), method = "chi.square")
+dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 dend <- as.dendrogram(hdw)
-dend %>% set("branches_k_color", k = 5) %>% set("labels_col", k=5) %>% plot(las=1, ylab="Heigh")
+dend %>% set("branches_k_color", k = 6) %>% set("labels_col", k=6) %>% plot(las=1, ylab="Heigh")
+
+# Try to Find cutoff with some criterion
+fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("wss"))#+geom_vline(xintercept = 5, linetype = 2)
+fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("silhouette"), hc_method = "ward.D2")
 
 # TODO add cutoff based on some criterion and plot groups as colors, on the dendrogram or/and on the CA output
 ```

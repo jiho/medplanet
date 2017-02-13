@@ -164,7 +164,6 @@ non_demersal <- c(
 "molidae",       # poisson lune
 "regalecidae",   # regalec
 "trachipteridae",
-"ammodytidae",   # profond  # ??? TODO check
 "macrouridae",   # profond
 "aulopidae",     # profond
 "petromyzonidae" # eggs in river 
