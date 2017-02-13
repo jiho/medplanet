@@ -240,15 +240,12 @@ fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("silhouette"), hc_method = "w
 Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
 
 ```{r}
-data <- cast(dd, site~species, value = "mean")
-# TODO cleanup code and use as.multivar
-data.env <- left_join(data, sites, by=c("site"))
+data.env <- data.frame(as.multivar(dd, "site"), sites)
 data.env <- select(data.env, site, topography, region)
-data <- as.multivar(dd, "site")
 
-adonis(data~region, data.env, permutations = 999, method="bray")$aov.tab
+adonis((as.multivar(dd, "site"))~region, data.env, permutations = 999, method="bray")$aov.tab
 
-adonis(data~topography, data.env, permutations = 999, method="bray")$aov.tab
+adonis((as.multivar(dd, "site"))~topography, data.env, permutations = 999, method="bray")$aov.tab
 ```
 
 TODO do the same with genera
