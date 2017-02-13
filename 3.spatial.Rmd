@@ -66,6 +66,16 @@ Excluding those extreme events and focusing on the more common, low (CPUE < 10),
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
+
+## Test with Anova + Tukey => Hypothèses non vérifiées même après transformation log
+#dd$cpue_log <- log(dd$cpue+1)
+anova <- aov(cpue~site, data=dd)
+shapiro.test(residuals(anova)) 
+bartlett.test(residuals(anova)~dd$site)
+
+## Test with non parametric test
+kruskal.test(cpue ~ site, data=dd)
+pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method = "bonferroni")
 ```
 
 Same on a map with q75 in blue, median in green, and q25 in yellow.
@@ -164,6 +174,11 @@ ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2,
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
 
 TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
+
+```{r}
+library(quantreg)
+
+```
 
 ## Species composition among sites
 
