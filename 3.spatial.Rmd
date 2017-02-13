@@ -138,8 +138,8 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~topography) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
 # TODO use violins + log transform, as in taxonomic composition
+ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~topography) + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 ```{r}
@@ -157,8 +157,8 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-ggplot(d_abund) + geom_boxplot(aes(x=sp, y=cpue), na.rm=TRUE) + facet_wrap(~region) + ylim(0,10) + theme(axis.text.x=element_text(angle=35, hjust=1))
 # TODO use violins + log transform, as in taxonomic composition
+ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~region) + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
