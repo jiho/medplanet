@@ -166,11 +166,16 @@ non_demersal <- c(
 "trachipteridae",
 "macrouridae",   # profond
 "aulopidae",     # profond
-"petromyzonidae" # eggs in river 
+"petromyzonidae", # eggs in river 
+"scaridae" #because very scarce in France, only one species which come from spain.
 )
 
 l$demersal <- ! l$family %in% non_demersal
 l_demersal <- filter(l, demersal == TRUE)
+
+# remove non-demersal fish
+l_demersal <- filter(l_demersal, genus != "trachurus")
+
 
 l$family <- str_to_title(l$family)
 l$genus <- str_to_title(l$genus)
