@@ -176,8 +176,15 @@ Overall, many differences are significant when the actual data is mostly noise a
 TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
 
 ```{r}
+## No solution for quantile regression with discrete variable. Maybe quantile poisson regression ?
+## But i don't understand all
 library(quantreg)
 
+high_catches <- d_abund[which(d_abund$cpue >= 12),] 
+mid_catches <- d_abund[which(d_abund$cpue < 12 & d_abund$cpue>= 2),]
+low_catches <- d_abund[which(d_abund$cpue < 2),]
+
+test <- low_catches %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=.)))
 ```
 
 ## Species composition among sites
@@ -210,7 +217,7 @@ TODO compute effort (nb of nights deployed) vs nb of species curves to see if th
 ```{r}
 ## Plot species-nigths accumulation curves
 
-##TODO : Try to compute a loop for each site and paste all data.frames to plot all
+##TODO : Try to compute a for loop for each site and paste all data.frames to plot all
 ## curves in facet_wrap
 
 dd <- d %>% group_by(date,site,species) %>% summarise(cpue=sum(cpue))
@@ -282,8 +289,6 @@ adonis((as.multivar(dd, "site"))~region, data.env, permutations = 999, method="b
 
 adonis((as.multivar(dd, "site"))~topography, data.env, permutations = 999, method="bray")$aov.tab
 ```
-
-TODO do the same with genera
 
 TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
 
@@ -401,8 +406,8 @@ winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y
 
 winter$season <- "2012-2013"
 winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
-winter$season[which(winter$shift_day>731 & winter$shift_day<1096)] <- "2014-2015"
-winter$season[which(winter$shift_day>1096)] <- "2015-2016"
+winter$season[which(winter$shift_day>=731 & winter$shift_day<1096)] <- "2014-2015"
+winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
 
 winter$shift_day <- winter$shift_day%%365
 winter$shift_week <- winter$shift_week%%52
@@ -475,7 +480,18 @@ ggplot(lag) +
 
 TODO test with t.test or wilcox.test (one sample)
 
-Anomaly of larvae arrival (in week) between years 
+```{r}
+descriptive_stats <- lag %>%
+  group_by(site) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+
+test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided")))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by="site") %>% ungroup()
+```
+
+Anomaly of larvae arrival (in week) between years
 
 ```{r}
 # Plot and mean lag
