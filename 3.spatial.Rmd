@@ -227,24 +227,17 @@ TODO compute effort (nb of nights deployed) vs nb of species curves to see if th
 ##TODO : Try to compute a for loop for each site and paste all data.frames to plot all
 ## curves in facet_wrap
 
-dd <- d %>% group_by(date,site,species) %>% summarise(cpue=sum(cpue))
+dd <- d %>% group_by(date, site, species) %>% summarise(cpue=sum(cpue))
 dd <- filter(dd, !is.na(species))
 
-vilf <- filter(dd, site=="Villefranche")
-vilf <- cast(vilf, date~species, sum)
-vilf <- specaccum(vilf[,2:ncol(vilf)], method="exact")
-vilf <- data.frame(nights=vilf$sites, richness = vilf$richness)
-vilf$site <- "Villefranche"
+sp_acum <- function(x) {
+  xm <- spread(x, key="species", value="cpue", fill=0)
+  sp <- specaccum(select(xm, -date, -site), method="exact")
+  return(data.frame(nights=sp$sites, richness = sp$richness))
+}
 
-ciot <- filter(dd, site=="La Ciotat")
-ciot <- cast(ciot, date~species, sum)
-ciot <- specaccum(ciot[,2:ncol(ciot)], method="exact")
-ciot <- data.frame(nights=ciot$sites, richness = ciot$richness)
-ciot$site <- "La Ciotat"
-
-data <- rbind(vilf, ciot)
-
-ggplot(data) + geom_line(aes(nights, richness)) + facet_wrap(~site)
+spd <- dd %>% group_by(site) %>% do(sp_acum(.))
+ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=0.5) + theme(legend.key.width = unit(1.5, "cm"))
 ```
 
 ### Site-species associations
