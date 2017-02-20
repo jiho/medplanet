@@ -27,6 +27,7 @@ library("cluster")
 library("ggdendro")
 library("dendextend")
 library("NbClust")
+library("factoextra")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
