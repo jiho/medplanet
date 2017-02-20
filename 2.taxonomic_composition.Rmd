@@ -154,6 +154,7 @@ non_demersal <- c(
 "engraulidae",   # anchois
 "scombridae",    # thons...
 "clupeidae",     # sardines
+"carangidae",    # lichia and trachurus
 "sphyraenidae",  # barracudas
 "exocoetidae",   # poissons volants
 "coryphaenidae", # coryphène
@@ -166,15 +167,15 @@ non_demersal <- c(
 "trachipteridae",
 "macrouridae",   # profond
 "aulopidae",     # profond
-"petromyzonidae", # eggs in river 
-"scaridae" #because very scarce in France, only one species which come from spain.
+"petromyzonidae", # eggs in river
+"tetraodontidae", # the only mediterranean species is pelagic
+"belonidae",     # pelagic
+"pomatomidae",   # pelagic
+"scaridae"       # because very scarce in France, only one species which come from spain
 )
 
 l$demersal <- ! l$family %in% non_demersal
 l_demersal <- filter(l, demersal == TRUE)
-
-# remove non-demersal fish
-l_demersal <- filter(l_demersal, genus != "trachurus")
 
 
 l$family <- str_to_title(l$family)
