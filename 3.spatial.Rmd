@@ -27,6 +27,7 @@ library("cluster")
 library("ggdendro")
 library("dendextend")
 library("NbClust")
+library("factoextra")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -66,19 +67,9 @@ Excluding those extreme events and focusing on the more common, low (CPUE < 10),
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
-
-## Test with Anova + Tukey => Hypothèses non vérifiées même après transformation log
-#dd$cpue_log <- log(dd$cpue+1)
-anova <- aov(cpue~site, data=dd)
-shapiro.test(residuals(anova)) 
-bartlett.test(residuals(anova)~dd$site)
-
-## Test with non parametric test
-kruskal.test(cpue ~ site, data=dd)
-pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method = "bonferroni")
 ```
 
-Same on a map with q75 in blue, median in green, and q25 in yellow.
+Same information on a map with q75 in blue, median in green, and q25 in yellow.
 
 ```{r}
 # add site coordinates
@@ -91,11 +82,27 @@ map +
   scale_size_area(max_size=20, guide="none")
 ```
 
-There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)...
+Those differences are reflected by global and pairwise statistical tests. Marseille and Bastia are different (lower catches) from most of the others.
 
-TODO test differences among sites (ANOVA + Tuckey or Kuskal + pairwise wilcox).
+```{r tests}
+# test with Anova + Tukey
+anova <- aov(log1p(cpue)~site, data=dd)
+shapiro.test(residuals(anova))
+bartlett.test(residuals(anova)~dd$site)
+# => Hypothèses non vérifiées même après transformation log
 
-Compare Gulf of Lyon vs Ligurian Sea
+# Test with non parametric test
+kruskal.test(cpue ~ site, data=dd)
+suppressWarnings(pw <- pairwise.wilcox.test(dd$cpue, dd$site))
+# plot
+pw <- melt(pw$p.value)
+pw$X1 <- factor(pw$X1, levels=levels(dd$site))
+pw$X2 <- factor(pw$X2, levels=levels(dd$site))
+pw$signif <- pw$value < 0.05
+ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank())
+```
+
+There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)... Compare Gulf of Lyon vs Ligurian Sea
 
 ```{r}
 # add regions for each site
@@ -120,7 +127,7 @@ ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 ### Per species
 
-The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions.
+The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions. NB: *Boops boops* removed because it is not caught in the West
 
 ```{r}
 # keep only abundant species, but B boops which is not caught in the West
@@ -148,8 +155,7 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-# TODO use violins + log transform, as in taxonomic composition
-ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~topography) + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 ```{r}
@@ -167,8 +173,7 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-# TODO use violins + log transform, as in taxonomic composition
-ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~region) + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(d_abund, aes(x=sp, y=cpue, colour=region)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
@@ -220,24 +225,17 @@ TODO compute effort (nb of nights deployed) vs nb of species curves to see if th
 ##TODO : Try to compute a for loop for each site and paste all data.frames to plot all
 ## curves in facet_wrap
 
-dd <- d %>% group_by(date,site,species) %>% summarise(cpue=sum(cpue))
+dd <- d %>% group_by(date, site, species) %>% summarise(cpue=sum(cpue))
 dd <- filter(dd, !is.na(species))
 
-vilf <- filter(dd, site=="Villefranche")
-vilf <- cast(vilf, date~species, sum)
-vilf <- specaccum(vilf[,2:ncol(vilf)], method="exact")
-vilf <- data.frame(nights=vilf$sites, richness = vilf$richness)
-vilf$site <- "Villefranche"
+sp_acum <- function(x) {
+  xm <- spread(x, key="species", value="cpue", fill=0)
+  sp <- specaccum(select(xm, -date, -site), method="exact")
+  return(data.frame(nights=sp$sites, richness = sp$richness))
+}
 
-ciot <- filter(dd, site=="La Ciotat")
-ciot <- cast(ciot, date~species, sum)
-ciot <- specaccum(ciot[,2:ncol(ciot)], method="exact")
-ciot <- data.frame(nights=ciot$sites, richness = ciot$richness)
-ciot$site <- "La Ciotat"
-
-data <- rbind(vilf, ciot)
-
-ggplot(data) + geom_line(aes(nights, richness)) + facet_wrap(~site)
+spd <- dd %>% group_by(site) %>% do(sp_acum(.))
+ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=0.5) + theme(legend.key.width = unit(1.5, "cm"))
 ```
 
 ### Site-species associations

@@ -176,7 +176,8 @@ d <- d[-which(d$family == "scombridae"),]
 d <- d[-which(d$family == "sphyraenidae"),]
 d <- d[-which(d$family == "torpedinidae"),] ## raies
 d <- d[-which(d$family == "myctophidae"),] ## poissons lanternes = pélagiques
-d <- d[-which(d$genus == "trachurus"),]
+d <- d[-which(d$family == "carangidae"),]
+d <- d[-which(d$family == "belonidae"),]
 
 
 # # check
