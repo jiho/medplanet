@@ -127,7 +127,7 @@ ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 ### Per species
 
-The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions.
+The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions. NB: *Boops boops* removed because it is not caught in the West
 
 ```{r}
 # keep only abundant species, but B boops which is not caught in the West
@@ -155,8 +155,7 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-# TODO use violins + log transform, as in taxonomic composition
-ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~topography) + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 ```{r}
@@ -174,8 +173,7 @@ left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% 
 
 ```{r}
 # and the corresponding plot...
-# TODO use violins + log transform, as in taxonomic composition
-ggplot(d_abund, aes(x=sp, y=cpue))+ geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10") + facet_wrap(~region) + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(d_abund, aes(x=sp, y=cpue, colour=region)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
