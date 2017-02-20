@@ -26,6 +26,7 @@ source("lib_factorial.R")   # extract and plot info from CAs
 
 # Temporal variability
 
+TODO simple time series of total catches = seasonality 
 
 ## Temporal scales of variability
 
