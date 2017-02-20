@@ -67,19 +67,9 @@ Excluding those extreme events and focusing on the more common, low (CPUE < 10),
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
-
-## Test with Anova + Tukey => Hypothèses non vérifiées même après transformation log
-#dd$cpue_log <- log(dd$cpue+1)
-anova <- aov(cpue~site, data=dd)
-shapiro.test(residuals(anova)) 
-bartlett.test(residuals(anova)~dd$site)
-
-## Test with non parametric test
-kruskal.test(cpue ~ site, data=dd)
-pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method = "bonferroni")
 ```
 
-Same on a map with q75 in blue, median in green, and q25 in yellow.
+Same information on a map with q75 in blue, median in green, and q25 in yellow.
 
 ```{r}
 # add site coordinates
@@ -92,11 +82,27 @@ map +
   scale_size_area(max_size=20, guide="none")
 ```
 
-There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)...
+Those differences are reflected by global and pairwise statistical tests. Marseille and Bastia are different (lower catches) from most of the others.
 
-TODO test differences among sites (ANOVA + Tuckey or Kuskal + pairwise wilcox).
+```{r tests}
+# test with Anova + Tukey
+anova <- aov(log1p(cpue)~site, data=dd)
+shapiro.test(residuals(anova))
+bartlett.test(residuals(anova)~dd$site)
+# => Hypothèses non vérifiées même après transformation log
 
-Compare Gulf of Lyon vs Ligurian Sea
+# Test with non parametric test
+kruskal.test(cpue ~ site, data=dd)
+suppressWarnings(pw <- pairwise.wilcox.test(dd$cpue, dd$site))
+# plot
+pw <- melt(pw$p.value)
+pw$X1 <- factor(pw$X1, levels=levels(dd$site))
+pw$X2 <- factor(pw$X2, levels=levels(dd$site))
+pw$signif <- pw$value < 0.05
+ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank())
+```
+
+There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)... Compare Gulf of Lyon vs Ligurian Sea
 
 ```{r}
 # add regions for each site
