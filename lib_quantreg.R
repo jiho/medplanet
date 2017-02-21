@@ -63,14 +63,14 @@ predict.rqs <- function(object, ...) {
 
 
 
-# Piecewise linear non-parametric quantile regression
+# Locally linear non-parametric quantile regression
 #
 # @param x univariate explanatory variable
 # @param y univariate response variable
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the smooth (larger means smoother)
 # @param ... passed to `predict.rq`
-plrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, ...) {
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
   ldply(xx, function(xx) {

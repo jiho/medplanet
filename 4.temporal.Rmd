@@ -44,7 +44,7 @@ ggplot() +
   geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
   geom_line(aes(x=date, y=fit,  colour=tau), data=rq_fit)
 
-rq_fit <- plrq(dd$days, dd$cpue, tau=q, bw=20, n=200, interval="confidence", se="boot")
+rq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, interval="confidence", se="boot")
 rq_fit$date <- min(dd$date) + rq_fit$x * 24 * 3600
 rq_fit$lower[rq_fit$lower < 0] <- 0
 
