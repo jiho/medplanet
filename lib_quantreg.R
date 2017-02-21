@@ -140,3 +140,47 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 #   geom_ribbon(aes(x=x, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
 #   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit) +
 #   ylim(-200, 100)
+
+
+## Quantile-based ANOVA ----
+
+# aov()-like function based on quantile regression
+#
+# @param formula a formula object, like for aov()
+# @param data a data.frame in which to interpret the variables named in the formula
+# @param tau the quantile(s) to be estimated
+# @param ... passed to anova.rq
+aovq <- function(formula, data, tau, ...) {
+  ans <- plyr::llply(tau, function(tau) {
+    # compute regression and null model for this quantile
+    suppressWarnings(m <- rq(formula, tau=tau, data=data))
+    suppressWarnings(mnull <- rq(update(formula, . ~ 1), tau=tau, data=data))
+    # compare them
+    suppressWarnings(a <- anova(mnull, m, ...))
+
+    # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
+
+    # identify the quantile (as the first column)
+    a$table$tau <- tau
+    a$table <- a$table[,c(5,1:4)]
+    return(a)
+  })
+  # combine ANOVA tables for all quantiles
+  ans[[1]]$table <- ldply(ans, `[[`, "table")
+  # keep only the combined version
+  ans <- ans[[1]]
+  # give it a new class to handle printing it
+  class(ans) <- "anova.rqs"
+  return(ans)
+}
+
+# Printing method for results of aovq
+# identical to print.anova.rq except for the added tau column
+print.anova.rqs <- function (x, ...){
+  table <- x$table
+  topnote <- x$topnote
+  dimnames(table)[[2]] <- c("tau", "Df", "Resid Df", "F value", "Pr(>F)")
+  title <- "Quantile Regression Analysis of Deviance Table\n"
+  a <- structure(table, heading = c(title, topnote), class = c("anova", "data.frame"))
+  print(a)
+}
