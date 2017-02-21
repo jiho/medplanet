@@ -7,6 +7,7 @@
 #
 
 library("quantreg")
+library("logspline")
 
 ## Tools ----
 
