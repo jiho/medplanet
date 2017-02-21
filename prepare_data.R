@@ -258,7 +258,7 @@ d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")
 taxo <- unique(select(d, family, genus, species, sp))
 taxo <- arrange(taxo, family, genus, species, sp)
 
-d0 <- ddply(d, ~date+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
+d0 <- ddply(d, ~date+n_gear+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
   x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
   x$cpue[is.na(x$cpue)] <- 0
   return(x)

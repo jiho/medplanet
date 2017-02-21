@@ -87,9 +87,9 @@ Those differences are reflected by global and pairwise statistical tests. Marsei
 
 ```{r tests}
 # test with Anova + Tukey
-anova <- aov(log1p(cpue)~site, data=dd)
-shapiro.test(residuals(anova))
-bartlett.test(residuals(anova)~dd$site)
+#anova <- aov(log1p(cpue)~site, data=dd)
+#shapiro.test(residuals(anova))
+#bartlett.test(residuals(anova)~dd$site)
 # => Hypothèses non vérifiées même après transformation log
 
 # Test with non parametric test
@@ -210,7 +210,8 @@ dd_sp <- ddply(dd_tax, ~ site, summarise, nb.family = length(unique(na.omit(fami
 dd_sp <- arrange(dd_sp, nb.species)
 
 ## Number of nights 
-dd_night <- d %>% group_by(site) %>% summarise(nb_night=length(unique(date)))
+dd <- d0 %>% group_by(site, date, n_gear) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd_night <- dd %>% group_by(site) %>% summarise(nb_night=length(unique(date)), nb_care=sum(n_gear)) %>% ungroup()
 dd_sp <- left_join(dd_sp, dd_night, by=c("site"))
 
 dd_sp
@@ -218,15 +219,15 @@ dd_sp
 
 More species are caught in Villefranche probably because sampling is done in winter too.
 
-TODO compute effort (nb of nights deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites. This can be compared to theoretical assumptions (see species-area relationships).
+Effort (nb of nights/care deployed) vs nb of species curves to see if this is just related to differing effort or if there is a true difference in diversity among sites.
+
+1) Species-nigths accumulation curves
+2) Species-care accumulation curves
 
 ```{r}
-## Plot species-nigths accumulation curves
+## Species-nigths accumulation curves
 
-##TODO : Try to compute a for loop for each site and paste all data.frames to plot all
-## curves in facet_wrap
-
-dd <- d %>% group_by(date, site, species) %>% summarise(cpue=sum(cpue))
+dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd <- filter(dd, !is.na(species))
 
 sp_acum <- function(x){
@@ -236,8 +237,47 @@ sp_acum <- function(x){
 }
 
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
+ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
+
+
+## Species-care accumulation curves
+
+# Code 1
+#dd <- d %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+#dd <- filter(dd, !is.na(species))
+
+#sp_acum <- function(x){
+#  xm <- spread(x, key="species", value="cpue", fill=0)
+#  xm_care <- xm %>% group_by(site) %>% mutate(n_gear=cumsum(n_gear)) %>% ungroup()
+#  sp <- specaccum(select(xm_care, -date, -site, -n_gear), method="exact")
+#  return(data.frame(nb_care=xm_care$n_gear, richness = sp$richness))
+#}
+
+#spd <- dd %>% group_by(site) %>% do(sp_acum(.))
+#ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
+
+
+# 2nd code
+dd <- d0 %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd <- filter(dd, !is.na(species))
+
+sp_acum <- function(x){
+  xm <- spread(x, key="species", value="cpue", fill=0)
+  sp <- specaccum(select(xm, -date, -site, -n_gear), method="random", w=xm$n_gear)
+  return(data.frame(nb_care=sp$effort, richness = sp$richness))
+}
+
+spd <- dd %>% group_by(site) %>% do(sp_acum(.))
+ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
 ```
+
+1) Species-nigths accumulation curves :
+Cassis and Carry the least diverse 
+Saint Florent, Villefranche and Leucate the more diverse
+
+2) Species-care accumulation curves : From the the most diverse site to the least diverse 
+Villefranche > Saint Florent > Port-Cros > Les Embiez > Leucate > Agde et Port-Vendres > La Ciotat > Marseille > Bonifacio > Bastia > Cassis > Carry
+
 
 ### Site-species associations
 
