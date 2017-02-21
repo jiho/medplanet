@@ -22,11 +22,38 @@ library("lubridate")
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
+source("lib_quantreg.R")    # perform quantile regression
 ```
 
 # Temporal variability
 
-TODO simple time series of total catches = seasonality 
+The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
+
+```{r}
+dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
+dd <- filter(dd, cpue < 200)
+
+dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
+
+q <- c(.25, .5, .75, .9)
+rq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot")
+rq_fit$date <- min(dd$date) + rq_fit$x * 24 * 3600
+rq_fit$lower[rq_fit$lower < 0] <- 0
+ggplot() +
+  geom_point(aes(x=date, y=cpue), data=dd) +
+  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
+  geom_line(aes(x=date, y=fit,  colour=tau), data=rq_fit)
+
+rq_fit <- plrq(dd$days, dd$cpue, tau=q, bw=20, n=200, interval="confidence", se="boot")
+rq_fit$date <- min(dd$date) + rq_fit$x * 24 * 3600
+rq_fit$lower[rq_fit$lower < 0] <- 0
+
+ggplot() +
+  geom_point(aes(x=date, y=cpue), data=dd) +
+  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.2, colour=alpha("black", 0.1), size=0.25) +
+  geom_line(aes(x=date, y=fit,  colour=tau), data=rq_fit)
+```
+
 
 ## Temporal scales of variability
 
