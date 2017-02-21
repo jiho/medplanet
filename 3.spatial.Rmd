@@ -32,6 +32,7 @@ library("factoextra")
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
+source("lib_quantreg.R")
 ```
 
 # Spatial distribution
@@ -181,15 +182,15 @@ Overall, many differences are significant when the actual data is mostly noise a
 TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
 
 ```{r}
-## No solution for quantile regression with discrete variable. Maybe quantile poisson regression ?
-## But i don't understand all
-library(quantreg)
+## Quantile regression for high catches, medium catches and low catches with discrete variable : factor region, then factor topography
 
-high_catches <- d_abund[which(d_abund$cpue >= 12),] 
-mid_catches <- d_abund[which(d_abund$cpue < 12 & d_abund$cpue>= 2),]
-low_catches <- d_abund[which(d_abund$cpue < 2),]
+# Regression per species according to region
 
-test <- low_catches %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=.)))
+
+
+
+
+
 ```
 
 ## Species composition among sites
@@ -228,14 +229,14 @@ TODO compute effort (nb of nights deployed) vs nb of species curves to see if th
 dd <- d %>% group_by(date, site, species) %>% summarise(cpue=sum(cpue))
 dd <- filter(dd, !is.na(species))
 
-sp_acum <- function(x) {
+sp_acum <- function(x){
   xm <- spread(x, key="species", value="cpue", fill=0)
   sp <- specaccum(select(xm, -date, -site), method="exact")
   return(data.frame(nights=sp$sites, richness = sp$richness))
 }
 
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=0.5) + theme(legend.key.width = unit(1.5, "cm"))
+ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
 ```
 
 ### Site-species associations
@@ -256,6 +257,8 @@ autoplot(ca, size=1)
 
 Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
 
+Hierchical clustering performed on bray-curtis distance matrix, and then hierarchical clustering performed on chi2 distance (decostand + dist)
+
 ```{r fig.height=5}
 # HAC clustering for sites based on community composition
 dist_matrix <- vegdist(as.multivar(dd, "site"), "bray")
@@ -269,7 +272,11 @@ dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 dend <- as.dendrogram(hdw)
 dend %>% set("branches_k_color", k = 6) %>% set("labels_col", k=6) %>% plot(las=1, ylab="Heigh")
+```
 
+Try to find some criterion to cut off dendrogramm
+
+```{r}
 # Try to Find cutoff with some criterion
 fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("wss"))#+geom_vline(xintercept = 5, linetype = 2)
 fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("silhouette"), hc_method = "ward.D2")
