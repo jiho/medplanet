@@ -153,13 +153,13 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 # @param data a data.frame in which to interpret the variables named in the formula
 # @param tau the quantile(s) to be estimated
 # @param ... passed to anova.rq
-aovq <- function(formula, data, tau, ...) {
+aovq <- function(formula, data, tau, test="anowar", R=1000, ...) {
   ans <- plyr::llply(tau, function(tau) {
     # compute regression and null model for this quantile
     suppressWarnings(m <- rq(formula, tau=tau, data=data))
     suppressWarnings(mnull <- rq(update(formula, . ~ 1), tau=tau, data=data))
     # compare them
-    suppressWarnings(a <- anova(mnull, m, ...))
+    suppressWarnings(a <- anova(mnull, m, test=test, R=R, ...))
 
     # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
 
