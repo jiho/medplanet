@@ -11,6 +11,7 @@ library("quantreg")
 ## Tools ----
 
 # Extract a single quantile from a multiple quantile object
+#
 # @param x object of class rqs
 # @param tau quantile to extract
 as.rq <- function(x, tau) {
@@ -36,6 +37,7 @@ as.rq <- function(x, tau) {
 
 # Better implementation of predict for multiple quantiles regression
 # = extracts the same information as predict.rq, for each quantile
+#
 # @param object object of class rqs
 # @param ... passed to predict.rq
 predict.rqs <- function(object, ...) {
@@ -175,6 +177,7 @@ aovq <- function(formula, data, tau, ...) {
 }
 
 # Printing method for results of aovq
+#
 # identical to print.anova.rq except for the added tau column
 print.anova.rqs <- function (x, ...){
   table <- x$table
