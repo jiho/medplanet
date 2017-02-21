@@ -8,6 +8,8 @@
 
 library("quantreg")
 
+## Tools ----
+
 # Extract a single quantile from a multiple quantile object
 # @param x object of class rqs
 # @param tau quantile to extract
@@ -62,6 +64,7 @@ predict.rqs <- function(object, ...) {
 #   geom_path(aes(income, fit, colour=tau), data=p)
 
 
+## Non parametric quantile regression ----
 
 # Locally linear non-parametric quantile regression
 #
