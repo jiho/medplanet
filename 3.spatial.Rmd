@@ -297,7 +297,10 @@ autoplot(ca, size=1)
 
 Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
 
-Hierchical clustering performed on bray-curtis distance matrix, and then hierarchical clustering performed on chi2 distance (decostand + dist)
+Hierchical clustering performed on bray-curtis distance matrix, and then hierarchical clustering performed on chi2 distance (decostand + dist).
+
+1) Hierarchical clustering on bray-curtis distance matrix
+2) Hierarchical clustering on chi2 distance matrix
 
 ```{r fig.height=5}
 # HAC clustering for sites based on community composition
@@ -314,14 +317,12 @@ dend <- as.dendrogram(hdw)
 dend %>% set("branches_k_color", k = 6) %>% set("labels_col", k=6) %>% plot(las=1, ylab="Heigh")
 ```
 
-Try to find some criterion to cut off dendrogramm
+Try to find some criterion to cut off dendrogramm. It works only for clustering performed on decostand matrix because function fviz_nbclust can't compute bray-curtis distance. 
 
 ```{r}
 # Try to Find cutoff with some criterion
 fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("wss"))#+geom_vline(xintercept = 5, linetype = 2)
 fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("silhouette"), hc_method = "ward.D2")
-
-# TODO add cutoff based on some criterion and plot groups as colors, on the dendrogram or/and on the CA output
 ```
 
 Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
@@ -331,15 +332,20 @@ data.env <- data.frame(as.multivar(dd, "site"), sites)
 data.env <- select(data.env, site, topography, region)
 
 adonis((as.multivar(dd, "site"))~region, data.env, permutations = 999, method="bray")$aov.tab
-
 adonis((as.multivar(dd, "site"))~topography, data.env, permutations = 999, method="bray")$aov.tab
 ```
 
-TODO interpret in terms of spatial structure among sites (i.e. compare position of sites on CA)
+- Species assemblage was not different between site located in the ligurian sea and those located in the Gulf of Lion. 
+
+- Species assemblage seems to be different between sites according to the region (side of the Rhone), (PerMANOVA p < 0.05). However, hierarchical clustering didn't group western sites (Port-Vendres, Agde, Leucate) together.
+
+Except for Port-Cros, results of hierarchical clustering are more coherent with results of larval abundance, all species included (most abundant species). 
 
 
 
 ## Synchronicity among sites
+
+### Time arrival of abundant species : Plot
 
 ```{r fig.height=8}
 # mean CPUE per week, site, and species for common species
@@ -421,11 +427,8 @@ ggplot(dd) +
   no_y
 ```
 
-TODO to interpret
 
-TODO plot, for each site and each species, the anomaly with respect to the mean arrival time of the year
-
-## Synchronicity secund part
+### Time arrival anomaly
 
 To investigate the time lag of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
 
@@ -523,18 +526,51 @@ ggplot(lag) +
   facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
-TODO test with t.test or wilcox.test (one sample)
+Test if arrival anomaly (unit of lag_time = week) of each site is relevant with one sample wilcox.test. 
 
 ```{r}
 descriptive_stats <- lag %>%
   group_by(site) %>%
   summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
 
-test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided")))
+suppressWarnings (test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="site") %>% ungroup()
 ```
+
+### Understand anomaly between sites 
+
+Abundance distribution of species by site, to understand if time arrival anomaly between site is due to the species catched or realy by a lag time between sites. 
+
+```{r}
+dd_test <- select(d0, site, species, cpue)
+dd_test <- dd_test %>% filter(!is.na(species))
+# head_sp <- select(dd_stat, family, species)
+# dd_test <- left_join(head_sp, dd_test, by="species")
+dd_test <- filter(dd_test, species %in% abundant_species)
+dd_test$species <- abbrev_sp(dd_test$species, n=4)
+```
+
+```{r fig.height=8, fig.width=6}
+ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1)) + ylab("log(cpue)")
+```
+
+
+```{r}
+# Summary on arrival by species after corrected date for winter species
+
+## Mean arrival day and week by species (all years and sites included) with date corrected
+## for winter species
+
+syn <- samples %>% group_by(species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek), first_quart = quantile(yweek,0.25), third_quart = quantile(yweek,0.75)) %>% ungroup()
+
+# as.data.frame(syn)
+```
+
+
+
+## Synchronicity among years : Anomaly
 
 Anomaly of larvae arrival (in week) between years
 
@@ -553,32 +589,24 @@ ggplot(lag) +
   facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
-
-## Understand anomaly between sites 
-
-Abundance distribution of species by site, to understand if time arrival anomaly between site is due to 
-the species catched or realy by a lag time between sites. 
+Test time arrival anomaly between years 
 
 ```{r}
-dd_test <- select(d0, site, species, cpue)
-dd_test <- dd_test %>% filter(!is.na(species))
-# head_sp <- select(dd_stat, family, species)
-# dd_test <- left_join(head_sp, dd_test, by="species")
-dd_test <- filter(dd_test, species %in% abundant_species)
-dd_test$species <- abbrev_sp(dd_test$species, n=4)
+descriptive_stats <- lag %>%
+  group_by(year) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+
+suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
 ```
 
-```{r fig.height=8, fig.width=6}
-ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1)) + ylab("log(cpue)")
-```
+All species included (the most abundant species), there is no significant difference in time arrival of larvae between the four years.
 
-Summary on arrival by species after corrected date for winter species
+2012 = only species which recruit in summer
+2013 = winter species (season 2012-2013) + summer species of 2013
+2014 = winter species (season 2013-2014) + summer species of 2014
+2015 = winter species (season 2015-2016) + summer species of 2015
 
-```{r}
-## Mean arrival day and week by species (all years and sites included) with date corrected
-## for winter species
 
-syn <- samples %>% group_by(species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek), first_quart = quantile(yweek,0.25), third_quart = quantile(yweek,0.75)) %>% ungroup()
-
-as.data.frame(syn)
-```
