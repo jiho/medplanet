@@ -165,6 +165,7 @@ mav <- function(x, k, ...) {
 llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
+
   # for each tau
   # NB: it is faster to split by tau than to use rql inside (i.e. fit for each tau separately inside)
   #     we can't fit for all taus and then get the predictions + CI separately for each tau (fails)
@@ -208,8 +209,22 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
 # rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, smooth=2)
 # last_plot() + geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit, linetype="dashed")
 #
-# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
-# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot", .parallel=TRUE)
+# # with different bw
+# rq_fit <- plyr::ldply(c(3,5,10), function(bw) {
+#   p <- llrq(mcycle$times, mcycle$accel, tau=0.5, bw=bw)
+#   p$bw <- bw
+#   return(p)
+# })
+# ggplot() +
+#   geom_point(aes(x=times, y=accel), data=mcycle) +
+#   geom_line(aes(x=x, y=fit, colour=factor(bw)), data=rq_fit)
+#
+# # with confidence interval
+# system.time(rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, n=100, interval="confidence", se="boot"))
+# library("doParallel")
+# registerDoParallel(cores=3)
+# system.time(rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, n=100, interval="confidence", se="boot", .parallel=TRUE))
+# stopImplicitCluster()
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
 #   geom_ribbon(aes(x=x, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
@@ -247,8 +262,7 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
 #   geom_ribbon(aes(x=x, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
-#   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit) +
-#   ylim(-200, 100)
+#   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit)
 
 
 ## Quantile-based ANOVA ----
