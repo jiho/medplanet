@@ -82,7 +82,8 @@ x2[x2 > quantile(x2, 0.5)] <- mult(x2[x2 > quantile(x2, 0.5)], 1.2)
 d <- data.frame(x1, x2)
 d <- gather(d, key="x", value="y")
 d$x <- factor(d$x)
-qplot(x, y, data=d)
+qplot(x, y, data=d) + geom_quantiled(quantiles=c(0.25, 0.5, 0.75, 0.9), size=4)
+qplot(x, y, data=d) + geom_quantiled(aes(colour=..quantile..), quantiles=c(0.25, 0.5, 0.75, 0.9), size=4)
 
 d %>% group_by(x) %>% summarise(mean(y), median(y))
 

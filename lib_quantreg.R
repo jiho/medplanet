@@ -321,3 +321,105 @@ print.summary.aovq <- function (x, ...){
 # summary(aov(y ~ x, data=d))
 # summary(aovq(y ~ x, tau=c(0.25, 0.5, 0.75), data=d))
 
+
+
+## ggplot helpers ----
+
+# Inspired by stat_boxplot
+stat_quantiled <- function(mapping = NULL, data = NULL,
+                           geom = "quantiled", position = "identity",
+                           ...,
+                           quantiles = c(0.25, 0.5, 0.75),
+                           na.rm = FALSE,
+                           show.legend = NA,
+                           inherit.aes = TRUE) {
+  layer(
+    data = data,
+    mapping = mapping,
+    stat = StatQuantileD,
+    geom = geom,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = list(
+      quantiles = quantiles,
+      na.rm = na.rm,
+      ...
+    )
+  )
+}
+
+
+StatQuantiled <- ggproto(
+  "StatQuantiled", Stat,
+  required_aes = c("x", "y"),
+  non_missing_aes = "weight",
+
+  setup_params = function(data, params) {
+    params$width <- params$width %||% (resolution(data$x) * 0.75)
+
+    if (is.double(data$x) && !has_groups(data) && any(data$x != data$x[1L])) {
+      warning(
+        "Continuous x aesthetic -- did you forget aes(group=...)?",
+        call. = FALSE)
+    }
+
+    params
+  },
+
+  compute_group = function(data, scales, width = NULL, na.rm = FALSE, quantiles = c(0.25, 0.5, 0.75)) {
+    if (!is.null(data$weight)) {
+      mod <- quantreg::rq(y ~ 1, weights = weight, data = data, tau = quantiles)
+      stats <- as.numeric(stats::coef(mod))
+    } else {
+      stats <- as.numeric(stats::quantile(data$y, quantiles))
+    }
+    names(stats) <- quantiles
+
+    if (length(unique(data$x)) > 1)
+      width <- diff(range(data$x)) * 0.9
+
+    df <- as.data.frame(as.list(stats), check.names=FALSE)
+
+    if (is.null(data$weight)) {
+      n <- sum(!is.na(data$y))
+    } else {
+      # Sum up weights for non-NA positions of y and weight
+      n <- sum(data$weight[!is.na(data$y) & !is.na(data$weight)])
+    }
+
+    df$x <- if (is.factor(data$x)) data$x[1] else mean(range(data$x))
+    df <- reshape2::melt(df, id.vars=c("x"), value.name = "y", variable.name="quantile")
+    df
+  }
+)
+
+# Inspired by geom_quantile
+geom_quantiled <- function(mapping = NULL, data = NULL,
+                          stat = "quantiled", position = "identity",
+                          ...,
+                          na.rm = FALSE,
+                          show.legend = NA,
+                          inherit.aes = TRUE) {
+  layer(
+    data = data,
+    mapping = mapping,
+    stat = stat,
+    geom = GeomQuantiled,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = list(
+      na.rm = na.rm,
+      ...
+    )
+  )
+}
+
+GeomQuantiled <- ggproto("GeomQuantileD", GeomPoint,
+                        default_aes = defaults(
+                          aes(shape = 15, colour = "#3366FF"),
+                          GeomPoint$default_aes
+                        )
+)
+
