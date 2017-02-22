@@ -152,10 +152,14 @@ descriptive_stats <- d_abund %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
   spread(key=topography, value=stats)
 
-test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ topography, data=.)))
+p_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$pvalue))
+tau_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$tau))
+
+res <- data.frame(tau_val, p_val)
+res <- select(res, sp, tau = x, p.val = x.1)
 
 # make a nice table with both
-left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+left_join(descriptive_stats, res, by="sp") %>% ungroup()
 ```
 
 ```{r}
@@ -170,10 +174,15 @@ descriptive_stats <- d_abund %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
   spread(key=region, value=stats)
 
-test <- d_abund %>% group_by(sp) %>% do(glance(kruskal.test(cpue ~ region, data=.)))
+
+p_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$pvalue))
+tau_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$tau))
+
+res <- data.frame(tau_val, p_val)
+res <- select(res, sp, tau = x, p.val = x.1)
 
 # make a nice table with both
-left_join(descriptive_stats, select(test, sp, statistic, p.value), by="sp") %>% ungroup()
+left_join(descriptive_stats, res, by="sp") %>% ungroup()
 ```
 
 ```{r}
