@@ -265,40 +265,45 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 
 ## Quantile-based ANOVA ----
 
-# aov()-like function based on quantile regression
+# Fit a multiple quantile regression models which will be used in an ANOVA setting
 #
-# @param formula a formula object, like for aov()
-# @param data a data.frame in which to interpret the variables named in the formula
-# @param tau the quantile(s) to be estimated
-# @param ... passed to anova.rq
-aovq <- function(formula, data, tau, test="anowar", R=1000, ...) {
-  ans <- plyr::llply(tau, function(tau) {
-    # compute regression and null model for this quantile
-    suppressWarnings(m <- rq(formula, tau=tau, data=data))
-    suppressWarnings(mnull <- rq(update(formula, . ~ 1), tau=tau, data=data))
-    # compare them
-    suppressWarnings(a <- anova(mnull, m, test=test, R=R, ...))
-
-    # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
-
-    # identify the quantile (as the first column)
-    a$table$tau <- tau
-    a$table <- a$table[,c(5,1:4)]
-    return(a)
-  })
-  # combine ANOVA tables for all quantiles
-  ans[[1]]$table <- ldply(ans, `[[`, "table")
-  # keep only the combined version
-  ans <- ans[[1]]
-  # give it a new class to handle printing it
-  class(ans) <- "anova.rqs"
-  return(ans)
+# @param ... passed to rql()
+aovq <- function(...) {
+  # TODO check that the explanatory variables are categorical
+  suppressWarnings(o <- rql(...))
+  # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
+  class(o) <- "aovq"
+  return(o)
 }
 
-# Printing method for results of aovq
+# Perform an analysis of variance test
 #
-# identical to print.anova.rq except for the added tau column
-print.anova.rqs <- function (x, ...){
+# @param object an aovq object
+# @param test test statistic to use (passed to anova.rq)
+# @param R number of resampling replications for the anowar form of the test (passed to anova.rq)
+# @param ... passed to anova.rq
+summary.aovq <- function(object, test="anowar", R=1000, ...) {
+  o <- plyr::llply(object, function(m, ...) {
+    # compute the null model for this quantile
+    suppressWarnings(mnull <- update(m, . ~ 1))
+    # compare them
+    suppressWarnings(a <- anova.rq(mnull, m, test=test, R=R, ...))
+    return(a)
+  }, ...)
+  # combine ANOVA tables for all quantiles
+  o[[1]]$table <- plyr::ldply(o, `[[`, "table", .id="tau")
+  # keep only the combined version
+  o <- o[[1]]
+  # give it a new class to handle printing it
+  class(o) <- "summary.aovq"
+  return(o)
+}
+
+# Printing method for results of summary.aovq
+#
+# @param x object of class summary.aovq, returned by summary.aovq()
+# = identical to print.anova.rq except for the added tau column
+print.summary.aovq <- function (x, ...){
   table <- x$table
   topnote <- x$topnote
   dimnames(table)[[2]] <- c("tau", "Df", "Resid Df", "F value", "Pr(>F)")
@@ -306,3 +311,13 @@ print.anova.rqs <- function (x, ...){
   a <- structure(table, heading = c(title, topnote), class = c("anova", "data.frame"))
   print(a)
 }
+
+# set.seed(1)
+# n <- 30
+# d <- data.frame(x1=rnorm(n, 1), x2=rnorm(n,1.5), x3=rnorm(n, 0.5))
+# d <- gather(d, key="x", value="y")
+# qplot(x, y, data=d)
+#
+# summary(aov(y ~ x, data=d))
+# summary(aovq(y ~ x, tau=c(0.25, 0.5, 0.75), data=d))
+
