@@ -110,7 +110,7 @@ There does not seem to be a large scale geographical pattern to this (sites are 
 dd <- left_join(dd, sites, by="site")
 
 # test
-wilcox.test(cpue ~ topography, data=dd)
+aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd, test="anowar", R=1000)
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -118,12 +118,16 @@ and influence of Rhône
 
 ```{r}
 # test
-wilcox.test(cpue ~ region, data=dd)
-# plot, excluding high catches
+aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd, test="anowar", R=1000)
 ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
-*No statistical difference* can be detected between these regions.
+*No statistical difference* can be detected between these regions (Gulf-Lion/Ligure, and West-Rhone/East-Rhone) for 50% of catches, that is for low catches.
+
+However, concerning mid catches (0.75 <=> > 1-2 larvae / Care) and high catches (0.9 <=> > 10 larvae) there were significant differences. 
+
+Fish larvae abundance was higher for sites located in the Ligurian Sea than those located in the Gulf of Lion, and also higher for sites of Ligurian Sea. 
+
 
 
 ### Per species
