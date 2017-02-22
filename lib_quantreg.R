@@ -61,24 +61,34 @@ predict.rql <- function(object, ...) {
 # @param y univariate response variable
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the smooth (larger means smoother)
+# @param .parallel, .progress passed to ldply()
 # @param ... passed to `predict.rq`
-llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, ...) {
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .progress="none", ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
-  ldply(xx, function(xx) {
-    # center on the current point and define normally distributed weights around it
-    z <- x - xx
-    wx <- dnorm(z/bw)
-    if (all(wx == 0)) {
-      stop("No points within one bandwidth. Increase bw.")
-    }
-    # compute quantile regression
-    r <- rq(y ~ z, weights=wx, tau=tau)
-    # and extract fitted values
-    p <- predict(r, data.frame(z=0), ...)
+  # for each tau
+  # NB: it is faster to split by tau than to use rql inside (i.e. fit for each tau separately inside)
+  #     we can't fit for all taus and then get the predictions + CI separately for each tau (fails)
+  #     in addition, parallelising at this stage is the easiest and most efficient
+  ldply(tau, function(tau) {
+    p <- ldply(xx, function(xx) {
+      # center on the current point and define normally distributed weights around it
+      z <- x - xx
+      wx <- dnorm(z/bw)
+      if (all(wx == 0)) {
+        stop("No points within one bandwidth. Increase bw.")
+      }
+      # compute quantile regression
+      r <- rq(y ~ z, weights=wx, tau=tau)
+      # and extract fitted values
+      p <- predict(r, data.frame(z=0), ...)
+      return(p)
+    })
+    # identify x values and quantile
     p$x <- xx
+    p$tau <- factor(tau)
     return(p)
-  })
+  }, .parallel=.parallel, .progress=.progress)
 }
 
 # library("MASS")
