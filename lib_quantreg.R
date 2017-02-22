@@ -18,9 +18,8 @@ library("logspline")
 # This is useful to each prediction of confidence intervals per tau (which is currently impossible for predict.rq with multiple tau)
 # @param the usual arguments of rq
 rql <- function(formula, tau, data, ...) {
-  o <- lapply(tau, function(x) {
-    do.call("rq", list(formula=as.formula(formula), tau=x, data=substitute(data), ...))
-  })
+  my_rq <- function(tau, formula, data, ...) {do.call("rq", list(formula=as.formula(formula), tau=tau, data=substitute(data), ...))}
+  o <- do.call("lapply", list(X=tau, FUN=my_rq, formula=as.formula(formula), data=substitute(data), ...))
   # NB: based on http://stackoverflow.com/questions/14933804/trouble-passing-on-an-argument-to-function-within-own-function
   #     using do.call evaluates the arguments and therefore avoids most scoping issues
   class(o) <- c("rql", class(o))
@@ -88,10 +87,11 @@ as.rql <- function(object, ...) {
 
 
 # data("engel")
-# # basic test of rql, summary, and prediction
+# # basic test of rql, summary, and, model modification, and prediction
 # m <- rql(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
 # summary(m)
 # head(predict(m, newdata=engel))
+# update(m[[1]], .~1)
 # head(p <- predict(m, newdata=engel, int="conf"))
 # p$income <- engel$income
 # ggplot() +
