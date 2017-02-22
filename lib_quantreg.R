@@ -11,55 +11,41 @@ library("logspline")
 
 ## Tools ----
 
-# Extract a single quantile from a multiple quantile object
+# Fit rq separately for each tau
 #
-# @param x object of class rqs
-# @param tau quantile to extract
-as.rq <- function(x, tau) {
-  if (!"rqs" %in% class(x)) {
-    stop("Need an object of class rqs")
-  }
-  i <- match(tau, x$tau)
-  if (is.na(i)) {
-    stop("Cannot find quantile ", tau, ". Available quantiles are: ", paste0(x$tau, collapse=", "), ".")
-  }
-
-  # subset everything
-  x$coefficients <- x$coefficients[,i]
-  x$fitted.values <- x$fitted.values[,i]
-  x$residuals <- x$residuals[,i]
-  x$tau <- x$tau[i]
-  x$rho <- x$rho[i]
-  # assign class
-  class(x) <- "rq"
-
-  return(x)
+# This is useful to each prediction of confidence intervals per tau (which is currently impossible for predict.rq with multiple tau)
+# @param the usual arguments of rq()
+rql <- function(formula, tau, data, weights, ...) {
+  o <- plyr::llply(tau, function(tau, formula, data, weights, ...) {
+    data$weights <- weights
+    rq(formula=formula, tau=tau, data=data, weights=weights, ...)
+  }, formula=formula, d=data, w=weights, ...)
+  class(o) <- c("rql", "list")
+  return(o)
 }
 
-# Better implementation of predict for multiple quantiles regression
-# = extracts the same information as predict.rq, for each quantile
+# Predict fitted values (and possibly CIs) for lists of rq objects
 #
-# @param object object of class rqs
-# @param ... passed to predict.rq
-predict.rqs <- function(object, ...) {
-  fit <- ldply(object$tau, function(tau) {
-    # extract the fit for this quantile
-    fit <- quantreg::predict.rq(as.rq(object, tau), ...)
-    # when no confidence interval is extracted, the object is a single vector of fitted values
-    # make it a data.frame to be compatible
-    if (is.vector(fit)) {
-      fit <- data.frame(fit=fit)
+# @param object list of rq() objects, returned by rql
+# @param ... passed to ldply and predict.rq (NB: .parallel can be used)
+predict.rql <- function(object, ...) {
+  p <- plyr::ldply(object, function(x, ...) {
+    p <- predict.rq(x, ...)
+    if (is.vector(p)) {
+      p <- data.frame(fit=p)
+    } else {
+      p <- as.data.frame(p)
     }
-    data.frame(fit, tau)
-  })
-  fit$tau <- factor(fit$tau)
-  return(fit)
+    p$tau <- x$tau
+    return(p)
+  }, ...)
+  p$tau <- factor(p$tau)
+  return(p)
 }
 
 # data("engel")
-# m <- rq(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
-# head(p <- predict(m))
-# head(p <- predict(m, newdata=engel, interval="confidence"))
+# m <- rql(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
+# system.time(p <- predict(m, newdata=engel, int="conf", se="boot", bsmethod="xy", R=1000))
 # p$income <- engel$income
 # ggplot() +
 #   geom_point(aes(income, foodexp), data=engel) +
