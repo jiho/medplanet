@@ -7,58 +7,45 @@
 #
 
 library("quantreg")
+library("logspline")
 
 ## Tools ----
 
-# Extract a single quantile from a multiple quantile object
+# Fit rq separately for each tau
 #
-# @param x object of class rqs
-# @param tau quantile to extract
-as.rq <- function(x, tau) {
-  if (!"rqs" %in% class(x)) {
-    stop("Need an object of class rqs")
-  }
-  i <- match(tau, x$tau)
-  if (is.na(i)) {
-    stop("Cannot find quantile ", tau, ". Available quantiles are: ", paste0(x$tau, collapse=", "), ".")
-  }
-
-  # subset everything
-  x$coefficients <- x$coefficients[,i]
-  x$fitted.values <- x$fitted.values[,i]
-  x$residuals <- x$residuals[,i]
-  x$tau <- x$tau[i]
-  x$rho <- x$rho[i]
-  # assign class
-  class(x) <- "rq"
-
-  return(x)
+# This is useful to each prediction of confidence intervals per tau (which is currently impossible for predict.rq with multiple tau)
+# @param the usual arguments of rq()
+rql <- function(formula, tau, data, weights, ...) {
+  o <- plyr::llply(tau, function(tau, formula, data, weights, ...) {
+    data$weights <- weights
+    rq(formula=formula, tau=tau, data=data, weights=weights, ...)
+  }, formula=formula, d=data, w=weights, ...)
+  class(o) <- c("rql", "list")
+  return(o)
 }
 
-# Better implementation of predict for multiple quantiles regression
-# = extracts the same information as predict.rq, for each quantile
+# Predict fitted values (and possibly CIs) for lists of rq objects
 #
-# @param object object of class rqs
-# @param ... passed to predict.rq
-predict.rqs <- function(object, ...) {
-  fit <- ldply(object$tau, function(tau) {
-    # extract the fit for this quantile
-    fit <- quantreg::predict.rq(as.rq(object, tau), ...)
-    # when no confidence interval is extracted, the object is a single vector of fitted values
-    # make it a data.frame to be compatible
-    if (is.vector(fit)) {
-      fit <- data.frame(fit=fit)
+# @param object list of rq() objects, returned by rql
+# @param ... passed to ldply and predict.rq (NB: .parallel can be used)
+predict.rql <- function(object, ...) {
+  p <- plyr::ldply(object, function(x, ...) {
+    p <- predict.rq(x, ...)
+    if (is.vector(p)) {
+      p <- data.frame(fit=p)
+    } else {
+      p <- as.data.frame(p)
     }
-    data.frame(fit, tau)
-  })
-  fit$tau <- factor(fit$tau)
-  return(fit)
+    p$tau <- x$tau
+    return(p)
+  }, ...)
+  p$tau <- factor(p$tau)
+  return(p)
 }
 
 # data("engel")
-# m <- rq(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
-# head(p <- predict(m))
-# head(p <- predict(m, newdata=engel, interval="confidence"))
+# m <- rql(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
+# system.time(p <- predict(m, newdata=engel, int="conf", se="boot", bsmethod="xy", R=1000))
 # p$income <- engel$income
 # ggplot() +
 #   geom_point(aes(income, foodexp), data=engel) +
@@ -74,35 +61,45 @@ predict.rqs <- function(object, ...) {
 # @param y univariate response variable
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the smooth (larger means smoother)
+# @param .parallel, .progress passed to ldply()
 # @param ... passed to `predict.rq`
-llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, ...) {
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .progress="none", ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
-  ldply(xx, function(xx) {
-    # center on the current point and define normally distributed weights around it
-    z <- x - xx
-    wx <- dnorm(z/bw)
-    if (all(wx == 0)) {
-      stop("No points within one bandwidth. Increase bw.")
-    }
-    # compute quantile regression
-    r <- rq(y ~ z, weights=wx, tau=tau)
-    # and extract fitted values
-    p <- predict(r, data.frame(z=0), ...)
+  # for each tau
+  # NB: it is faster to split by tau than to use rql inside (i.e. fit for each tau separately inside)
+  #     we can't fit for all taus and then get the predictions + CI separately for each tau (fails)
+  #     in addition, parallelising at this stage is the easiest and most efficient
+  ldply(tau, function(tau) {
+    p <- ldply(xx, function(xx) {
+      # center on the current point and define normally distributed weights around it
+      z <- x - xx
+      wx <- dnorm(z/bw)
+      if (all(wx == 0)) {
+        stop("No points within one bandwidth. Increase bw.")
+      }
+      # compute quantile regression
+      r <- rq(y ~ z, weights=wx, tau=tau)
+      # and extract fitted values
+      p <- predict(r, data.frame(z=0), ...)
+      return(p)
+    })
+    # identify x values and quantile
     p$x <- xx
+    p$tau <- factor(tau)
     return(p)
-  })
+  }, .parallel=.parallel, .progress=.progress)
 }
 
-# library("MASS")
-# data("mcycle")
+# data("mcycle", package="MASS")
 #
-# rq_fit <- lprq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3)
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3)
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
-#   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit)
+#   geom_line(aes(x=x, y=`1`, colour=tau), data=rq_fit)
 #
-# rq_fit <- lrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot", .parallel=TRUE)
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
 #   geom_ribbon(aes(x=x, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
@@ -152,13 +149,13 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 # @param data a data.frame in which to interpret the variables named in the formula
 # @param tau the quantile(s) to be estimated
 # @param ... passed to anova.rq
-aovq <- function(formula, data, tau, ...) {
+aovq <- function(formula, data, tau, test="anowar", R=1000, ...) {
   ans <- plyr::llply(tau, function(tau) {
     # compute regression and null model for this quantile
     suppressWarnings(m <- rq(formula, tau=tau, data=data))
     suppressWarnings(mnull <- rq(update(formula, . ~ 1), tau=tau, data=data))
     # compare them
-    suppressWarnings(a <- anova(mnull, m, ...))
+    suppressWarnings(a <- anova(mnull, m, test=test, R=R, ...))
 
     # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
 
