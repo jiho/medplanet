@@ -188,7 +188,7 @@ srq <- function(x, y, tau=.5, df=15, ...) {
   # fit quantile regression
   m <- rq(y ~ xx, tau=tau)
   # extract the fit (and potentially confidence interval) for all quantiles
-  fit <- predict(m, newdata=xx, ...)
+  fit <- predict(as.rql(m), newdata=xx, ...)
   fit$x <- x
   return(fit)
 }
