@@ -430,6 +430,10 @@ TODO redo that per quantile level (probably has to be done manually with a loess
 
 TODO CA to delinate assemblages (potentially per season).
 
+## Synchronicity among years
+
+Time arrival anomaly => see 3.Spatial.Rmd
+
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
 ```{r fig.height=7}
@@ -463,9 +467,6 @@ ggplot(dd) +
 ```
 
 
-
-TODO describe with Robin's time consistency index or use the same approach as for synchrony between sites (anomaly to the average)
-
 ## Abundance among years
 
 The effort varied quite a lot among years.
@@ -494,7 +495,7 @@ as.data.frame(p_test$p.value)
 dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
 ```
 
-TODO significance tests kruskal + pairwise.wilcox
+Replace kruskal by aov.rq
 
 ## Species composition among years
 
@@ -523,6 +524,15 @@ autoplot(ca)
 
 ```
 
-TODO redo with genera, other species, etc.
+Differences in species composition are observed between years. 2012, 2013, 2014 are characterized by some species (2012 = *A hepsetus*, 2013 = *S smaris*, 2014 = *B boops*, *D annularis*, *O melanuara*).
 
-TODO interpret this CA and the spatial CA together
+These differences could be due to a different sampling effort. For example, 2012 is characterized by A.hepsetus maybe because sites sampled in 2012 have essentially *A.hepsetus*.
+
+However, years 2012 2013 2014 have the same (or very similar) sampling effort (in terms of sites sampled).
+
+2012 : All sites except La Ciotat, Cassis, Carry, Les Embeiz
+2013 : All sites except La Ciotat, Cassis, Carry, Les Embiez
+2014 : All sites except La Ciotat, Cassis
+2015 : Only Embiez, Ciotat, Cassis, Marseille, Villefranche.
+
+So difference between years in species composition is not due to difference in sampling sites. 
