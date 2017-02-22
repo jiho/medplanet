@@ -9,25 +9,40 @@
 library("quantreg")
 library("logspline")
 
-## Tools ----
+# library("tidyverse") # for some examples
 
-# Fit rq separately for each tau
+## Use multiple quantiles in a list ----
+
+# Fit quantile regression separately for each tau
 #
 # This is useful to each prediction of confidence intervals per tau (which is currently impossible for predict.rq with multiple tau)
-# @param the usual arguments of rq()
-rql <- function(formula, tau, data, weights, ...) {
-  o <- plyr::llply(tau, function(tau, formula, data, weights, ...) {
-    data$weights <- weights
-    rq(formula=formula, tau=tau, data=data, weights=weights, ...)
-  }, formula=formula, d=data, w=weights, ...)
-  class(o) <- c("rql", "list")
+# @param the usual arguments of rq
+rql <- function(formula, tau, data, ...) {
+  o <- lapply(tau, function(x) {
+    do.call("rq", list(formula=as.formula(formula), tau=x, data=substitute(data), ...))
+  })
+  # NB: based on http://stackoverflow.com/questions/14933804/trouble-passing-on-an-argument-to-function-within-own-function
+  #     using do.call evaluates the arguments and therefore avoids most scoping issues
+  class(o) <- c("rql", class(o))
+  names(o) <- tau
   return(o)
 }
 
-# Predict fitted values (and possibly CIs) for lists of rq objects
+# Summary method for quantile regression list
+#
+# @param object list of `rq` objects, returned by rql()
+# @param ... passed to summary.rq
+summary.rql <- function(object, ...) {
+  o <- lapply(object, summary, ...)
+  names(o) <- names(object)
+  return(o)
+}
+
+# Quantile regression prediction from list
 #
 # @param object list of rq() objects, returned by rql
-# @param ... passed to ldply and predict.rq (NB: .parallel can be used)
+# @param ... passed to predict.rq (and ldply => .parallel can be used)
+# NB: always returns a data.frame with at least columns tau (factor) and fit
 predict.rql <- function(object, ...) {
   p <- plyr::ldply(object, function(x, ...) {
     p <- predict.rq(x, ...)
@@ -36,21 +51,74 @@ predict.rql <- function(object, ...) {
     } else {
       p <- as.data.frame(p)
     }
-    p$tau <- x$tau
     return(p)
   }, ...)
+  names(p)[1] <- "tau"
   p$tau <- factor(p$tau)
   return(p)
 }
 
+# Transform an rqs object into an rql object
+#
+# @param object an rqs object, output by rq when tau is a vector
+as.rql <- function(object, ...) {
+  if (!"rqs" %in% class(object)) {
+    stop("Need an object of class rqs")
+  }
+  l <- list()
+  for (i in 1:length(object$tau)) {
+    x <- object
+    # subset everything to make the content similar to the output of rq
+    x$coefficients <- x$coefficients[,i]
+    x$fitted.values <- x$fitted.values[,i]
+    names(x$fitted.values) <- 1:length(x$fitted.values)
+    x$residuals <- x$residuals[,i]
+    x$tau <- x$tau[i]
+    x$call[3] <- x$tau
+    x$rho <- x$rho[i]
+    # remove dual because we can't make it similar to rq
+    x$dual <- NULL
+    # assign class
+    class(x) <- "rq"
+    l[[as.character(x$tau)]] <- x
+  }
+  class(l) <- "rql"
+  return(l)
+}
+
+
 # data("engel")
+# # basic test of rql, summary, and prediction
 # m <- rql(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
-# system.time(p <- predict(m, newdata=engel, int="conf", se="boot", bsmethod="xy", R=1000))
+# summary(m)
+# head(predict(m, newdata=engel))
+# head(p <- predict(m, newdata=engel, int="conf"))
 # p$income <- engel$income
 # ggplot() +
 #   geom_point(aes(income, foodexp), data=engel) +
 #   geom_ribbon(aes(income, ymin=lower, ymax=higher, fill=tau), data=p, alpha=0.5) +
 #   geom_path(aes(income, fit, colour=tau), data=p)
+#
+# # parallel computation
+# new <- data.frame(income=runif(5000, 200, 4900))
+# system.time(p <- predict(m, newdata=new, int="conf"))
+# library("doParallel")
+# registerDoParallel(cores=2)
+# system.time(p <- predict(m, newdata=new, int="conf", .parallel=TRUE))
+# stopImplicitCluster()
+# # -> works, twice as fast!
+#
+# # convert between rqs qnd rql
+# m <- rq(foodexp ~ income, data=engel, tau=c(.25, .5, .75))
+# head(predict(m))
+# head(predict(as.rql(m)))
+# # test the conversion gives exactly similar objects
+# m1ref <- rq(foodexp ~ income, data=engel, tau=0.25)
+# m1 <- as.rql(m)[[1]]
+# for (n in names(m1ref)) {
+#   message(n, " ", identical(m1[[n]], m1_ref[[n]]))
+# }
+# # -> ok for all but dual (as expected)
 
 
 ## Non parametric quantile regression ----
