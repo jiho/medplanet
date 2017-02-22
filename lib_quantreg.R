@@ -51,9 +51,7 @@ predict.rql <- function(object, ...) {
       p <- as.data.frame(p)
     }
     return(p)
-  }, ...)
-  names(p)[1] <- "tau"
-  p$tau <- factor(p$tau)
+  }, .id="tau", ...)
   return(p)
 }
 
