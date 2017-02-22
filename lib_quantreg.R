@@ -121,6 +121,36 @@ as.rql <- function(object, ...) {
 # # -> ok for all but dual (as expected)
 
 
+## Tools ----
+
+# Smooth data using a moving average
+#
+# @param x vector, matrix, or data.frame of data
+# @param order order of the moving average, will be made integer. The window is of size 2*k+1
+mav <- function(x, k, ...) {
+  if (is.vector(x)) {
+    x <- matrix(x, ncol=1)
+  }
+
+  # prepare the weights for filtering
+  k <- round(k)
+  w <- c(seq(1, k, by=1), k+1, seq(k, 1, by=-1))
+  w <- w/sum(w)
+
+  # padd the data at the beginning and end to avoid loosing data
+  n <- nrow(x)
+  x_padded <- x[c(rep(1, times=k), 1:n, rep(n, times=k)), , drop=F]
+
+  # pass the moving average
+  xf_padded <- stats::filter(x_padded, w)
+
+  # remove padding
+  xf <- xf_padded[1:n+k,]
+
+  return(as.data.frame(xf))
+}
+
+
 ## Non parametric quantile regression ----
 
 # Locally linear non-parametric quantile regression
@@ -128,10 +158,11 @@ as.rql <- function(object, ...) {
 # @param x univariate explanatory variable
 # @param y univariate response variable
 # @param tau quantile(s)
-# @param bw bandwidth, i.e. scale of the smooth (larger means smoother)
+# @param bw bandwidth, i.e. scale of the fit (larger means smoother)
+# @param smooth when > 0, smooth result using a moving average of order `smooth`
 # @param .parallel, .progress passed to ldply()
 # @param ... passed to `predict.rq`
-llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .progress="none", ...) {
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .progress="none", smooth=0, ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
   # for each tau
@@ -155,16 +186,27 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .pro
     # identify x values and quantile
     p$x <- xx
     p$tau <- factor(tau)
+    # force first column to be called fit
+    names(p)[1] <- "fit"
+    if (smooth != 0) {
+      # detect which columns to smooth (i.e. all those when present)
+      cols <- intersect(names(p), c("fit", "lower", "upper"))
+      # run a moving average
+      p[cols] <- mav(p[cols], smooth)
+    }
     return(p)
   }, .parallel=.parallel, .progress=.progress)
 }
 
 # data("mcycle", package="MASS")
 #
+# # test local linear fitting with or without smoothing
 # rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3)
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
-#   geom_line(aes(x=x, y=`1`, colour=tau), data=rq_fit)
+#   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit)
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, smooth=2)
+# last_plot() + geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit, linetype="dashed")
 #
 # rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
 # rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot", .parallel=TRUE)
