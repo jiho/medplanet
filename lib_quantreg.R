@@ -91,15 +91,15 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, .parallel=FALSE, .pro
   }, .parallel=.parallel, .progress=.progress)
 }
 
-# library("MASS")
-# data("mcycle")
+# data("mcycle", package="MASS")
 #
-# rq_fit <- lprq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3)
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3)
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
-#   geom_line(aes(x=x, y=fit, colour=tau), data=rq_fit)
+#   geom_line(aes(x=x, y=`1`, colour=tau), data=rq_fit)
 #
-# rq_fit <- lrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot")
+# rq_fit <- llrq(mcycle$times, mcycle$accel, tau=c(.25, .5, .75), bw=3, interval="confidence", se="boot", .parallel=TRUE)
 # ggplot() +
 #   geom_point(aes(x=times, y=accel), data=mcycle) +
 #   geom_ribbon(aes(x=x, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
