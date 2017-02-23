@@ -158,7 +158,7 @@ mav <- function(x, k, ...) {
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the fit (larger means smoother)
 # @param smooth when > 0, smooth result using a moving average of order `smooth`
-# @param .parallel, .progress passed to ldply()
+# @param .progress passed to the internal ldply() loop on n
 # @param ... passed to `predict.rq` (and ldply => can use .parallel, etc.)
 llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
   # create the vector of output points
@@ -181,7 +181,7 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
       # and extract fitted values
       p <- predict(r, data.frame(z=0), ...)
       return(p)
-    }, ...)
+    }, .progress=.progress, ...)
     # identify x values and quantile
     p$x <- xx
     p$tau <- factor(tau)
