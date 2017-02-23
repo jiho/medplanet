@@ -5,7 +5,6 @@
 #
 
 source("lib_quantreg.R")
-library("logspline")
 library("stringr")
 library("plyr")
 library("tidyverse")
@@ -61,7 +60,7 @@ filter(tidy(m, se="boot", R=1000, bsmethod="wxy"), term=="x")
 
 # plot predictions
 xx <- data.frame(x=seq(0, 1, length=100))
-p <- predict(m, newdata=xx, interval="confidence", se="nid")
+p <- predict(as.rql(m), newdata=xx, interval="confidence", se="nid")
 # NB: this is a custom version of predict.rqs
 p$x <- xx$x
 
