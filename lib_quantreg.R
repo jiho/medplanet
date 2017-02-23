@@ -8,6 +8,7 @@
 
 library("quantreg")
 library("logspline")
+library("ggplot2")
 
 # library("tidyverse") # for some examples
 
@@ -157,6 +158,7 @@ mav <- function(x, k, ...) {
 # @param y univariate response variable
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the fit (larger means smoother)
+# @param n number of point to estimate the fit at
 # @param smooth when > 0, smooth result using a moving average of order `smooth`
 # @param .progress passed to the internal ldply() loop on n
 # @param ... passed to `predict.rq` (and ldply => can use .parallel, etc.)
