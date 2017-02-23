@@ -162,7 +162,8 @@ mav <- function(x, k, ...) {
 # @param smooth when > 0, smooth result using a moving average of order `smooth`
 # @param .progress passed to the internal ldply() loop on n
 # @param ... passed to `predict.rq` (and ldply => can use .parallel, etc.)
-llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
+source("eval_fork.R") # allows to stop a process if it becomes un responsive
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, .progress="none", ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
 
@@ -181,7 +182,19 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
       # compute quantile regression
       r <- rq(y ~ z, weights=wx, tau=tau)
       # and extract fitted values
-      p <- predict(r, data.frame(z=0), ...)
+      p <- tryCatch(eval_fork(predict.rq(r, newdata=data.frame(z=0), ...), timeout=1),
+                    # NB: This step would often fail when requesting CI:
+                    #     - either the prediction does not converge and predict.rq errors out
+                    #     - or predict.rq gets stuck (in the case of bootstrap)
+                    #     Using tryCatch + eval_fork allows to catch both errors and continue nonetheless
+                    error = function(e) {
+                      # transform the error into a warning
+                      warning("pb in fit at x = ", xx, " : ", e$message, call.=F)
+                      # prepare return data with no confidence interval (since this is whay fails)
+                      p <- matrix(c(predict(r, data.frame(z=0), interval="none"), NA, NA), nrow=1)
+                      colnames(p) <- c("fit", "lower", "higher")
+                      return(p)
+                    })
       return(p)
     }, .progress=.progress, ...)
     # identify x values and quantile
