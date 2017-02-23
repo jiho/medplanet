@@ -8,6 +8,7 @@
 
 library("quantreg")
 library("logspline")
+library("ggplot2")
 
 # library("tidyverse") # for some examples
 
@@ -157,10 +158,12 @@ mav <- function(x, k, ...) {
 # @param y univariate response variable
 # @param tau quantile(s)
 # @param bw bandwidth, i.e. scale of the fit (larger means smoother)
+# @param n number of point to estimate the fit at
 # @param smooth when > 0, smooth result using a moving average of order `smooth`
-# @param .parallel, .progress passed to ldply()
+# @param .progress passed to the internal ldply() loop on n
 # @param ... passed to `predict.rq` (and ldply => can use .parallel, etc.)
-llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
+source("eval_fork.R") # allows to stop a process if it becomes un responsive
+llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, .progress="none", ...) {
   # create the vector of output points
   xx <- seq(min(x), max(x), length.out=n)
 
@@ -173,15 +176,27 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
       # center on the current point and define normally distributed weights around it
       z <- x - xx
       wx <- dnorm(z/bw)
-      if (all(wx == 0)) {
-        stop("No points within one bandwidth. Increase bw.")
+      if (sum(wx != 0) < 10) {
+        stop("Few points within the bandwidth. Increase bw.")
       }
       # compute quantile regression
       r <- rq(y ~ z, weights=wx, tau=tau)
       # and extract fitted values
-      p <- predict(r, data.frame(z=0), ...)
+      p <- tryCatch(eval_fork(predict.rq(r, newdata=data.frame(z=0), ...), timeout=1),
+                    # NB: This step would often fail when requesting CI:
+                    #     - either the prediction does not converge and predict.rq errors out
+                    #     - or predict.rq gets stuck (in the case of bootstrap)
+                    #     Using tryCatch + eval_fork allows to catch both errors and continue nonetheless
+                    error = function(e) {
+                      # transform the error into a warning
+                      warning("pb in fit at x = ", xx, " : ", e$message, call.=F)
+                      # prepare return data with no confidence interval (since this is whay fails)
+                      p <- matrix(c(predict(r, data.frame(z=0), interval="none"), NA, NA), nrow=1)
+                      colnames(p) <- c("fit", "lower", "higher")
+                      return(p)
+                    })
       return(p)
-    }, ...)
+    }, .progress=.progress, ...)
     # identify x values and quantile
     p$x <- xx
     p$tau <- factor(tau)
@@ -265,45 +280,41 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 
 ## Quantile-based ANOVA ----
 
-# Fit a multiple quantile regression models which will be used in an ANOVA setting
+# ANOVA based on quantile regression
 #
-# @param ... passed to rql()
-aovq <- function(...) {
-  # TODO check that the explanatory variables are categorical
-  suppressWarnings(o <- rql(...))
-  # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
-  class(o) <- "aovq"
-  return(o)
-}
-
-# Perform an analysis of variance test
-#
-# @param object an aovq object
-# @param test test statistic to use (passed to anova.rq)
-# @param R number of resampling replications for the anowar form of the test (passed to anova.rq)
+# @param formula a formula object, like for aov()
+# @param tau the quantile(s) to be estimated
+# @param data a data.frame in which to interpret the variables named in the formula
+# @param test, R defaults for anova.rq
 # @param ... passed to anova.rq
-summary.aovq <- function(object, test="anowar", R=1000, ...) {
-  o <- plyr::llply(object, function(m, ...) {
-    # compute the null model for this quantile
-    suppressWarnings(mnull <- update(m, . ~ 1))
+aovq <- function(formula, tau, data, test="anowar", R=1000, ...) {
+  ans <- plyr::llply(tau, function(tau) {
+    # compute regression and null model for this quantile
+    suppressWarnings(m <- rq(formula, tau=tau, data=data))
+    suppressWarnings(mnull <- rq(update(formula, . ~ 1), tau=tau, data=data))
     # compare them
-    suppressWarnings(a <- anova.rq(mnull, m, test=test, R=R, ...))
+    suppressWarnings(a <- anova(mnull, m, test=test, R=R, ...))
+
+    # NB: warnings are suppressed because, with a categorical explanatory variable, it is very common that the median is not exactly defined (when the number of observations is even for example) and this yields a warning of the form "In rq.fit.br(x, y, tau = tau, ...) : Solution may be nonunique". This is not ideal because other warnings may be relevant but this was too annoying to be left alone.
+
+    # identify the quantile (as the first column)
+    a$table$tau <- tau
+    a$table <- a$table[,c(5,1:4)]
     return(a)
-  }, ...)
+  })
   # combine ANOVA tables for all quantiles
-  o[[1]]$table <- plyr::ldply(o, `[[`, "table", .id="tau")
+  ans[[1]]$table <- ldply(ans, `[[`, "table")
   # keep only the combined version
-  o <- o[[1]]
+  ans <- ans[[1]]
   # give it a new class to handle printing it
-  class(o) <- "summary.aovq"
-  return(o)
+  class(ans) <- "anova.rqs"
+  return(ans)
 }
 
-# Printing method for results of summary.aovq
+# Printing method for results of aovq
 #
-# @param x object of class summary.aovq, returned by summary.aovq()
-# = identical to print.anova.rq except for the added tau column
-print.summary.aovq <- function (x, ...){
+# identical to print.anova.rq except for the added tau column
+print.anova.rqs <- function (x, ...){
   table <- x$table
   topnote <- x$topnote
   dimnames(table)[[2]] <- c("tau", "Df", "Resid Df", "F value", "Pr(>F)")
@@ -318,8 +329,8 @@ print.summary.aovq <- function (x, ...){
 # d <- gather(d, key="x", value="y")
 # qplot(x, y, data=d)
 #
-# summary(aov(y ~ x, data=d))
-# summary(aovq(y ~ x, tau=c(0.25, 0.5, 0.75), data=d))
+# aov(y ~ x, data=d)
+# aovq(y ~ x, tau=c(0.25, 0.5, 0.75), data=d)
 
 
 
