@@ -18,6 +18,7 @@ library("tidyverse")
 library("FactoMineR")
 library("printr")
 library("lubridate")
+library("doParallel")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -29,29 +30,39 @@ source("lib_quantreg.R")    # perform quantile regression
 
 The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
 
-```{r}
-dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
-dd <- filter(dd, cpue < 200)
-
+```{r ts_data}
+dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
 
 q <- c(.25, .5, .75, .9)
-rq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot")
-rq_fit$date <- min(dd$date) + rq_fit$x * 24 * 3600
-rq_fit$lower[rq_fit$lower < 0] <- 0
-ggplot() +
-  geom_point(aes(x=date, y=cpue), data=dd) +
-  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.3) +
-  geom_line(aes(x=date, y=fit,  colour=tau), data=rq_fit)
+```
 
-rq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, interval="confidence", se="boot")
-rq_fit$date <- min(dd$date) + rq_fit$x * 24 * 3600
-rq_fit$lower[rq_fit$lower < 0] <- 0
+```{r srq}
+srq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
 
-ggplot() +
-  geom_point(aes(x=date, y=cpue), data=dd) +
-  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau), data=rq_fit, alpha=0.2, colour=alpha("black", 0.1), size=0.25) +
-  geom_line(aes(x=date, y=fit,  colour=tau), data=rq_fit)
+srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
+srq_fit$lower[srq_fit$lower < 0] <- 0
+
+ggplot(srq_fit) +
+  geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+  geom_line(aes(x=date, y=fit,colour=tau)) +
+  geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+  geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
+```
+
+```{r llrq}
+registerDoParallel(cores=2)
+# system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
+system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
+stopImplicitCluster()
+
+llrq_fit$date <- min(dd$date) + llrq_fit$x * 24 * 3600
+llrq_fit$lower[llrq_fit$lower < 0] <- 0
+
+# same plot with different data
+last_plot() %+% llrq_fit
 ```
 
 
