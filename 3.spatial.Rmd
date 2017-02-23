@@ -93,7 +93,7 @@ Those differences are reflected by global and pairwise statistical tests. Marsei
 # => Hypothèses non vérifiées même après transformation log
 
 # Test with non parametric test
-kruskal.test(cpue ~ site, data=dd)
+summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="anowar",R=1000)
 suppressWarnings(pw <- pairwise.wilcox.test(dd$cpue, dd$site))
 # plot
 pw <- melt(pw$p.value)
@@ -110,7 +110,7 @@ There does not seem to be a large scale geographical pattern to this (sites are 
 dd <- left_join(dd, sites, by="site")
 
 # test
-aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd, test="anowar", R=1000)
+summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="anowar", R=1000)
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -118,7 +118,7 @@ and influence of Rhône
 
 ```{r}
 # test
-aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd, test="anowar", R=1000)
+summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9)), data=dd, test="anowar", R=1000)
 ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -132,7 +132,7 @@ Fish larvae abundance was higher for sites located in the Ligurian Sea than thos
 
 ### Per species
 
-The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a Kruskal-Wallis test between regions. NB: *Boops boops* removed because it is not caught in the West
+The same tests can be performed per species, to detect if a given species is caught more in the west or in the east. The following tables display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a quantile anova regression test between regions. NB: *Boops boops* removed because it is not caught in the West
 
 ```{r}
 # keep only abundant species, but B boops which is not caught in the West
@@ -152,8 +152,8 @@ descriptive_stats <- d_abund %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
   spread(key=topography, value=stats)
 
-p_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$pvalue))
-tau_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$tau))
+p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
+tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
 
 res <- data.frame(tau_val, p_val)
 res <- select(res, sp, tau = x, p.val = x.1)
@@ -175,8 +175,8 @@ descriptive_stats <- d_abund %>%
   spread(key=region, value=stats)
 
 
-p_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$pvalue))
-tau_val <- d_abund %>% group_by(sp) %>% do(tidy((aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=., test="rank"))$table$tau))
+p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
+tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
 
 res <- data.frame(tau_val, p_val)
 res <- select(res, sp, tau = x, p.val = x.1)
@@ -195,15 +195,15 @@ Overall, many differences are significant when the actual data is mostly noise a
 TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
 
 ```{r}
-## Quantile regression for high catches, medium catches and low catches with discrete variable : factor region, then factor topography
+## Quantile regression for high catches, medium catches and low catches with discrete variable : comparison between sites
 
-# Regression per species according to region
+p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
+tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
 
+res <- data.frame(tau_val, p_val)
+res <- select(res, sp, tau = x, p.val = x.1)
 
-
-
-
-
+# Pour toutes les espèces, des différences entre les sites, mais quels sont les sites qui diffèrent ??
 ```
 
 ## Species composition among sites
@@ -256,32 +256,32 @@ ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=
 ## Species-care accumulation curves
 
 # Code 1
-#dd <- d %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
-#dd <- filter(dd, !is.na(species))
-
-#sp_acum <- function(x){
-#  xm <- spread(x, key="species", value="cpue", fill=0)
-#  xm_care <- xm %>% group_by(site) %>% mutate(n_gear=cumsum(n_gear)) %>% ungroup()
-#  sp <- specaccum(select(xm_care, -date, -site, -n_gear), method="exact")
-#  return(data.frame(nb_care=xm_care$n_gear, richness = sp$richness))
-#}
-
-#spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-#ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
-
-
-# 2nd code
-dd <- d0 %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd <- d %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd <- filter(dd, !is.na(species))
 
 sp_acum <- function(x){
   xm <- spread(x, key="species", value="cpue", fill=0)
-  sp <- specaccum(select(xm, -date, -site, -n_gear), method="random", w=xm$n_gear)
-  return(data.frame(nb_care=sp$effort, richness = sp$richness))
+  xm_care <- xm %>% group_by(site) %>% mutate(n_gear=cumsum(n_gear)) %>% ungroup()
+  sp <- specaccum(select(xm_care, -date, -site, -n_gear), method="exact")
+  return(data.frame(nb_care=xm_care$n_gear, richness = sp$richness))
 }
 
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
+ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
+
+
+# 2nd code
+#dd <- d0 %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+#dd <- filter(dd, !is.na(species))
+
+#sp_acum <- function(x){
+#  xm <- spread(x, key="species", value="cpue", fill=0)
+#  sp <- specaccum(select(xm, -date, -site, -n_gear), method="random", w=xm$n_gear)
+#  return(data.frame(nb_care=sp$effort, richness = sp$richness))
+#}
+
+#spd <- dd %>% group_by(site) %>% do(sp_acum(.))
+#ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
 ```
 
 1) Species-nigths accumulation curves :
