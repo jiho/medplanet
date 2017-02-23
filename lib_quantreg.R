@@ -280,13 +280,14 @@ srq <- function(x, y, tau=.5, df=15, ...) {
 
 ## Quantile-based ANOVA ----
 
-# aov()-like function based on quantile regression
+# ANOVA based on quantile regression
 #
 # @param formula a formula object, like for aov()
-# @param data a data.frame in which to interpret the variables named in the formula
 # @param tau the quantile(s) to be estimated
+# @param data a data.frame in which to interpret the variables named in the formula
+# @param test, R defaults for anova.rq
 # @param ... passed to anova.rq
-aovq <- function(formula, data, tau, test="anowar", R=1000, ...) {
+aovq <- function(formula, tau, data, test="anowar", R=1000, ...) {
   ans <- plyr::llply(tau, function(tau) {
     # compute regression and null model for this quantile
     suppressWarnings(m <- rq(formula, tau=tau, data=data))
