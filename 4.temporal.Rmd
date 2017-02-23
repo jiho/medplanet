@@ -63,6 +63,8 @@ llrq_fit$lower[llrq_fit$lower < 0] <- 0
 
 # same plot with different data
 last_plot() %+% llrq_fit
+
+# TODO do the same per genus/species
 ```
 
 
@@ -126,9 +128,8 @@ ggplot(data=vario, mapping=aes(x=delay)) +
   labs(x="delay (days)", y="difference in CPUE")
 ```
 
-TODO redo the same per species for a few species
-
-TODO redo the same for high catches only or catches summarised by level (low, mid, high)
+Same approacches for catches summarised by level (low, mid, high)
+TODO JO review all this part
 
 ```{r}
 quant <- quantile(dd$cpue, prob = seq(0, 1, length = 100)) 
@@ -239,6 +240,9 @@ ggplot(data=vario, mapping=aes(x=delay)) +
   x_scale + scale_y_continuous(limits=c(0,NA)) +
   labs(x="delay (days)", y="difference in CPUE")
 ```
+
+TODO redo the same per species for a few species
+
 These plots can be interpreted as follows:
 
 - from one day to the next (left extreme of the plot), the median difference in CPUE is about 0.5 to 1 fish/CARE/night/site, when the median CPUE is `r median(dd$cpue)`. In other words, the variability is considerably greater than the observation, meaning that, in the vast majority of cases, how much you catch today does not allow to predict how much you will catch tomorrow.
@@ -354,9 +358,11 @@ ggplot(filter(d0m, species %in% abundant_species, in_summer(date)), aes(x=moon_p
 
 TODO scale by sampling effort: compute *mean* of CPUE per lunar period (quarter?)
 
-TODO in the plots with all CPUE, make polynomial smoothers work on high catches only = a bit like quantile regression
+TODO instead of polynomial fits, use local linear quantile regression llrq
 
 Another way to look at it is to regress CPUE on moon phase. Using quantile regression, we can focus on the common scenario (median, quantile=0.5), or the higher catches (quantiles > 0.5). We see that the median catch is basically 0 everywhere and that only the 90th percentile (quantile=0.9) starts to respond to moon phase.
+
+TODO review if quantile regression is correctly done here
 
 ```{r fig.height=4}
 suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
@@ -437,7 +443,7 @@ In red, high catches, in gren all data, and in blue low catches
 ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(data = high_catches, size=0.5, color="#F55D5B", fill="#F55D5B", method="loess")+ geom_smooth(data = low_catches, size=0.5, color="#3399CC", fill="#3399CC", method="loess") + geom_smooth(size=0.5, color="#00CC66", fill="#00CC66", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b") + ylim(0, 110)
 ```
 
-TODO redo that per quantile level (probably has to be done manually with a loess smoother per quantile level).
+TODO redo that using quantile regression.
 
 TODO CA to delinate assemblages (potentially per season).
 

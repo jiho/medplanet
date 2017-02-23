@@ -58,13 +58,11 @@ ggplot(dd) + geom_boxplot(aes(x=site, y=cpue)) + coord_flip()
 ```
 
 ```{r}
-# compute median CPUE per site
-cpue_per_site <- dd %>% group_by(site) %>% summarise(med=median(cpue)) %>% arrange(desc(med))
-overall_med_cpue <- median(dd$cpue)
-cpue_per_site$good <- cpue_per_site$med > overall_med_cpue
+# sort in decreasing order of catches to dosplay stats, below
+dd_summary <- arrange(dd_summary, median)
 ```
 
-Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(cpue_per_site$site, 4)`) and other are consistently low (`r tail(cpue_per_site$site, 4)`). NB: Keeping only low catches eliminates `r nrow(filter(dd, cpue >= 10))` records from `r nrow(dd)`.
+Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 4)`) and other are consistently low (`r tail(dd_summary$site, 4)`). NB: Keeping only low catches eliminates `r nrow(filter(dd, cpue >= 10))` records from `r nrow(dd)`.
 
 ```{r fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
@@ -93,8 +91,9 @@ Those differences are reflected by global and pairwise statistical tests. Marsei
 # => Hypothèses non vérifiées même après transformation log
 
 # Test with non parametric test
-summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="anowar",R=1000)
+aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd)
 suppressWarnings(pw <- pairwise.wilcox.test(dd$cpue, dd$site))
+# TODO replace with pairwise aovq
 # plot
 pw <- melt(pw$p.value)
 pw$X1 <- factor(pw$X1, levels=levels(dd$site))
@@ -110,7 +109,7 @@ There does not seem to be a large scale geographical pattern to this (sites are 
 dd <- left_join(dd, sites, by="site")
 
 # test
-summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="anowar", R=1000)
+aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -118,7 +117,7 @@ and influence of Rhône
 
 ```{r}
 # test
-summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9)), data=dd, test="anowar", R=1000)
+aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -151,15 +150,11 @@ descriptive_stats <- d_abund %>%
   group_by(sp, topography) %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
   spread(key=topography, value=stats)
-
-p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
-tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
-
-res <- data.frame(tau_val, p_val)
-res <- select(res, sp, tau = x, p.val = x.1)
+# perform test per species
+tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
 # make a nice table with both
-left_join(descriptive_stats, res, by="sp") %>% ungroup()
+left_join(descriptive_stats, tests, by="sp") %>% ungroup()
 ```
 
 ```{r}
@@ -173,16 +168,11 @@ descriptive_stats <- d_abund %>%
   group_by(sp, region) %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
   spread(key=region, value=stats)
-
-
-p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
-tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
-
-res <- data.frame(tau_val, p_val)
-res <- select(res, sp, tau = x, p.val = x.1)
+# perform test per species
+tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ region, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
 # make a nice table with both
-left_join(descriptive_stats, res, by="sp") %>% ungroup()
+left_join(descriptive_stats, tests, by="sp") %>% ungroup()
 ```
 
 ```{r}
@@ -251,7 +241,8 @@ sp_acum <- function(x){
 
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
 ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
-
+# TODO use the ready-made function in from test_specaccum
+# TODO perform tests of differences among sites at various effort levels
 
 ## Species-care accumulation curves
 
@@ -306,6 +297,7 @@ For the other sites, no species is particularly characteristic.
 dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
+# TODO explore doing a MDS with B-C distance
 ```
 
 Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
@@ -346,6 +338,7 @@ data.env <- select(data.env, site, topography, region)
 
 adonis((as.multivar(dd, "site"))~region, data.env, permutations = 999, method="bray")$aov.tab
 adonis((as.multivar(dd, "site"))~topography, data.env, permutations = 999, method="bray")$aov.tab
+# TODO make the same with chi2 distance
 ```
 
 - Species assemblage was not different between site located in the ligurian sea and those located in the Gulf of Lion. 

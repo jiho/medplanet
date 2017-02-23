@@ -41,6 +41,7 @@ effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T),
 ```
 
 ```{r}
+# TODO add number of CARE per site to the plot
 ggplot(effort) + geom_point(aes(x=date, y=site), shape="|")
 ```
 
