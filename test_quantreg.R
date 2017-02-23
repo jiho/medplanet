@@ -106,9 +106,9 @@ filter(tidy(m, se="boot", R=1000, bsmethod="wxy"), term=="xx2")
 #    All methods give similar results but iid and ker seem more powerful. But iid at least is likely not appropriate
 #    All bootstraps are quite consistent with each other
 
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="Wald")
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="anowar", R=1000)
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="rank")
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="Wald")
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="anowar", R=1000)
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="rank")
 # -> Wald here is equivalent to nid above (which is expected based on the specificatons in the book)
 #    anowar seems more "progressive" (i.e. more detailed than rank)
 
@@ -130,9 +130,9 @@ qplot(x, y, data=d)
 kruskal.test(y ~ x, data=d)
 summary(aov(y ~ x, data=d))
 
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="Wald")
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="anowar", R=1000)
-aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d, test="rank")
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="Wald")
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="anowar", R=1000)
+summary(aovq(y ~ x, tau=c(0.5, 0.75, 0.9), data=d), test="rank")
 # -> Kruskall and ANOVA both not significant
 #    Quantile equivalent is, for q0.75 and q0.9 only, as expected
 
