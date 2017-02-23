@@ -173,8 +173,8 @@ llrq <- function(x, y, tau=.5, bw=diff(range(x))/10, n=50, smooth=0, ...) {
       # center on the current point and define normally distributed weights around it
       z <- x - xx
       wx <- dnorm(z/bw)
-      if (all(wx == 0)) {
-        stop("No points within one bandwidth. Increase bw.")
+      if (sum(wx != 0) < 10) {
+        stop("Few points within the bandwidth. Increase bw.")
       }
       # compute quantile regression
       r <- rq(y ~ z, weights=wx, tau=tau)
