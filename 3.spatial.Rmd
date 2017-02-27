@@ -182,18 +182,15 @@ ggplot(d_abund, aes(x=sp, y=cpue, colour=region)) + geom_boxplot(na.rm=T) + scal
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
 
-TODO use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
+Use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
 
 ```{r}
 ## Quantile regression for high catches, medium catches and low catches with discrete variable : comparison between sites
+p_val <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
-p_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$pvalue)))
-tau_val <- d_abund %>% group_by(sp) %>% do(tidy((summary(aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd), test="rank")$table$tau)))
-
-res <- data.frame(tau_val, p_val)
-res <- select(res, sp, tau = x, p.val = x.1)
 
 # Pour toutes les espèces, des différences entre les sites, mais quels sont les sites qui diffèrent ??
+#TODO compute pairwise.aovq
 ```
 
 ## Species composition among sites
@@ -297,7 +294,6 @@ For the other sites, no species is particularly characteristic.
 dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 autoplot(ca, size=1)
-# TODO explore doing a MDS with B-C distance
 ```
 
 Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
@@ -336,9 +332,8 @@ Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test 
 data.env <- data.frame(as.multivar(dd, "site"), sites)
 data.env <- select(data.env, site, topography, region)
 
-adonis((as.multivar(dd, "site"))~region, data.env, permutations = 999, method="bray")$aov.tab
-adonis((as.multivar(dd, "site"))~topography, data.env, permutations = 999, method="bray")$aov.tab
-# TODO make the same with chi2 distance
+adonis((decostand(as.multivar(dd, "site"), method = "chi.square"))~region, data.env, permutations = 999, method="euclidean")$aov.tab
+adonis((decostand(as.multivar(dd, "site"), method = "chi.square"))~topography, data.env, permutations = 999, method="euclidean")$aov.tab
 ```
 
 - Species assemblage was not different between site located in the ligurian sea and those located in the Gulf of Lion. 
