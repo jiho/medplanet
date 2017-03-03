@@ -85,6 +85,25 @@ ggplot(na.omit(dd), aes(x=sp, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha
 save(abundant_families, abundant_genera, abundant_species, list=load("data.rda"), file="data.rda")
 ```
 
+```{r}
+## Percentage of each family, genus and species
+
+#family
+dd <- filter(d, family!="Unidentified")
+ra_family <- dd %>% group_by(family) %>% summarise(ra = (sum(n)*100)/sum(dd$n)) %>% arrange(desc(ra))
+ra_family$cum <- cumsum(ra_family$ra)
+
+#genus
+dd <- filter(d, !is.na(genus))
+ra_genus <- dd %>% group_by(genus) %>% summarise(ra = (sum(n)*100)/sum(dd$n)) %>% arrange(desc(ra))
+ra_genus$cum <- cumsum(ra_genus$ra)
+
+#species
+dd <- filter(d, !is.na(species))
+ra_species <- dd %>% group_by(species) %>% summarise(ra = (sum(n)*100)/sum(dd$n)) %>% arrange(desc(ra))
+ra_species$cum <- cumsum(ra_species$ra)
+```
+
 At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most abundant taxa in CARE catches are not surprising given what we know of the coastal adult populations.
 
 
