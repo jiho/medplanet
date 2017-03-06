@@ -437,12 +437,13 @@ To investigate the time lag of larvae arrival between sites and between years, t
 # mean CPUE per week, site, and species for common species
 dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
 
-# rescale abundances per species, site and year, to get a comparable peak per year
-dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
-dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
-dd <- dd %>% arrange(species, year, site)
 dd <- filter(dd, cpue!=0)
 
+## Check time of arrival by species to identify winter species
+ggplot(dd) +
+  geom_histogram(aes(x=yweek),binwidth=1) +
+  geom_density(aes(x=yweek, y=..count..)) +
+  facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 ## Beginning of the season for winter species
 winter <- rbind(dd[which(dd$species=="Sarpa salpa"),],dd[which(dd$species=="Pagellus acarne"),],
