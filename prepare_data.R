@@ -127,6 +127,11 @@ d$site <- factor(d$site, levels=unique(sites$site))
 effort$site <- factor(effort$site, levels=unique(sites$site))
 sites$site <- factor(sites$site, levels=unique(sites$site))
 
+# keep only data before start of 2016
+date_max <- ymd_hms("2016-01-01 00:00:00")
+d <- filter(d, date < date_max)
+effort <- filter(effort, date < date_max)
+
 
 ## Clean taxonomic names ----
 
