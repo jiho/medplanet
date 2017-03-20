@@ -504,7 +504,7 @@ Pairwise wilcoxon test pvalues
 ```{r warning=FALSE}
 dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
-test <- kruskal.test(cpue ~ year, data=dd)
+test <- aovq(cpue ~ year, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 test
 p_test<-pairwise.wilcox.test(dd$cpue,dd$year, p.adjust.method="bonferroni")
 as.data.frame(p_test$p.value)
