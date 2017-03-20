@@ -58,7 +58,7 @@ coord <- read_excel("data/sublimo/coordinates.xlsx", sheet=1)
 d <- left_join(select(catches, site, station, year_out, month_out, day_out, family, genus, species, n), coord)
 
 # cleanup data
-d$date_out <- ymd(str_c(d$year_out, sprintf("%02i", d$month_out), sprintf("%02i", d$day_out), sep="-"))
+d$date_out <- ymd_hms(str_c(d$year_out, "-", sprintf("%02i", d$month_out), "-", sprintf("%02i", d$day_out), "00:00:00"))
 d <- select(d, -year_out, -month_out, -day_out)
 
 d$project <- "SUBLIMO"
