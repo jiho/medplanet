@@ -37,12 +37,16 @@ map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size
 Sampling occurred over the periods
 
 ```{r}
-effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+summary_effort
 ```
 
 ```{r}
-# TODO add number of CARE per site to the plot
-ggplot(effort) + geom_point(aes(x=date, y=site), shape="|")
+ggplot(effort) + geom_point(aes(x=date, y=site), shape="|") +
+  scale_y_discrete(
+    breaks=summary_effort$site,
+    labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")")
+  ) + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
 ```
 
 ## Sampling effort
