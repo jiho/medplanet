@@ -6,9 +6,12 @@
 # (c) 2017 Jean-Olivier Irisson, GNU General Public License v3
 #
 
-library("quantreg")
-library("logspline")
-library("ggplot2")
+suppressPackageStartupMessages(library("quantreg"))
+suppressPackageStartupMessages(library("logspline"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("plyr"))
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("tidyr"))
 
 # library("tidyverse") # for some examples
 
