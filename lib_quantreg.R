@@ -427,7 +427,7 @@ geom_quantiled <- function(mapping = NULL, data = NULL,
   )
 }
 
-GeomQuantiled <- ggproto("GeomQuantileD", GeomPoint,
+GeomQuantiled <- ggproto("GeomQuantiled", GeomPoint,
                         default_aes = defaults(
                           aes(shape = 15, colour = "#3366FF"),
                           GeomPoint$default_aes
