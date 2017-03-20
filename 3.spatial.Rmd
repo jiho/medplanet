@@ -109,7 +109,7 @@ There does not seem to be a large scale geographical pattern to this (sites are 
 dd <- left_join(dd, sites, by="site")
 
 # test
-aovq(cpue ~ topography, tau=c(0.5, 0.75, 0.9), data=dd)
+aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -117,7 +117,7 @@ and influence of Rhône
 
 ```{r}
 # test
-aovq(cpue ~ region, tau=c(0.5, 0.75, 0.9), data=dd)
+aovq(cpue ~ region, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
@@ -257,19 +257,6 @@ sp_acum <- function(x){
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
 ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=0.5)+ theme(legend.key.width = unit(1.5, "cm"))
 
-
-# 2nd code
-#dd <- d0 %>% group_by(site, date, n_gear, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
-#dd <- filter(dd, !is.na(species))
-
-#sp_acum <- function(x){
-#  xm <- spread(x, key="species", value="cpue", fill=0)
-#  sp <- specaccum(select(xm, -date, -site, -n_gear), method="random", w=xm$n_gear)
-#  return(data.frame(nb_care=sp$effort, richness = sp$richness))
-#}
-
-#spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-#ggplot(spd) + geom_line(aes(nb_care, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
 ```
 
 1) Species-nigths accumulation curves :
