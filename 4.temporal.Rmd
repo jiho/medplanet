@@ -500,19 +500,24 @@ dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(c
 ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
 ```
 
-Pairwise wilcoxon test pvalues
+Pairwise aovq test pvalues
 ```{r warning=FALSE}
 dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
 test <- aovq(cpue ~ year, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
-test
-p_test<-pairwise.wilcox.test(dd$cpue,dd$year, p.adjust.method="bonferroni")
-as.data.frame(p_test$p.value)
 
-dd %>% group_by(year) %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+pw <- suppressMessages(pairwise.aovq(dd$cpue, dd$year, tau=c(0.25, 0.5, 0.75, 0.9), R=100))
+# plot
+pw <- ldply(pw, function(x) {
+  x <- melt(x)
+  x$X1 <- factor(x$X1, levels=levels(dd$year))
+  x$X2 <- factor(x$X2, levels=levels(dd$year))
+  x$signif <- x$value < 0.05
+  return(x)
+})
+ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank()) + facet_wrap(~.id, ncol=1)
 ```
 
-Replace kruskal by aov.rq
 
 ## Species composition among years
 
