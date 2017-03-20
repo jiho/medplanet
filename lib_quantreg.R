@@ -326,15 +326,55 @@ print.anova.rqs <- function (x, ...){
   print(a)
 }
 
+
+# Pairwise Quantile Based ANOVA
+#
+# Calculate pairwise comparisons between group levels with corrections for multiple testing.
+# @param x response variable
+# @param g grouping vector (usually a factor)
+# @param tau the quantile(s) for which the comparison is to be made
+# @param p.adjust.method passed to p.adjust
+# @param ... passed to aovq
+#
+# @value A list of p.value tables
+pairwise.aovq <- function(x, g, tau, p.adjust.method="holm", ...) {
+  # prepare data for aovq
+  if (!is.factor(g)) {
+    g <- factor(g)
+  }
+  my_data <- data.frame(x, g)
+
+  # loop over tau values (aovq does that anyway)
+  p <- llply(tau, function(this_tau) {
+    # define the test fr the current quantile
+    aovq2 <- function(i, j) {
+      this_data <- filter(my_data, as.integer(g) %in% c(i, j))
+      p <- tryCatch(
+        aovq(x ~ g, tau=this_tau, data=this_data, ...)$table$pvalue,
+        error=function(e) {1}
+      )
+      return(p)
+    }
+    # select all relevant pairs and compute the test
+    pairwise.table(aovq2, levels(g), p.adjust.method=p.adjust.method)
+  })
+
+  # format output
+  names(p) <- tau
+
+  return(p)
+}
+
 # set.seed(1)
 # n <- 30
-# d <- data.frame(x1=rnorm(n, 1), x2=rnorm(n,1.5), x3=rnorm(n, 0.5))
+# d <- data.frame(x1=rnorm(n, 1), x2=rnorm(n, 0.5), x3=rnorm(n, 0.5))
 # d <- gather(d, key="x", value="y")
 # qplot(x, y, data=d)
 #
-# aov(y ~ x, data=d)
+# summary(aov(y ~ x, data=d))
 # aovq(y ~ x, tau=c(0.25, 0.5, 0.75), data=d)
-
+# pairwise.aovq(d$y, d$x, tau=c(0.25, 0.5, 0.75), p.adjust.method="none")
+# pairwise.aovq(d$y, d$x, tau=c(0.25, 0.5, 0.75), p.adjust.method="holm")
 
 
 ## ggplot helpers ----
