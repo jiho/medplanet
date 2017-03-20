@@ -43,7 +43,7 @@ source("lib_quantreg.R")
 
 Grouping all taxa, the catch per night is highly variable among sites, with some very extreme events yielding very high catches (NB: q25 and q75 are the quantiles at 25% and 75%, the median is the quantile at 50%; those are less sensitive than the mean to extreme values and represent the "general case" better).
 
-```{r}
+```{r summary_table}
 dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue))
 
 # ggplot(dd) + geom_path(aes(x=cpue, linetype=site, color=site, y=..scaled..), stat="density", bw=0.2) + theme(legend.position=c(0.8, 0.8), legend.key.width=unit(10, "mm")) + labs(y="Scaled probability density")
@@ -53,18 +53,18 @@ dd_summary <- dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
 dd_summary
 ```
 
-```{r}
+```{r boxplot}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue)) + coord_flip()
 ```
 
-```{r}
-# sort in decreasing order of catches to dosplay stats, below
-dd_summary <- arrange(dd_summary, median)
+```{r order}
+# sort in decreasing order of catches to display stats, below
+dd_summary <- arrange(dd_summary, desc(median))
 ```
 
-Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 4)`) and other are consistently low (`r tail(dd_summary$site, 4)`). NB: Keeping only low catches eliminates `r nrow(filter(dd, cpue >= 10))` records from `r nrow(dd)`.
+Excluding those extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 4)`) and other are consistently low (`r tail(dd_summary$site, 4)`). NB: Keeping only low catches only eliminates `r nrow(filter(dd, cpue >= 10))` records out of `r nrow(dd)`.
 
-```{r fig.height=4}
+```{r zoomed_boxplot, fig.height=4}
 ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
 ```
 
