@@ -93,7 +93,7 @@ vlfr <- d
 
 ## Merge all data, compute effort and CPUE ----
 
-d <- rbind.fill(ecocean, sublimo, vlfr)
+d <- bind_rows(ecocean, sublimo, vlfr)
 d <- rename(d, date=date_out, n_gear=n_gear_ok)
 
 summary(d)
