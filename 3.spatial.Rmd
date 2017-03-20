@@ -80,25 +80,21 @@ ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord
 #   scale_size_area(max_size=20, guide="none")
 ```
 
-Those differences are reflected by global and pairwise statistical tests. Marseille and Bastia are different (lower catches) from most of the others.
+Those differences are reflected by global and pairwise statistical tests. Abundances are significantly different between sites at all levels (low, mid, high, and very high), albeit more so for mid to low catches. In terms of median catches, Bastia is often below and Port-Cros and La Ciotat often above the others.
 
-```{r tests}
-# test with Anova + Tukey
-#anova <- aov(log1p(cpue)~site, data=dd)
-#shapiro.test(residuals(anova))
-#bartlett.test(residuals(anova)~dd$site)
-# => Hypothèses non vérifiées même après transformation log
+```{r tests_among_sites, fig.height=6}
+aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 
-# Test with non parametric test
-aovq(cpue ~ site, tau=c(0.5, 0.75, 0.9), data=dd)
-suppressWarnings(pw <- pairwise.wilcox.test(dd$cpue, dd$site))
-# TODO replace with pairwise aovq
+pw <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=100))
 # plot
-pw <- melt(pw$p.value)
-pw$X1 <- factor(pw$X1, levels=levels(dd$site))
-pw$X2 <- factor(pw$X2, levels=levels(dd$site))
-pw$signif <- pw$value < 0.05
-ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank())
+pw <- ldply(pw, function(x) {
+  x <- melt(x)
+  x$X1 <- factor(x$X1, levels=levels(dd$site))
+  x$X2 <- factor(x$X2, levels=levels(dd$site))
+  x$signif <- x$value < 0.05
+  return(x)
+})
+ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank()) + facet_wrap(~.id, ncol=1)
 ```
 
 There does not seem to be a large scale geographical pattern to this (sites are ordered from west to east)... Compare Gulf of Lyon vs Ligurian Sea
