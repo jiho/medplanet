@@ -177,16 +177,6 @@ ggplot(d_abund, aes(x=sp, y=cpue, colour=region)) + geom_boxplot(na.rm=T) + scal
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
 
-Use quantiles and test the difference between sites/regions for high catches, medium catches and low catches only. investigate quantreg() with a discrete explanatory variable.
-
-```{r}
-## Quantile regression for high catches, medium catches and low catches with discrete variable : comparison between sites
-p_val <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
-
-
-# Pour toutes les espèces, des différences entre les sites, mais quels sont les sites qui diffèrent ??
-#TODO compute pairwise.aovq
-```
 
 ## Species composition among sites
 
