@@ -390,7 +390,7 @@ stat_quantiled <- function(mapping = NULL, data = NULL,
   layer(
     data = data,
     mapping = mapping,
-    stat = StatQuantileD,
+    stat = StatQuantiled,
     geom = geom,
     position = position,
     show.legend = show.legend,
@@ -443,7 +443,7 @@ StatQuantiled <- ggproto(
     }
 
     df$x <- if (is.factor(data$x)) data$x[1] else mean(range(data$x))
-    df <- reshape2::melt(df, id.vars=c("x"), value.name = "y", variable.name="quantile")
+    df <- reshape2:::melt.data.frame(df, id.vars=c("x"), value.name = "y", variable.name="quantile")
     df
   }
 )
