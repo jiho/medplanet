@@ -297,7 +297,7 @@ dd_stand <- decostand(as.multivar(dd, "site"), method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 dend <- as.dendrogram(hdw)
-dend %>% set("branches_k_color", k = 6) %>% set("labels_col", k=6) %>% plot(las=1, ylab="Heigh")
+dend %>% set("branches_k_color", k = 4) %>% set("labels_col", k=4) %>% plot(las=1, ylab="Heigh")
 ```
 
 Try to find some criterion to cut off dendrogramm. It works only for clustering performed on decostand matrix because function fviz_nbclust can't compute bray-curtis distance. 
@@ -416,22 +416,35 @@ ggplot(dd) +
 To investigate the time lag of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
 
 ```{r}
-# mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=mean(cpue)) %>% ungroup()
+library(isotone)
+
+## Remove year 2016 and select species 
+d0$n <- d0$n_gear*d0$cpue
+dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+
 
 dd <- filter(dd, cpue!=0)
 
 ## Check time of arrival by species to identify winter species
 ggplot(dd) +
   geom_histogram(aes(x=yweek),binwidth=1) +
+  #geom_histogram(aes(x=yweek, weight=cpue),binwidth=1) +
   geom_density(aes(x=yweek, y=..count..)) +
   facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
-## Beginning of the season for winter species
-winter <- rbind(dd[which(dd$species=="Sarpa salpa"),],dd[which(dd$species=="Pagellus acarne"),],
-                dd[which(dd$species=="Pagellus bogaraveo"),])
+```
+
+```{r}
+#-----------
+
+## Select winter species and choice a date to start the larvae arrival period
+#winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),], dd[which(dd$species=="Pagellus bogaraveo"),])
+winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
 
 winter$fake_date <- "2012-10-01"
+
+
+##Modify day and week according to this new date
 
 winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
 winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
@@ -444,64 +457,38 @@ winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
 winter$shift_day <- winter$shift_day%%365
 winter$shift_week <- winter$shift_week%%52
 
-##Check the mean arrival by season
-mean <- winter %>% group_by(season, species) %>% summarise(day=mean(shift_day), week=mean(shift_week))%>%ungroup()
 
-
-## So if we remove the season 2015-2016 (because of not data in begging 2016) we could be
-## compare years MAYBE ???. We can consider 2012-2013 = 2012, 2013-2014 = 2013, 2014-2015 = 2014
+## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
+## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season 
 winter$fake_year <- NA
 winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
 winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
 winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
 winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
+winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 
-syn_winter <- winter %>% group_by(fake_year, species) %>% summarise(ref_day=mean(shift_day), ref_week=mean(shift_week)) %>% ungroup()
-
-
-## We have several day of arrival for each site (1256 observation in total, 1244 without end 2015) 
-## and we want to compute the lag time between
-## each sample with the ref time of the year, in order to plot anomalies 
-
-## Create 2 data.frame with fake date for winter species, one for ref_time and other 
-## for sample
-syn_winter <- select(syn_winter,  year=fake_year, species, ref_day, ref_week)
-winter <- select(winter, year=fake_year, species, site, yday=shift_day, yweek=shift_week)
-
-##Summer species
+#----------------
+## Summer species 
 summer <- dd[-which(dd$species=="Sarpa salpa"),] 
-summer <- summer[-which(summer$species=="Pagellus acarne"),] 
-summer <- summer[-which(summer$species=="Pagellus bogaraveo"),] 
-summer <- select(summer, year, species, site, yday, yweek)
-syn_summer <- summer %>% group_by(year, species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek))%>%ungroup() 
+summer <- dd[-which(dd$species=="Pagellus acarne"),]
+#summer <- dd[-which(dd$species=="Pagellus bogaraveo"),]
+summer <- select(summer, year, species, site, yweek,cpue)
 
+#---------
 
-## All sites included, mean arrival of larvae by species(winter species + summer species) 
-## by year was : 
-syn_year <- rbind(syn_summer, syn_winter)
+#Paste Summer and winter species in a same data.frame
 samples <- rbind(as.data.frame(summer), as.data.frame(winter))
 
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
 
-### Compute time lag between site (by samples) for each year and each species
-lag <- left_join(syn_year,samples, by = c("year","species"))
-lag <- lag %>% group_by(species,year,site, ref_day, ref_week, yday, yweek) %>% summarise(lag_day = yday-ref_day, lag_week = round(yweek-ref_week))%>%ungroup()
-lag <- lag %>% arrange(species,year, lag_week)
 
-# Plot and mean lag for sites 
-lag <- lag[-which(lag$species=="Boops boops"),]
-lag <- lag[-which(lag$species=="Oblada melanura"),]
-res_site <- lag %>% group_by(site) %>% summarise(mean = mean(lag_week), median=median(lag_week))
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
 ```
-
-Anomaly of larvae arrival (in week) between sites
-
-- Trends in time arrival seem to be different between sites. The first sites to recruit are Bastia, Saint-Florent, Bonifacio and Villefranche. This sites are some weeks in front of the mean date of larvae arrival. 
-- Then Port-Cros, Les Embiez, La Ciotat and Cassis recruits in the same period
-- Finally Marseille, Agde, Port-Vendres and Leucate recruite are the lastest site to recruit. (Carry is in front of but only 3 species, S.maris, C.chromis and D.annularis wich recruit early in year)
-
-These differences could be due to a difference in sampling effort ?? Some sites which recruits earlier could be result of sampling only year for which time arrival of larvae was earlier than years of sampling of the other sites. 
-However, there is no difference recorded between years ...
-So differences between sites maybe due to the species catched in each site ?? 
 
 ```{r fig.height=7}
 ggplot(lag) +
@@ -515,67 +502,27 @@ Test if arrival anomaly (unit of lag_time = week) of each site is relevant with 
 ```{r}
 descriptive_stats <- lag %>%
   group_by(site) %>%
-  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
 
-suppressWarnings (test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+suppressWarnings(test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="site") %>% ungroup()
 ```
 
-### Understand anomaly between sites 
+## Synchonicity among years 
 
-Abundance distribution of species by site, to understand if time arrival anomaly between site is due to the species catched or realy by a lag time between sites. 
-
-```{r}
-dd_test <- select(d0, site, species, cpue)
-dd_test <- dd_test %>% filter(!is.na(species))
-# head_sp <- select(dd_stat, family, species)
-# dd_test <- left_join(head_sp, dd_test, by="species")
-dd_test <- filter(dd_test, species %in% abundant_species)
-dd_test$species <- abbrev_sp(dd_test$species, n=4)
-```
-
-```{r fig.height=8, fig.width=6}
-ggplot(dd_test, aes(x=species, y=cpue)) + geom_boxplot() + scale_y_continuous(trans="log10") + facet_wrap(~site, ncol=2) + theme(axis.text.x=element_text(angle=25, hjust=1)) + ylab("log(cpue)")
-```
-
+Time arrival per year 
 
 ```{r}
-# Summary on arrival by species after corrected date for winter species
-
-## Mean arrival day and week by species (all years and sites included) with date corrected
-## for winter species
-
-syn <- samples %>% group_by(species) %>% summarise(ref_day = mean(yday), ref_week=mean(yweek), first_quart = quantile(yweek,0.25), third_quart = quantile(yweek,0.75)) %>% ungroup()
-
-# as.data.frame(syn)
-```
-
-
-
-## Synchronicity among years : Anomaly
-
-Anomaly of larvae arrival (in week) between years
-
-```{r}
-# Plot and mean lag
-res_year <- lag %>% group_by(year) %>% summarise(mean = mean(lag_week), median = median(lag_week))
-```
-
-All sites and species included, no difference was observed between years in time arrival of larvae. However, for some species, B.Boops, S.smaris, D.annularis, O.melanura, M.surmuletus, temporal plot (cf 4.temporal Rmd) show that 2014 is in front of the other years. 
-
-
-```{r fig.height=4}
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 ```
 
-Test time arrival anomaly between years 
-
 ```{r}
+#Compute mean and median lag 
 descriptive_stats <- lag %>%
   group_by(year) %>%
   summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
@@ -586,11 +533,11 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
 ```
 
-All species included (the most abundant species), there is no significant difference in time arrival of larvae between the four years.
 
 2012 = only species which recruit in summer
 2013 = winter species (season 2012-2013) + summer species of 2013
 2014 = winter species (season 2013-2014) + summer species of 2014
 2015 = winter species (season 2015-2016) + summer species of 2015
+
 
 
