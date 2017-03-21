@@ -128,25 +128,32 @@ commonality <- function(d, level) {
 
 # plot taxa in order of commonality
 com_families <- commonality(d, "family")
-ggplot(head(com_families, 20)) + geom_bar(aes(x=family, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
+com_families <- filter(com_families, n_sites > 7)
+common_families <- com_families$family
+ggplot(com_families) + geom_bar(aes(x=family, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
 com_genera <- commonality(d, "genus")
-ggplot(head(com_genera, 20)) + geom_bar(aes(x=genus, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
+com_genera <- filter(com_genera, n_sites > 7)
+common_genera <- com_genera$genus
+ggplot(com_genera) + geom_bar(aes(x=genus, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
 com_species <- commonality(d, "species")
+com_species <- filter(com_species, n_sites > 7)
+common_species <- com_species$species
 # add abbreviated species
 suppressWarnings(com_species <- left_join(com_species, select(taxo, species, sp), by="species"))
 com_species$sp <- ordered(com_species$sp)
-ggplot(head(com_species, 20)) + geom_bar(aes(x=sp, y=n_sites), stat="identity") + scale_y_continuous(breaks=c(0,5,10)) + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(com_species) + geom_bar(aes(x=sp, y=n_sites), stat="identity") + scale_y_continuous(breaks=c(0,5,10)) + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
-These most common species are mostly the same as the most abundant ones, except for *Oblada melanura* and *Boops boops* which are abundant but present in only 3 sites.
+These most common species are similar to the most abundant ones (`r intersect(abundant_species, common_species)` are in common).
 
-```{r}
+`r setdiff(abundant_species, common_species)` are abundant but not common.
+
+`r setdiff(common_species, abundant_species)` are common but not abundant.
+
+```{r save}
 # keep only most common ones
-common_families <- filter(com_families, n_sites > 7)$family
-common_genera <- filter(com_genera, n_sites > 7)$genus
-common_species <- filter(com_species, n_sites > 7)$species
 save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
 ```
 
