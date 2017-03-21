@@ -31,11 +31,11 @@ source("lib_data_manip.R")
 
 ### Abundance
 
-Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species. 
+Larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera, and `r length(unique(na.omit(d$species)))` identifiable species. 
 
-CPUE is presented (still on a log10 scale, beware!) for the most abundant families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
+CPUE is presented (on a log10 scale, beware!) for the most abundant families, genera, and species below (ordered from most abundant to least abundant). Each dot represents the CPUE for one night in one site. The "violin"-shape represents the distribution of observations: the CPUE levels most commonly observed correspond to the wider regions of the shape.
 
-```{r plots, warning=FALSE}
+```{r plots_abund, warning=FALSE}
 # NB: do not display warnings. All warnings are about log transformation giving -Inf when using 0, which we know
 
 # families
@@ -109,7 +109,7 @@ At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/s
 
 ### Distribution
 
-There are `r nrow(sites)`. Here we sort families, genera and species according to the number of sites they are caught in:
+There are `r nrow(sites)` sites. Here we present families, genera, and species that are present in more than 7 sites:
 
 ```{r freq_sp}
 # compute commonality = number of sites in which a taxon is caught
@@ -150,7 +150,7 @@ save(common_families, common_genera, common_species, list=load("data.rda"), file
 
 ## Comparison with adult assemblages
 
-As written above, larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera and `r length(unique(na.omit(d$species)))` identifiable species.
+As written above, larvae were classified in `r length(unique(na.omit(d$family)))` families, `r length(unique(na.omit(d$genus)))` genera, and `r length(unique(na.omit(d$species)))` identifiable species.
 
 ```{r read_adults, results="hide"}
 # read species list of north west mediterranean
@@ -218,14 +218,14 @@ Comparing the list in french species recorded in Louisy and the list from CARE c
 
 `r (uncaught_families <- sort(setdiff(l_demersal$family, d$family)))`.
 
-Among families which are caught, the following genera were never caught either in this study :
+Among families which are caught, the following genera were never caught either in this study:
 
 ```{r}
 filter(l_demersal, ! family %in% uncaught_families &! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus)
 ```
 
-To summarise :
+To summarise:
 
-- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families, `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in Louisy were catched in CAREs. 
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families, `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in Louisy were caught in CAREs. 
 
-- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as french demersal fish were catched in CAREs.
+- `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as french demersal fish were caught in CAREs.
