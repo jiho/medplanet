@@ -288,7 +288,33 @@ For the other sites, no species is particularly characteristic.
 ```{r fig.height=5}
 dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
-autoplot(ca, size=1)
+
+dd_stand <- decostand(as.multivar(dd, "site"), method = "chi.square")
+dist_matrix <- vegdist(dd_stand, "euclidean")
+hdw <- hclust(dist_matrix, method="ward.D2")
+part <- data.frame(group = cutree(hdw, k=6))
+part$label <- rownames(part)
+
+# Correspondance analysis for the two first dim
+dat <- augment(ca)
+dat <- left_join(dat, part, by = c("label"))
+dat$group[which(is.na(dat$group))]<-"col"
+  eig <- tidy(ca)
+  dims <- names(dat)[str_detect(names(dat), "Dim")]
+  labs <- str_c(dims, " (",round(eig$prop.variance[1:2]*100),"%)")
+  ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="group")) + scale_colour_discrete(guide="none") + geom_point(size=1) + ggrepel::geom_text_repel(aes(label=label), size=1*2.5, segment.alpha=0.7) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
+```
+
+```{r fig.height=5}
+#Correspondance analysis for dim 3 and 4
+dat <- augment(ca)
+dat <- left_join(dat, part, by = c("label"))
+dat$group[which(is.na(dat$group))]<-"col"
+  eig <- tidy(ca)
+  dims <- names(dat)[str_detect(names(dat), "Dim")]
+  labs <- str_c(dims, " (",round(eig$prop.variance[3:4]*100),"%)")
+  ggplot(dat, aes_string(x=dims[1], y=dims[2], colour="group")) + scale_colour_discrete(guide="none") + geom_point(size=1) + ggrepel::geom_text_repel(aes(label=label), size=1*2.5, segment.alpha=0.7) + scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() + labs(x=labs[1], y=labs[2])
+
 ```
 
 Another way to look at this data is through hierachical clustering using the Bray-Curstis distance. This hierarchical view mostly separates an eastern group from a western group, with the exceptions of Bastia and Port-Cros.
@@ -309,8 +335,10 @@ dend %>% set("branches_k_color", k = 5) %>% set("labels_col", k=5) %>% plot(las=
 dd_stand <- decostand(as.multivar(dd, "site"), method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
+part <- data.frame(group = cutree(hdw, k=6))
+part$label <- rownames(part)
 dend <- as.dendrogram(hdw)
-dend %>% set("branches_k_color", k = 4) %>% set("labels_col", k=4) %>% plot(las=1, ylab="Heigh")
+dend %>% set("branches_k_color", k = 6) %>% set("labels_col", k=6) %>% plot(las=1, ylab="Heigh")
 ```
 
 Try to find some criterion to cut off dendrogramm. It works only for clustering performed on decostand matrix because function fviz_nbclust can't compute bray-curtis distance. 
@@ -321,7 +349,7 @@ fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("wss"))#+geom_vline(xintercep
 fviz_nbclust(dd_stand, FUNcluster=hcut, method = c("silhouette"), hc_method = "ward.D2")
 ```
 
-Using a one-way PERMANOVA based on Bray-Curtis distance we can explicitely test for the significance of the difference of communities between regions.
+Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between regions.
 
 ```{r}
 data.env <- data.frame(as.multivar(dd, "site"), sites)

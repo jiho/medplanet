@@ -23,7 +23,7 @@ tidy.CA <- function(x) {
   return(d)
 }
 
-augment.CA <- function(x, dimensions=c(1,2)) {
+augment.CA <- function(x, dimensions=c(1,2,3,4)) {
   d <- plyr::ldply(c("row", "col"), function(type) {
     d <- data.frame(x[[type]]$coord)[,dimensions]
     names(d) <- str_c("Dim", dimensions)
