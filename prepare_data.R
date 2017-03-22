@@ -77,7 +77,7 @@ coords  <- read_excel("data/villefranche/coordinates.xlsx", sheet=1)
 effort  <- read_excel("data/villefranche/effort.xlsx", sheet=1)
 catches <- read_excel("data/villefranche/catches.xlsx", sheet=1)
 
-d <- full_join(select(catches, date_out, station, gear, family, genus, species, n), select(effort, date_out, station, gear, n_gear_ok))
+d <- full_join(select(catches, date_out, station, gear, family, genus, species_suffix, n), select(effort, date_out, station, gear, n_gear_ok))
 d <- full_join(d, coords)
 
 # cleanup data
