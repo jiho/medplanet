@@ -68,6 +68,14 @@ last_plot() %+% llrq_fit
 ```
 
 
+```{r}
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
+dd$month <- as.factor(month.abb[dd$month])
+ca <- CA(as.multivar(dd, "month"), graph=F)
+autoplot(ca, size=1, dimensions=c(1,2))
+```
+
+
 ## Temporal scales of variability
 
 At which scale do abundances vary the most: do they mostly depend on season, month, etc. We can analyse the temporal scales of variability through a variogram. This computes the difference in CPUE between two successive days (delay = 1 day), two days on successive weeks (delay = 7 days), etc. to test whether the catches are more similar on successive days (autocorrelation) or on the same day in successive months (potential lunar effect), etc.
