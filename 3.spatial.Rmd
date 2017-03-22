@@ -204,19 +204,20 @@ Overall, many differences are significant when the actual data is mostly noise a
 
 ### Taxonomic richness
 
-Total number of family, genus and species catched by sampling site.
+Total number of family, genera, and species caught by sampling site.
 
 ```{r fig.height=5}
-dd_tax <- unique(select(d, site, family, genus, species))
-dd_tax <- dd_tax[-which(dd_tax$family=="Unidentified"),]
-
-dd_sp <- ddply(dd_tax, ~ site, summarise, nb.family = length(unique(na.omit(family))),
-                          nb.genus = length(unique(na.omit(genus))),
-                          nb.species = length(unique(na.omit(species))))
-
+dd_sp <- d %>%
+  filter(family!="Unidentified") %>%
+  group_by(site) %>%
+  summarise(
+    nb.family = length(unique(na.omit(family))),
+    nb.genus = length(unique(na.omit(genus))),
+    nb.species = length(unique(na.omit(species)))
+  )
 dd_sp <- arrange(dd_sp, nb.species)
 
-## Number of nights 
+# add info on effort: number of nights and of CAREs
 dd <- d0 %>% group_by(site, date, n_gear) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd_night <- dd %>% group_by(site) %>% summarise(nb_night=length(unique(date)), nb_care=sum(n_gear)) %>% ungroup()
 dd_sp <- left_join(dd_sp, dd_night, by=c("site"))
@@ -244,7 +245,7 @@ sp_acum <- function(x){
 }
 
 spd <- dd %>% group_by(site) %>% do(sp_acum(.))
-ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site), size=1)+ theme(legend.key.width = unit(1.5, "cm"))+ theme_classic()
+ggplot(spd) + geom_line(aes(nights, richness, linetype=site, colour=site))+ theme(legend.key.width = unit(1.5, "cm"))
 # TODO use the ready-made function in from test_specaccum
 # TODO perform tests of differences among sites at various effort levels
 
