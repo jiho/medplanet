@@ -517,18 +517,18 @@ effort %>% mutate(year=lubridate::year(date)) %>% filter(year != 2016) %>% group
 In total CPUE, pooling all taxa together, the catch seems similar over the years, with possibly a shift towards higher catches in 2014 and 2015. 
 
 ```{r}
-dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+dd <- d0 %>% filter(year != 2016, year != 2012) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
 ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
 ```
 
 Pairwise aovq test pvalues
 ```{r warning=FALSE}
-dd <- d0 %>% filter(year != 2016) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+dd <- d0 %>% filter(year != 2016, year != 2012) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
 test <- aovq(cpue ~ year, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 
-pw <- suppressMessages(pairwise.aovq(dd$cpue, dd$year, tau=c(0.25, 0.5, 0.75, 0.9), R=100))
+pw <- suppressMessages(pairwise.aovq(dd$cpue, dd$year, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
 # plot
 pw <- ldply(pw, function(x) {
   x <- melt(x)
@@ -550,7 +550,10 @@ When inspecting the dynamics per species the characteristic year-species couples
 - 2014: *B boops*, *D annularis*, *O melanuara*
 
 ```{r fig.height=5}
-dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(year, species) %>% summarise(tot=sum(cpue), mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
+res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
+interest_species <- as.character(sort(unique(res$species)))
+
+dd <- d0 %>% filter(year != 2016, year != 2012, species %in% interest_species) %>% group_by(year, species) %>% summarise(mean=mean(cpue))
 
 # relative abundance
 # ggplot(dd) + geom_bar(aes(x=year, y=mean), stat="identity") + facet_wrap(~species, scales="free_y") + theme(axis.text.x=element_text(angle=30, hjust=1))
@@ -568,13 +571,13 @@ autoplot(ca)
 
 ```
 
+
 Differences in species composition are observed between years. 2012, 2013, 2014 are characterized by some species (2012 = *A hepsetus*, 2013 = *S smaris*, 2014 = *B boops*, *D annularis*, *O melanuara*).
 
 These differences could be due to a different sampling effort. For example, 2012 is characterized by A.hepsetus maybe because sites sampled in 2012 have essentially *A.hepsetus*.
 
-However, years 2012 2013 2014 have the same (or very similar) sampling effort (in terms of sites sampled).
+However, years 2013 2014 have the same (or very similar) sampling effort (in terms of sites sampled).
 
-2012 : All sites except La Ciotat, Cassis, Carry, Les Embeiz
 2013 : All sites except La Ciotat, Cassis, Carry, Les Embiez
 2014 : All sites except La Ciotat, Cassis
 2015 : Only Embiez, Ciotat, Cassis, Marseille, Villefranche.
