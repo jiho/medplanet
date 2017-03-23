@@ -227,9 +227,9 @@ dd_sp
 
 More species are caught in Villefranche probably because sampling is done in winter too.
 
-Species richness vs effort (nb of nights fishes or nb of CARE deployed) cuves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. In our case the curves take a long time to saturate (>100 nights)
+Species richness vs effort (nb of nights fishes or nb of CARE deployed) cuves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do. 
 
-```{r specaccum}
+```{r specaccum, fig.height=4}
 dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 # cleanup data
 dd <- filter(dd, !is.na(species))
@@ -239,7 +239,7 @@ dd <- arrange(dd, site, date)
 dw <- spread(dd, key="species", value="cpue", fill=0)
 
 # add effort in terms of nb of CAREs (to weight by effort)
-dw <- left_join(dw, effort)
+dw <- left_join(dw, effort, by=c("site", "date"))
 
 # Species accumulation curves with CI
 #
@@ -275,6 +275,78 @@ ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill
 ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 ```
+
+```{r compare_specaccum}
+
+# Test difference in species accumulation curves among groups at a given effort level
+#
+# @param comm community matrix
+# @param g factor giving the group for the corresponding element of comm
+# @param effort effort level(s) at which to test
+# @nperm number of permutations for the test
+# @p.adjust.method see p.adjust
+pairwise.specaccum.test <- function(comm, g, effort=c(10, 20, 30, 40, 100), nperm=1000, p.adjust.method="holm") {
+  # force grouping variable (site here) to te a factor (to keep levels consistent)
+  g <- as.factor(g)
+  ng <- nlevels(g)
+  
+  # extract richness at given efforts
+  richness <- function(x, e) {
+    sp <- specaccum(x, method="exact")
+    sp$richness[e]
+  }
+
+  # reference (i.e. observed) richness values at these levels of effort
+  cs <- split(comm, g)
+  rich_ref <- laply(cs, richness, e=effort)
+
+  # nperm permutations of sites
+  rich_perm <- laply(1:nperm, function(n) {
+    cs <- split(comm, sample(g))
+    laply(cs, richness, e=effort)
+  }, .progress="none")
+
+  # make pairwise tests manually
+  # compute all i,j under the diagonal
+  ij <- expand.grid(i=1:ng, j=1:ng)
+  ij <- filter(ij, i > j)
+  # define a function that performs the test for a given couple of i,j indexes (i.e. couple of sites)
+  testij <- function(ij) {
+    i <- ij[1]
+    j <- ij[2]
+    # reference difference between sites
+    diff_ref <- abs(diff(rich_ref[c(i,j),]))
+    # permutation-based distribution of differences between sites
+    diff_perm <- aaply(rich_perm[,c(i,j),], 1, function(x) {abs(diff(x))})
+    # compute p-value: proportion of time in which differences obtained at random are higher than what is observed
+    diffs <- rbind(diff_ref, diff_perm)
+    p <- apply(diffs, 2, function(x) {sum(x[-1]>x[1])/(length(x)-1)})
+    return(p)
+  }
+  p <- apply(ij, 1, testij)
+  
+  # adjust and put those p.values in a easy to display matrix
+  # prepare storage
+  mat <- matrix(NA, nrow=ng, ncol=ng)
+  dimnames(mat) <- list(levels(g), levels(g))
+  # store
+  pl <- alply(p, 1, function(pp) {
+    pp <- p.adjust(pp, method=p.adjust.method, n=sum(!is.na(pp)))
+    # NB: removes the NAs in the adjustment method
+    mat[as.matrix(ij)] <- pp
+    # remove all NA lines and columns
+    allNA <- function(x) {all(is.na(x))}
+    mat <- mat[!apply(mat, 1, allNA), !apply(mat, 2, allNA)]
+    return(mat)
+  })
+  names(pl) <- effort
+
+  return(pl)
+}
+
+pairwise.specaccum.test(select(dw, -date, -site, -n_gear), dw$site)
+```
+
 
 1) Species-nigths accumulation curves :
 Cassis and Carry the least diverse 
