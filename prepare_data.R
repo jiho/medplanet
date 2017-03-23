@@ -5,9 +5,8 @@
 library("readxl")
 library("stringr")
 library("plyr")
-library("dplyr")
 library("lubridate")
-library("ggplot2")
+library("tidyverse")
 
 # transform lat and lon from ºN notation to decimatl degrees
 parse_latlon <- function(x) {
