@@ -652,19 +652,79 @@ left_join(descriptive_stats, select(test, statistic, p.value), by="site") %>% un
 
 ## Synchonicity among years 
 
-Time arrival per year 
+Time arrival per year
 
 ```{r}
+
+samples <- summer
+# join with topography
+samples <- left_join(samples, select(sites, site))
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
 ```
 
 ```{r}
 #Compute mean and median lag 
 descriptive_stats <- lag %>%
   group_by(year) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+
+suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+```
+
+
+Time arrival per year and topography
+
+```{r}
+
+samples <- summer
+# join with topography
+samples <- left_join(samples, select(sites, site, topography))
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+```
+
+```{r}
+#Compute mean and median lag 
+descriptive_stats <- lag %>%
+  group_by(year, topography) %>%
   summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
 
 suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
