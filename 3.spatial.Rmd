@@ -79,8 +79,7 @@ ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1)
 #   scale_size_area(max_size=20, guide="none")
 ```
 
-When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The higher quantiles (which look very different) may be more difficult to test.
-
+When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The reason is that the higher quantiles (which look very different) may be more difficult to test, hence the lower significance.
 
 ```{r among_sites, echo=FALSE, }
 aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
@@ -92,7 +91,10 @@ In terms of pairwise differences:
 - q=0.5: Marseille and Bastia are lower
 - wilcox: Marseille and Bastia are lower, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
 - q=0.75: ?
-- q=0.9: Villefranche is higher than others; probably because it is more eaily estimated (more effort).
+- q=0.9: Villefranche is higher than others; probably because it is more easily estimated (more effort).
+
+Also, Saint Florent, Bonifacio, Villefranche, Port-Cros, Les embiez, La Ciotat, Cassis are never different.
+
 ```{r pairwise_among_sites}
 pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
 pww <- suppressWarnings(pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method="holm"))
@@ -125,7 +127,8 @@ Overall, it seems Bonifacio, Cassis, and Carry are difficult to evaluate (low sa
 
 Test whether these differences are linked with geomorphological regions:
 
-1. Gulf of Lyon (Port-Vendres -> La Ciotat) vs Ligurian Sea (Les Embiez -> Corsica) 2. East and West of Rhône (but only 3 sites West of Rhône).
+1. Gulf of Lyon (Port-Vendres -> La Ciotat) vs Ligurian Sea (Les Embiez -> Corsica)
+2. East and West of Rhône (but only 3 sites West of Rhône).
 
 These regions are only different regarding high and extreme catches. Fish larvae abundance was higher for sites located in the Ligurian Sea than those located in the Gulf of Lions, and also higher for sites East of Rhône.
 
@@ -152,7 +155,7 @@ NB: Test done through rank procedure since bootstrap through anowar does not con
 # keep only abundant species, but B boops which is not caught in the West
 d_abund <- filter(d0, species %in% abundant_species)
 
-# # remove the extreme values for S smaris
+# remove the extreme values for S smaris
 d_abund <- filter(d_abund, cpue < 200)
 
 # add site characteristics
@@ -225,7 +228,7 @@ dd_sp
 
 More species are caught in Villefranche probably because sampling is done in winter too.
 
-Species richness vs effort (nb of nights fishes or nb of CARE deployed) cuves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do. 
+Species richness vs effort (nb of nights fishes or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do. 
 
 ```{r specaccum, fig.height=4}
 dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
@@ -274,16 +277,17 @@ ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 ```
 
-```{r compare_specaccum}
+The richness at an effort of 20 nights (largest where all stations can be tested) show that Carry is significantly less diverse than several other sites. At 50 and 150 nights, Bastia is significantly less diverse than Leucate and Villefranche. When comparable, the others are not significantly different.
 
+```{r compare_specaccum}
 # Test difference in species accumulation curves among groups at a given effort level
 #
 # @param comm community matrix
 # @param g factor giving the group for the corresponding element of comm
 # @param effort effort level(s) at which to test
-# @nperm number of permutations for the test
-# @p.adjust.method see p.adjust
-pairwise.specaccum.test <- function(comm, g, effort=c(10, 20, 30, 40, 100), nperm=1000, p.adjust.method="holm") {
+# @param nperm number of permutations for the test
+# @param p.adjust.method see p.adjust
+pairwise.specaccum.test <- function(comm, g, effort=c(10, 50, 100), nperm=1000, p.adjust.method="holm") {
   # force grouping variable (site here) to te a factor (to keep levels consistent)
   g <- as.factor(g)
   ng <- nlevels(g)
@@ -345,13 +349,6 @@ pairwise.specaccum.test <- function(comm, g, effort=c(10, 20, 30, 40, 100), nper
 pairwise.specaccum.test(select(dw, -date, -site, -n_gear), dw$site)
 ```
 
-
-1) Species-nigths accumulation curves :
-Cassis and Carry the least diverse 
-Saint Florent, Villefranche and Leucate the more diverse
-
-2) Species-care accumulation curves : From the the most diverse site to the least diverse 
-Villefranche > Saint Florent > Port-Cros > Les Embiez > Leucate > Agde et Port-Vendres > La Ciotat > Marseille > Bonifacio > Bastia > Cassis > Carry
 
 
 ### Site-species associations
