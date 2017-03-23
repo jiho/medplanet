@@ -33,3 +33,16 @@ abbrev_sp <- function(x, n=4) {
   s <- str_sub(bits[,2],1,n)
   str_c(g, ". ", s)
 }
+
+# layout multiple ggplots
+glayout <- function(...) {
+  x <- list(...)
+  n <- max(sapply(x, function(x) max(x[[2]])))
+  p <- max(sapply(x, function(x) max(x[[3]])))
+  grid::pushViewport(grid::viewport(layout = grid::grid.layout(n, p)))
+
+  for (i in seq_len(length(x))) {
+    print(x[[i]][[1]], vp = grid::viewport(layout.pos.row = x[[i]][[2]],
+      layout.pos.col = x[[i]][[3]]))
+  }
+}
