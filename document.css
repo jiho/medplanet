@@ -1,4 +1,4 @@
-/* 
+/*
  *     CSS style meant for long-form documents
  *
  * (c) Copyright 2012-2013 Jean-Olivier Irisson
@@ -8,7 +8,6 @@
 
 @import url(http://fonts.googleapis.com/css?family=Inconsolata:400,700);
 @import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic,700italic);
-@import url(http://fonts.googleapis.com/css?family=Alegreya:400italic,700italic,400,700);
 
 /* View baseline and blocks */
 /*html { background-image: url(http://basehold.it/i/10); }
@@ -19,7 +18,7 @@ p, pre, ol, ul, dl, table, h1, h2, h3, h4, h5, h6 {
 
 /* @group Reset */
 
-/* http://meyerweb.com/eric/tools/css/reset/ 
+/* http://meyerweb.com/eric/tools/css/reset/
    v2.0 | 20110126
    License: none (public domain)
 */
@@ -33,8 +32,8 @@ b, u, i, center,
 dl, dt, dd, ol, ul, li,
 fieldset, form, label, legend,
 table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed, 
-figure, figcaption, footer, header, hgroup, 
+article, aside, canvas, details, embed,
+figure, figcaption, footer, header, hgroup,
 menu, nav, output, ruby, section, summary,
 time, mark, audio, video {
   margin: 0;
@@ -45,7 +44,7 @@ time, mark, audio, video {
   vertical-align: baseline;
 }
 /* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure, 
+article, aside, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section {
   display: block;
 }
@@ -105,7 +104,7 @@ code {
 /* @group Sizes and spacing */
 
 /*
-See 
+See
   http://www.smashingmagazine.com/2012/12/17/css-baseline-the-good-the-bad-and-the-ugly/
 for thought about how to set up a baseline grid.
 Basically, the only way of doing it is to set a lineheight then add padding-top to offset the type and remove the same amount from margin-bottom.
@@ -144,7 +143,7 @@ h1, h2 {
 
 h3, h4, h5, h6 {
   margin-top: 20px;
-  margin-bottom: 10px;  
+  margin-bottom: 10px;
 }
 
 /* no additional vertical space when titles follow each other */
@@ -228,7 +227,7 @@ sub, sup {
   font-size: 75%;
   /* Zero out the line-height so that it doesn't
      interfere with the positioning that follows */
-  line-height: 0; 
+  line-height: 0;
   /* Where the magic happens: makes all browsers position
      the sup/sup properly, relative to the surrounding text */
   position: relative;
