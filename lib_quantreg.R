@@ -359,10 +359,22 @@ pairwise.aovq <- function(x, g, tau, p.adjust.method="holm", ...) {
     pairwise.table(aovq2, levels(g), p.adjust.method=p.adjust.method)
   })
 
-  # format output
+  # turn it into a list of pairwise.htest objects
   names(p) <- tau
+  out <- llply(tau, function(t) {
+    o <- list(
+      method="quantile based ANOVA",
+      data.name=paste0("quantile q=", t, " of ", deparse(substitute(x))),
+      parameter=c("tau"=t),
+      p.value=p[[as.character(t)]],
+      p.adjust.method=p.adjust.method
+    )
+    class(o) <- "pairwise.htest"
+    return(o)
+  })
+  names(out) <- tau
 
-  return(p)
+  return(out)
 }
 
 # set.seed(1)

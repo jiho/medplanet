@@ -82,12 +82,8 @@ ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1)
 When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The higher quantiles (which look very different) may be more difficult to test.
 
 
-```{r tests_among_sites, echo=FALSE, }
+```{r among_sites, echo=FALSE, }
 aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
-
-pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
-pww <- suppressWarnings(pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method="holm"))
-pwa$wilcox <- pww$p.value
 ```
 
 In terms of pairwise differences:
@@ -97,27 +93,31 @@ In terms of pairwise differences:
 - wilcox: Marseille and Bastia are lower, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
 - q=0.75: ?
 - q=0.9: Villefranche is higher than others; probably because it is more eaily estimated (more effort).
+```{r pairwise_among_sites}
+pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
+pww <- suppressWarnings(pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method="holm"))
+pwa$wilcox <- pww
+```
 
 ```{r plot_among_sites, fig.height=7}
+# reformat data as data.frame
+pw <- ldply(pwa, tidy)
+pw$signif <- pw$p.value < 0.05
+pw$group1 <- factor(pw$group1, levels=sites$site)
+pw$group2 <- factor(pw$group2, levels=sites$site)
+# make symmetric
+pw <- bind_rows(pw, rename(pw, group1=group2, group2=group1))
 # plot
-pw <- ldply(pwa, function(x) {
-  x <- na.omit(melt(x))
-  x2 <- x
-  names(x2) <- c("X2", "X1", "value")
-  x <- suppressWarnings(bind_rows(x, x2))
-  x$X1 <- factor(x$X1, levels=levels(dd$site))
-  x$X2 <- factor(x$X2, levels=levels(dd$site))
-  x$signif <- x$value < 0.05
-  return(x)
-})
-ggplot(pw, aes(X1, X2)) +
-  geom_point(aes(colour=value), na.rm=T, size=5, shape=15) +
+ggplot(pw, aes(group1, group2)) +
+  geom_point(aes(colour=p.value), na.rm=T, size=5, shape=15) +
   geom_point(colour="red", na.rm=T, size=5, shape=22, data=filter(pw, signif)) +
   facet_wrap(~.id, ncol=2) + coord_fixed() +
   scale_colour_distiller("p", palette="YlGnBu", direction=1) +
   theme(
     legend.position=c(0.75, 0.15), legend.direction="horizontal",
-    axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title=element_blank()
+    # axis.text.x=element_text(angle=35, hjust=1),
+    axis.text.x=element_blank(), axis.ticks.x=element_blank(),
+    axis.title=element_blank()
   )
 ```
 
