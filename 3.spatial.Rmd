@@ -264,7 +264,7 @@ accum_stats <- function(comm, permutations=1000, ...) {
 }
 
 # compute per night
-sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% rename(nights=effort)
+sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% dplyr::rename(nights=effort)
 # and per CARE
 # sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
 
@@ -367,7 +367,10 @@ Through a Correspondence Analysis we can study the *relative* proportions of the
 For the other sites, no species is particularly characteristic.
 
 ```{r fig.height=5}
-dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
+interest_species <- as.character(sort(unique(res$species)))
+
+dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ca <- CA(as.multivar(dd, "site"), graph=F)
 
 dd_stand <- decostand(as.multivar(dd, "site"), method = "chi.square")
@@ -607,13 +610,14 @@ winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 #----------------
 ## Summer species 
 summer <- dd[-which(dd$species=="Sarpa salpa"),] 
-summer <- dd[-which(dd$species=="Pagellus acarne"),]
+summer <- summer[-which(summer$species=="Pagellus acarne"),]
 summer <- select(summer, year, species, site, yweek,cpue)
 
 #---------
 
 #Paste Summer and winter species in a same data.frame
-samples <- rbind(as.data.frame(summer), as.data.frame(winter))
+#samples <- rbind(as.data.frame(summer), as.data.frame(winter))
+samples <- summer
 
 #Compute the mean arrival week by species/sites/year
 ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
