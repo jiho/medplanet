@@ -432,28 +432,24 @@ Unsurprisingly, the catch is very seasonal, with higher catches from May to mid-
 
 ```{r}
 dd <- d0 %>% group_by(date, yday, year, site) %>% summarise(cpue=sum(cpue))
-# remove high catches of S smaris
-dd <- filter(dd, cpue < 110)
-# create a fake date coordinate
 dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
-#Select low or high catches
-high_catches <- dd[which(dd$cpue> quantile(dd$cpue, 0.95)),] 
-mid_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.95)& dd$cpue> quantile(dd$cpue, 0.80)),]
-low_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.80)),]
+q <- c(.25, .5, .75, .9)
 
-ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(size=0.5, color="#F55D5B", fill="#F55D5B", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+srq_fit <- srq(dd$fake_date, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+
+srq_fit$fake_date <- srq_fit$x
+srq_fit$lower[srq_fit$lower < 0] <- 0
+
+ggplot(srq_fit) +
+  geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+  geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+  geom_line(aes(x=fake_date, y=fit,colour=tau)) +
+  geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+  geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
-In red, high catches, in gren all data, and in blue low catches
-
-```{r}
-ggplot(dd, aes(x=fake_date, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(data = high_catches, size=0.5, color="#F55D5B", fill="#F55D5B", method="loess")+ geom_smooth(data = low_catches, size=0.5, color="#3399CC", fill="#3399CC", method="loess") + geom_smooth(size=0.5, color="#00CC66", fill="#00CC66", method="loess") + scale_x_date("month", date_breaks="1 month", date_labels="%b") + ylim(0, 110)
-```
-
-TODO redo that using quantile regression.
-
-TODO CA to delinate assemblages (potentially per season).
 
 ## Synchronicity among years
 

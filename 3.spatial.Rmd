@@ -565,7 +565,6 @@ ggplot(dd) +
 #-----------
 
 ## Select winter species and choice a date to start the larvae arrival period
-#winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),], dd[which(dd$species=="Pagellus bogaraveo"),])
 winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
 
 winter$fake_date <- "2012-10-01"
@@ -606,7 +605,6 @@ winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 ## Summer species 
 summer <- dd[-which(dd$species=="Sarpa salpa"),] 
 summer <- dd[-which(dd$species=="Pagellus acarne"),]
-#summer <- dd[-which(dd$species=="Pagellus bogaraveo"),]
 summer <- select(summer, year, species, site, yweek,cpue)
 
 #---------
