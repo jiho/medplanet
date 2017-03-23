@@ -264,7 +264,7 @@ accum_stats <- function(comm, permutations=1000, ...) {
 }
 
 # compute per night
-sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% rename(nights=effort)
+sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% dplyr::rename(nights=effort)
 # and per CARE
 # sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
 
