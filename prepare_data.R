@@ -278,6 +278,14 @@ d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
 # remove 0 catches from d
 d <- filter(d, cpue != 0)
 
+# Clean aberrant data
+#  P. pilicornis spawns during summer (not in feb)
+d0$cpue[which(d0$species == "Parablennius pilicornis" & d0$month == 2 & d0$cpue > 0 & d0$site == "Bastia")] <- 0
+# D. vulgaris spawn during fall (not in june)
+d0$cpue[which(d0$species == "Diplodus vulgaris" & d0$month == 7 & d0$cpue > 0 & d0$site == "Port Vendres")] <- 0
+
+
+
 
 ## Save data ----
 
