@@ -546,8 +546,11 @@ To investigate the time lag of larvae arrival between sites and between years, t
 library(isotone)
 
 ## Remove year 2016 and select species 
+res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
+interest_species <- as.character(sort(unique(res$species)))
+
 d0$n <- d0$n_gear*d0$cpue
-dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd <- d0 %>% filter(year !=2016, species %in% interest_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
 
 dd <- filter(dd, cpue!=0)

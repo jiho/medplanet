@@ -69,7 +69,11 @@ last_plot() %+% llrq_fit
 
 
 ```{r}
-dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
+res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
+interest_species <- as.character(sort(unique(res$species)))
+
+dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
+
 dd$month <- as.factor(month.abb[dd$month])
 ca <- CA(as.multivar(dd, "month"), graph=F)
 autoplot(ca, size=1, dimensions=c(1,2))
