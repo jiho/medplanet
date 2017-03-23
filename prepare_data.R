@@ -89,6 +89,8 @@ d$site <- "Villefranche"
 
 vlfr <- d
 
+head(vlfr)
+vlfr <- dplyr::rename(vlfr, species=species_suffix)
 
 
 ## Merge all data, compute effort and CPUE ----
