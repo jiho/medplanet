@@ -266,13 +266,13 @@ accum_stats <- function(comm, permutations=1000, ...) {
 # compute per night
 sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% rename(nights=effort)
 # and per CARE
-sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
+# sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
 
 # and some plots
-ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
-# ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
+# ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
+ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 
-ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
+# ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 ```
 
