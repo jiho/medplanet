@@ -476,10 +476,37 @@ Time arrival anomaly => see 3.Spatial.Rmd
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
 ```{r fig.height=7}
-dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
+# dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
+# 
+# # create a fake date coordinate
+# dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+# 
+# # rescale per species and year
+# dd <- dd %>% group_by(species, year) %>% mutate(scaled_cpue=cpue/max(cpue))
+# dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+# 
+# # order species by average/first date of arrival
+# order <- dd %>%
+#   group_by(species) %>%
+#   filter(cpue > median(cpue)) %>% 
+#   summarise(avg_date=weighted.mean(yweek, scaled_cpue), first_date=min(yweek)) %>%
+#   arrange(first_date)
+# 
+# # rename species for display
+# order$species_abbr <- abbrev_sp(order$species, n=5)
+# 
+# # force order by time of arrival
+# dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species_abbr)
+# 
+# ggplot(dd) +
+#   geom_path(aes(x=fake_date, y=scaled_cpue, colour=year)) +
+#   facet_grid(species_abbr~.) +
+#   scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
+#   labs(y="cpue (scaled per species and year)") + no_y
 
-# create a fake date coordinate
-dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+
+# Do it with points instead of path
+dd <- d0 %>% filter(year != 2016) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
 
 # rescale per species and year
 dd <- dd %>% group_by(species, year) %>% mutate(scaled_cpue=cpue/max(cpue))
@@ -494,15 +521,26 @@ order <- dd %>%
 
 # rename species for display
 order$species_abbr <- abbrev_sp(order$species, n=5)
+order <- filter(order, !species_abbr == ". ")
 
 # force order by time of arrival
-dd$species_abbr <- factor(dd$species, levels=order$species, labels=order$species_abbr)
+dd$species_abbr <- factor(dd$species, levels=rev(c(order$species[c(5, 7:length(order$species))], order$species[c(1, 4, 2, 3, 6)])), labels=rev(c(order$species_abbr[c(5, 7:length(order$species_abbr))], order$species_abbr[c(1, 4, 2, 3, 6)])))
 
+# Change cpue = 0 to NA 
+dd$scaled_cpue[which(dd$scaled_cpue == 0)] <- NA
+
+#  Remove unidentified species
+dd <- filter(dd, !is.na(species))
+
+# plots
 ggplot(dd) +
-  geom_path(aes(x=fake_date, y=scaled_cpue, colour=year)) +
-  facet_grid(species_abbr~.) +
-  scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
-  labs(y="cpue (scaled per species and year)") + no_y
+  geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue)) +
+  # scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
+  labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 5) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic"))
+
+
+
+
 ```
 
 
