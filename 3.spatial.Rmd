@@ -607,13 +607,14 @@ winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 #----------------
 ## Summer species 
 summer <- dd[-which(dd$species=="Sarpa salpa"),] 
-summer <- dd[-which(dd$species=="Pagellus acarne"),]
+summer <- summer[-which(summer$species=="Pagellus acarne"),]
 summer <- select(summer, year, species, site, yweek,cpue)
 
 #---------
 
 #Paste Summer and winter species in a same data.frame
 samples <- rbind(as.data.frame(summer), as.data.frame(winter))
+#samples <- summer
 
 #Compute the mean arrival week by species/sites/year
 ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
