@@ -454,6 +454,20 @@ ggplot(srq_fit) +
   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
+```{r llrq}
+registerDoParallel(cores=2)
+# system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
+system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
+stopImplicitCluster()
+
+llrq_fit$fake_date <- llrq_fit$x 
+llrq_fit$lower[llrq_fit$lower < 0] <- 0
+
+# same plot with different data
+last_plot() %+% llrq_fit
+
+```
+
 
 ## Synchronicity among years
 
