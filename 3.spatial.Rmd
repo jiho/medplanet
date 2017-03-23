@@ -690,6 +690,15 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+# # A tibble: 6 × 6
+#     year   topography     stats median statistic p.value
+#   <fctr>       <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# 1   2013 Gulf of Lion  1.62±3.7      1      1550 0.18053
+# 2   2013 Ligurian sea  -0.8±4.3      0      1550 0.18053
+# 3   2014 Gulf of Lion  -0.7±4.5     -1      1634 0.09546
+# 4   2014 Ligurian sea -0.12±4.4     -1      1634 0.09546
+# 5   2015 Gulf of Lion -2.56±2.4     -2       194 0.00013
+# 6   2015 Ligurian sea -1.05±4.2     -1       194 0.00013
 ```
 
 
@@ -731,6 +740,12 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+# A tibble: 3 × 5
+#     year     stats median statistic   p.value
+#   <fctr>     <chr>  <dbl>     <dbl>     <dbl>
+# 1   2013  0.17±4.5      1      1596 0.2598032
+# 2   2014 -0.53±4.5     -1      1658 0.0297625
+# 3   2015 -2.38±3.4     -2       106 0.0000083
 ```
 
 

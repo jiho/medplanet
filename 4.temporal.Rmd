@@ -425,6 +425,69 @@ ggplot(mapping=aes(x=moon_phase)) +
   scale_y_continuous("cpue (in summer, log(n+1) transformed)", trans="log1p") +
   scale_x_continuous("moon phase", breaks=c(0, 0.5, 1), labels=c("\U0098", "\U00BA", "\U0099")) +
   theme(axis.text.x=element_text(family="Wingdings 2"))
+
+
+
+
+# WEIGHT per effort around lunar phase
+# select data: common species, in summer, without extreme Spicara
+dd <- filter(d0m, species %in% abundant_species, in_summer(date), cpue < 250)
+
+# only consider distance to the new moon, irrespective of direction
+dd$moon_phase <- abs(dd$moon_phase)
+
+# check effort distribution
+ggplot(dd, aes(x = moon_phase)) + geom_histogram(binwidth = 0.01)
+
+# compute effort per moonphase
+ef_moon <- data.frame(table(round(dd$moon_phase, 2)))
+ef_moon <- dplyr::rename(ef_moon, moon_phase = Var1, effort = Freq)
+ef_moon$moon_phase <- as.numeric(as.character(ef_moon$moon_phase))
+ef_moon$effort <- ef_moon$effort / sum(ef_moon$effort)
+dd$moon_phase <- round(dd$moon_phase, 2)
+str(dd)
+str(ef_moon)
+
+
+# Join with effort (% of total effort per moon phase)
+dd <- left_join(dd, ef_moon, by = "moon_phase")
+
+# fit and predict quantile regression models
+x <- seq(0, 1, length.out=100)
+new <- data.frame(moon_phase=x, moon_index1=x, moon_index2=x)
+
+quantiles <- c(0.5, 0.75, 0.9, 0.95, 0.99)
+qpred <- ldply(quantiles, function(q) {
+  # quantile regression on log(n+1)
+  m <- rq(log1p(cpue / effort) ~ moon_phase, tau=q, data=dd)
+
+  # predict regression curve
+  pred <- tryCatch(
+    predict(m, newdata=new, interval="confidence"),
+    error=function(x) {return(data.frame(fit=rep(0, times=100), lower=0, higher=0))}
+  )
+  # switch back to cpue
+  pred <- expm1(pred)
+  
+  # add "metadata"
+  pred <- cbind(new, pred)
+  pred$quantile <- q
+
+  return(pred)
+})
+qpred$quantile <- factor(qpred$quantile)
+
+# plot the result
+ggplot(mapping=aes(x=moon_phase)) +
+  geom_point(aes(y=cpue/effort), data=dd, alpha=0.5) +
+  geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpred, alpha=0.3) +
+  geom_path(aes(y=fit, colour=quantile), data=qpred) +
+  # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
+  scale_y_continuous("cpue (in summer, log(n+1) transformed)", trans="log1p") +
+  scale_x_continuous("moon phase", breaks=c(0, 0.5, 1), labels=c("\U0098", "\U00BA", "\U0099")) +
+  theme(axis.text.x=element_text(family="Wingdings 2"))
+
+
 ```
 
 So, overall, high catches almost always occur around the new moon but not all new moons yield high catches (actually, most do not), even in the good season.
