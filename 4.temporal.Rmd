@@ -69,9 +69,6 @@ last_plot() %+% llrq_fit
 
 
 ```{r}
-res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
-interest_species <- as.character(sort(unique(res$species)))
-
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
 
 dd$month <- as.factor(month.abb[dd$month])
@@ -651,9 +648,6 @@ When inspecting the dynamics per species the characteristic year-species couples
 - 2014: *B boops*, *D annularis*, *O melanuara*
 
 ```{r fig.height=5}
-res <- rbind(data.frame(species=abundant_species), data.frame(species=common_species))
-interest_species <- as.character(sort(unique(res$species)))
-
 dd <- d0 %>% filter(year != 2016, year != 2012, species %in% interest_species) %>% group_by(year, species) %>% summarise(mean=mean(cpue))
 
 # relative abundance
