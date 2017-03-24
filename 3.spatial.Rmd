@@ -78,7 +78,7 @@ ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1)
 
 When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The reason is that the higher quantiles (which look very different) may be more difficult to test, hence the lower significance.
 
-```{r among_sites, echo=FALSE, }
+```{r among_sites}
 aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
 ```
 
@@ -148,7 +148,7 @@ The same tests can be performed per species, to detect if a given species is cau
 
 NB: Test done through rank procedure since bootstrap through anowar does not converge here (=sometimes low sample size, which would make any test problematic).
 
-```{r}
+```{r prepare_sp_data}
 # keep only abundant species, but B boops which is not caught in the West
 d_abund <- filter(d0, species %in% abundant_species)
 
@@ -159,7 +159,7 @@ d_abund <- filter(d_abund, cpue < 200)
 d_abund <- left_join(d_abund, sites, by="site")
 ```
 
-```{r}
+```{r sp_topo}
 # topography
 descriptive_stats <- d_abund %>%
   group_by(sp, topography) %>%
@@ -170,14 +170,12 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5
 
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
-```
 
-```{r}
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
-```{r}
+```{r sp_rhone}
 # same for rhone
 descriptive_stats <- d_abund %>%
   group_by(sp, rhone) %>%
@@ -188,9 +186,7 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.7
 
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
-```
 
-```{r}
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=rhone)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
