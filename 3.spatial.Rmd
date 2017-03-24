@@ -138,8 +138,8 @@ aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 # test Rhône
-aovq(cpue ~ region, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
-ggplot(dd) + geom_boxplot(aes(x=region, y=cpue), na.rm = TRUE) + ylim(0, 10)
+aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
+ggplot(dd) + geom_boxplot(aes(x=rhone, y=cpue), na.rm = TRUE) + ylim(0, 10)
 ```
 
 ### Per species
@@ -178,13 +178,13 @@ ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + 
 ```
 
 ```{r}
-# same for region
+# same for rhone
 descriptive_stats <- d_abund %>%
-  group_by(sp, region) %>%
+  group_by(sp, rhone) %>%
   summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>% 
-  spread(key=region, value=stats)
+  spread(key=rhone, value=stats)
 # perform test per species
-tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ region, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
+tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
@@ -192,7 +192,7 @@ left_join(descriptive_stats, tests, by="sp") %>% ungroup()
 
 ```{r}
 # and the corresponding plot...
-ggplot(d_abund, aes(x=sp, y=cpue, colour=region)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(d_abund, aes(x=sp, y=cpue, colour=rhone)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
 
 Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
@@ -448,12 +448,12 @@ p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
 glayout(list(p1, 1, 1), list(p2, 1, 2))
 ```
 
-Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to the region (side of the Rhone).
+Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to the rhone (side of the Rhone).
 
 ```{r}
-ddm$region <- sites$region
+ddm$rhone <- sites$rhone
 ddm$topography <- sites$topography
-adonis(dist_matrix~region+topography, ddm, permutations = 999)$aov.tab
+adonis(dist_matrix~rhone+topography, ddm, permutations = 999)$aov.tab
 ```
 
 

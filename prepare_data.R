@@ -229,14 +229,24 @@ map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
 map
 
 
-# manually define regions based on topography or ocean features
+# manually define regions based on topography, geography, or ocean features
 sites$topography <- "Gulf of Lion"
-sites$topography[which(sites$lon >= 5.7)] <- "Ligurian sea"   ## east of Cap sicié
+sites$topography[which(sites$lon >= 5.7)] <- "Ligurian sea"   # east of Cap sicié
 sites$topography <- factor(sites$topography)
 
-sites$region <- "West of Rhone"
-sites$region[which(sites$lon >= 4.8)] <- "East of Rhone"
-sites$region <- factor(sites$region, levels=sort(unique(sites$region), decreasing = TRUE))
+sites$rhone <- "West of Rhone"
+sites$rhone[which(sites$lon >= 4.8)] <- "East of Rhone"
+sites$rhone <- factor(sites$rhone, levels=sort(unique(sites$rhone), decreasing = TRUE))
+
+sites$region <- c(
+  rep("Gulf of Lion", 3),
+  rep("Marseille et al", 4),
+  rep("Var", 2),
+  rep("Alpes Mar.", 1),
+  rep("Corse", 3)
+)
+sites$region <- factor(sites$region, levels=unique(sites$region))
+
 
 # set position to avoid overplotting
 sites$hjust <- ifelse(sites$lon<4, -0.1, 1.1)
