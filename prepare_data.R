@@ -104,6 +104,17 @@ filter(d, is.na(n))
 filter(d, n>1000)
 filter(d, is.na(n_gear))
 
+# remove probably wrong identifications
+#  P. pilicornis spawns during summer (not in feb)
+idx <- which(d$site == "Bastia" & year(d$date) == 2013 & month(d$date) == 2 & d$species=="pilicornis")
+d[idx,c("family", "genus", "species", "n")] <- rep(c(NA, NA, NA, 0), each=length(idx))
+d[idx,]
+# D. vulgaris spawn during fall (not in june)
+idx <- which(d$species == "vulgaris" & month(d$date) == 7 & d$site == "Port Vendres")
+d[idx,c("family", "genus", "species", "n")] <- rep(c(NA, NA, NA, 0), each=length(idx))
+d[idx,]
+
+
 # compute Catch Per Unit Effort (CPUE), per site
 
 # compute total effort (nb of CAREs) per site
@@ -196,8 +207,8 @@ d <- d[-which(d$family == "belonidae"),]
 # sort(unique(d$species))
 
 # cleanup taxonomic names
-d$family[which(d$family == "ni")] <- "unidentified"
-d$family[which(d$family == "anguilliformes")] <- "unidentified"
+d$family[which(d$family == "ni")] <- NA
+d$family[which(d$family == "anguilliformes")] <- NA
 d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
 # abbreviated species
@@ -271,6 +282,10 @@ d$weeks_since_start <- as.numeric(ceiling(difftime(d$date, start, units="weeks")
 
 ## Add zero catches for all non-observed taxa ----
 
+# check that all n==0 correspond to no identification (used to record effort)
+filter(filter(d, n==0), !is.na(family))
+
+# compile complete taxonomy
 taxo <- unique(select(d, family, genus, species, sp))
 taxo <- arrange(taxo, family, genus, species, sp)
 
@@ -286,14 +301,6 @@ d <- d[-which(is.na(d$family) & is.na(d$genus) &  is.na(d$species)),]
 
 # remove 0 catches from d
 d <- filter(d, cpue != 0)
-
-# Clean aberrant data
-#  P. pilicornis spawns during summer (not in feb)
-d0$cpue[which(d0$species == "Parablennius pilicornis" & d0$month == 2 & d0$cpue > 0 & d0$site == "Bastia")] <- 0
-# D. vulgaris spawn during fall (not in june)
-d0$cpue[which(d0$species == "Diplodus vulgaris" & d0$month == 7 & d0$cpue > 0 & d0$site == "Port Vendres")] <- 0
-
-
 
 
 ## Save data ----
