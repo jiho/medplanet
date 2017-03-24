@@ -39,6 +39,7 @@ glayout <- function(...) {
   x <- list(...)
   n <- max(sapply(x, function(x) max(x[[2]])))
   p <- max(sapply(x, function(x) max(x[[3]])))
+  grid::grid.newpage()
   grid::pushViewport(grid::viewport(layout = grid::grid.layout(n, p)))
 
   for (i in seq_len(length(x))) {
