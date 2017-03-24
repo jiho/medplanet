@@ -472,7 +472,7 @@ p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
 glayout(list(p1, 1, 1), list(p2, 1, 2))
 ```
 
-Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to the rhone (side of the Rhone).
+Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
 
 ```{r}
 ddm$rhone <- sites$rhone
