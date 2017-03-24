@@ -3,7 +3,6 @@
 #
 
 # force order of package loading, just to be sure
-library("reshape")
 library("reshape2")
 library("plyr")
 library("dplyr")
