@@ -442,7 +442,7 @@ dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 
 # Try to find cutoff with some criterion
-NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+# NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # TODO how to choose?
 
 # assemble all data
