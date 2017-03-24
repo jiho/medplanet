@@ -429,7 +429,7 @@ So overall, the following sites are characterised by a larger proportion of the 
 
 Many assocations are geographic but there are some exceptions: Bastia associated with Leucate (probably because of sandy bottom and laguna in both locations); Post-Cros associated with Agde and Port Vendres (no explanation...).
 
-```{r CA_sites, fig.height=5}
+```{r CA_sites, fig.height=5, fig.width=8}
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ddm <- as.multivar(dd, "site")
 
