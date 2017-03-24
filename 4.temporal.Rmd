@@ -354,32 +354,32 @@ table(d0m$moon_phase)
 If we look at the total number of larvae caught, a large proportion of it is caught around the new moon, as shown below for common species. However the second plot shows that there is still considerable variability in CPUE, even around the new moon, and that it mostly masks the moon-phase signal (the red lines are polynomial regressions of the average CPUE; most of which do not highlight a moon phase influence).
 
 ```{r fig.height=5}
-moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
-#================
-# Try with srq_fit
-#================
-dd <- d0m %>% group_by(moon_phase, year, site, species) %>% summarise(cpue=sum(cpue))
-q <- c(.25, .5, .75, .9)
+# average per lunar day
+dplot <- filter(d0m, species %in% interest_species  & cpue < 200) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
 
-srq_fit <- ddply(dd, ~species, function(x) {
-  x <- srq(x$moon_phase, x$cpue, tau=q, interval="confidence", df=30, se="boot", R=100)
+moon_x <- list(scale_x_continuous(breaks=c(-14, 0, 14), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
+
+# scale between 0 and 1
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+dplot <- ddply(dplot, ~species, function(x){
+  x$cpue <- range01(x$cpue)
   x
-}, .progress="text")
+})
 
+# compute average arrival 
+rangeMoon <- dplot %>% group_by(species) %>% summarise(range = weighted.mean(moon_phase, w = cpue))
+dplot <- left_join(dplot, rangeMoon, by = "species")
+dplot <- arrange(dplot, range)
 
-srq_fit$moon_phase <- srq_fit$x
-srq_fit$lower[srq_fit$lower < 0] <- 0
+# order species per mean of arrival during lunar month
+unique(dplot$species)
+# dplot$species <- factor(x = dplot$species, labels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)], levels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)])
+dplot$species <- factor(x = dplot$species, labels = print(unique(dplot$species)), levels = print(unique(dplot$species)))
 
-ggplot(srq_fit) +
-  geom_point(aes(x=moon_phase, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
-  geom_ribbon(aes(x=moon_phase, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
-  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
-  geom_line(aes(x=moon_phase, y=fit,colour=tau)) +
-  facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
-#============
+# plot distribution of arrival through lunar month
+ggplot(filter(dplot, !species %in% "Atherina hepsetus") ) + geom_bar(aes(x=moon_phase, y=cpue), fill="grey30", colour=NA, stat = 'identity') + facet_wrap(~species, ncol=3, scales = "free_y") + moon_x + labs(y="total number of larvae (scaled per species)")
 
-ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
 
 # # density
 # ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=cpue, y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
@@ -388,7 +388,7 @@ ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_p
 # ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
 # # does not change much
 
-ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+# ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
 
 # # log10 transformed
 # ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
