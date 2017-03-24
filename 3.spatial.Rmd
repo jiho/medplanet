@@ -374,16 +374,15 @@ TODO à revoir.
 
 So overall, the following sites are characterised by a larger proportion of the following species:
 
-- Villefranche: *O melanuara*, *B boops*
-- Port-Cros, Agde, and Port-Vendres: *M surmuletus*, *P pilicornis*
+- Villefranche: *O melanuara*
+- Port-Cros, Agde, and Port-Vendres: *M surmuletus*, *P pilicornis*, *P gattorugine*
 - Marseille, Carry: *D annularis*
-- Leucate, Bastia: *Sarpa salpa*, *P. bogaraveo*, *P acarne*
-- Bonifacio and Saint Florent: *S smaris*, *A hepsetus* and, in the same group, Les Embiez and Cassis: *C Chromis* and La Ciotat: *G mediterraneus*
+- Leucate, Bastia: *S salpa*, *P. bogaraveo*, *P acarne*, *S cantharus*
+- Bonifacio and Saint Florent: *S smaris*, *A hepsetus* and, in the same group, Les Embiez and Cassis: *C Chromis* and La Ciotat: *G mediterraneus*, *P erythrinus*
 
-Many assocations are geographic but there are some exceptions: Bastia associated with Leucate (probably because of sandy bottom and laguna in both locations); Post-Cros associated with Agde (and Port Vendres; no explanation).
+Many assocations are geographic but there are some exceptions: Bastia associated with Leucate (probably because of sandy bottom and laguna in both locations); Post-Cros associated with Agde and Port Vendres (no explanation...).
 
 ```{r CA_sites, fig.height=5}
-interest_species <- unique(abundant_species, common_species)
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ddm <- as.multivar(dd, "site")
 
@@ -408,7 +407,7 @@ ca_df <- left_join(ca_df, part, by=c("label"))
 
 # compute variance explained
 eig <- tidy(ca)
-dims <- names(dat)[str_detect(names(dat), "Dim")]
+dims <- names(ca_df)[str_detect(names(ca_df), "Dim")]
 labs <- str_c(dims, " (",round(eig$prop.variance[1:4]*100),"%)")
 
 # plot result

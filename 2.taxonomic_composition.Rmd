@@ -129,17 +129,17 @@ commonality <- function(d, level) {
 # plot taxa in order of commonality
 com_families <- commonality(d, "family")
 com_families <- filter(com_families, n_sites > 7)
-common_families <- com_families$family
+common_families <- as.character(com_families$family)
 ggplot(com_families) + geom_bar(aes(x=family, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
 com_genera <- commonality(d, "genus")
 com_genera <- filter(com_genera, n_sites > 7)
-common_genera <- com_genera$genus
+common_genera <- as.character(com_genera$genus)
 ggplot(com_genera) + geom_bar(aes(x=genus, y=n_sites), stat="identity") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
 com_species <- commonality(d, "species")
 com_species <- filter(com_species, n_sites > 7)
-common_species <- com_species$species
+common_species <- as.character(com_species$species)
 # add abbreviated species
 suppressWarnings(com_species <- left_join(com_species, select(taxo, species, sp), by="species"))
 com_species$sp <- ordered(com_species$sp)
@@ -153,8 +153,11 @@ These most common species are similar to the most abundant ones (`r intersect(ab
 `r setdiff(common_species, abundant_species)` are common but not abundant.
 
 ```{r save}
-# keep only most common ones
-save(common_families, common_genera, common_species, list=load("data.rda"), file="data.rda")
+# compute the union of abundant and common species
+interest_species <- union(abundant_species, common_species)
+
+# add list of common taxa and species of interest
+save(common_families, common_genera, common_species, interest_species, list=load("data.rda"), file="data.rda")
 ```
 
 
