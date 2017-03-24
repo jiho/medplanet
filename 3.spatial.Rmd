@@ -365,31 +365,35 @@ ggplot(ps, aes(group1, group2)) +
   )
 ```
 
-### Diversity index by site, region and topography
+### Diversity indices by site, region, and topography
 
-```{r diversity}
-dd_div <- left_join(select(d0, date, year, site, species, cpue), select(sites, site, topography, rhone))
+```{r diversity, fig.height=4}
+# NB: 0 do not matter for the shannon index but influence the number of species in pielou => do not include 0
+# per date
+div <- d %>% group_by(date, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
+# aggregated per month to smooth a bit the immediate variability
+div <- d %>% group_by(year, month, site, species) %>% summarise(cpue=mean(cpue)) %>% group_by(year, month, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
 
-div <- dd_div %>% filter(cpue!=0) %>% group_by(date, year, site, topography, rhone) %>% summarise(shannon = diversity(cpue, index="shannon", 
-base=2), pielou = shannon/(log(length(species), base=2))) %>% ungroup()
+# add site characteristics
+div <- left_join(div, select(sites, site, topography, rhone), by="site")
 
-# Diversity index by site
-div %>% group_by(site) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
-shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
-na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
-(pielou, na.rm=T),1)))
+divt <- gather(div, key="index", value="value", shannon, pielou)
+ggplot(divt) + geom_boxplot(aes(x=site, y=value), na.rm=T) + facet_wrap(~index, ncol=1, scales="free_y") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
-# Diversity index by region
-div %>% group_by(rhone) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
-shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
-na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
-(pielou, na.rm=T),1)))
-
-# Diversity index by topography
-div %>% group_by(topography) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
-shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
-na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
-(pielou, na.rm=T),1)))
+div_stats <- function(x) {
+  with(x,
+    data.frame(
+      `H mean±sd` = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
+      `H med±mad` = str_c(round(median(shannon),2),"±",round(mad(shannon),1)),
+      `P mean±sd` = str_c(round(mean(pielou, na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)),
+      `P med±mad` = str_c(round(median(pielou, na.rm=T),2),"±",round(mad(pielou, na.rm=T),1)),
+    check.names=F)
+  )
+}
+# diversity indices by site and geographic regions
+div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
+div %>% group_by(rhone) %>% do(div_stats(.)) %>% as.data.frame()
+div %>% group_by(topography) %>% do(div_stats(.)) %>% as.data.frame()
 ```
 
 
