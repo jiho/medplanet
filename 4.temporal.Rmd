@@ -340,6 +340,29 @@ If we look at the total number of larvae caught, a large proportion of it is cau
 ```{r fig.height=5}
 moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
+#================
+# Try with srq_fit
+#================
+dd <- d0m %>% group_by(moon_phase, year, site, species) %>% summarise(cpue=sum(cpue))
+q <- c(.25, .5, .75, .9)
+
+srq_fit <- ddply(dd, ~species, function(x) {
+  x <- srq(x$moon_phase, x$cpue, tau=q, interval="confidence", df=30, se="boot", R=100)
+  x
+}, .progress="text")
+
+
+srq_fit$moon_phase <- srq_fit$x
+srq_fit$lower[srq_fit$lower < 0] <- 0
+
+ggplot(srq_fit) +
+  geom_point(aes(x=moon_phase, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+  geom_ribbon(aes(x=moon_phase, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+  geom_line(aes(x=moon_phase, y=fit,colour=tau)) +
+  facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+#============
+
 ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
 
 # # density
