@@ -17,16 +17,12 @@ library("stringr")
 library("lubridate")
 library("plyr")
 library("tidyverse")
+library("printr")
+
 library("vegan")
 library("FactoMineR")
 library("factoextra")
-library("printr")
-
-# library("cluster")
-# library("ggdendro")
-# library("dendextend")
-# library("NbClust")
-# library("factoextra")
+library("NbClust")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -394,8 +390,7 @@ dd_stand <- decostand(ddm, method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 
-# Try to Find cutoff with some criterion
-library("NbClust")
+# Try to find cutoff with some criterion
 NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # TODO how to choose?
 
