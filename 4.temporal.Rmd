@@ -293,9 +293,18 @@ moon <- ldply(dates, function(x) {
   # -1 : previous full moon
   # negative : descending
   # positive : ascending
-  moon_phase <- mean(moon$illuminatedFraction[sun_alt < 0]) * sign(diff(moon$illuminatedFraction[c(1, length(xr))]))
+  moon_illum <- mean(moon$illuminatedFraction[sun_alt < 0]) * sign(diff(moon$illuminatedFraction[c(1, length(xr))])) * moon_time
   
-  # compute average "moonlight" indexes during that time
+  # Compute days since / from new moon
+  moon_phase <- mean(moon$phase[sun_alt < 0])%%1
+  if(moon_phase < 0.5) {
+  moon_phase <- moon_phase + 1
+  }
+  orbital_period <- 27.32  # orbital period of the moon, in days
+  moon_phase <- - round(28 - (moon_phase * orbital_period))
+
+  
+    # compute average "moonlight" indexes during that time
   if (moon_time > 0) {
     # visible fraction
     moon_index1 <- mean(moon$illuminatedFraction[moon_visible]) / moon_time
@@ -306,12 +315,19 @@ moon <- ldply(dates, function(x) {
     moon_index1 <- moon_index2 <- 0
   }
   
-  data.frame(date=x, moon_time, moon_phase, moon_index1, moon_index2)
+  data.frame(date=x, moon_time, moon_illum, moon_phase, moon_index1, moon_index2)
 }, .progress="none")
 
 # add that to the data
 d0m <- left_join(d0, moon, by="date")
 dm <- left_join(d, moon, by="date")
+
+# check distribution of effort per moonphase
+table(d0m$moon_phase)
+#  -14  -13  -12  -11  -10   -9   -8   -7   -6   -5   -4   -3   -2   -1    0    1    2    3    4    5    6    7    8    9   10   11   12   13 
+# 1600  900 1000 1300 1300 1600 1900 2400 2200 2800 3400 4401 5700 8402 9900 8800 9400 7700 6600 5500 4100 4400 2900 2200 1900 2500 1800  900 
+
+
 
 # # interpolate times of rise and set of celestial bodies
 # rise_set <- function(time, altitude) {
@@ -338,32 +354,32 @@ dm <- left_join(d, moon, by="date")
 If we look at the total number of larvae caught, a large proportion of it is caught around the new moon, as shown below for common species. However the second plot shows that there is still considerable variability in CPUE, even around the new moon, and that it mostly masks the moon-phase signal (the red lines are polynomial regressions of the average CPUE; most of which do not highlight a moon phase influence).
 
 ```{r fig.height=5}
-moon_x <- list(scale_x_continuous(breaks=c(-1, 0, 1), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
-#================
-# Try with srq_fit
-#================
-dd <- d0m %>% group_by(moon_phase, year, site, species) %>% summarise(cpue=sum(cpue))
-q <- c(.25, .5, .75, .9)
+# average per lunar day
+dplot <- filter(d0m, species %in% interest_species  & cpue < 200) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
 
-srq_fit <- ddply(dd, ~species, function(x) {
-  x <- srq(x$moon_phase, x$cpue, tau=q, interval="confidence", df=30, se="boot", R=100)
+moon_x <- list(scale_x_continuous(breaks=c(-14, 0, 14), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
+
+# scale between 0 and 1
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+dplot <- ddply(dplot, ~species, function(x){
+  x$cpue <- range01(x$cpue)
   x
-}, .progress="text")
+})
 
+# compute average arrival 
+rangeMoon <- dplot %>% group_by(species) %>% summarise(range = weighted.mean(moon_phase, w = cpue))
+dplot <- left_join(dplot, rangeMoon, by = "species")
+dplot <- arrange(dplot, range)
 
-srq_fit$moon_phase <- srq_fit$x
-srq_fit$lower[srq_fit$lower < 0] <- 0
+# order species per mean of arrival during lunar month
+unique(dplot$species)
+# dplot$species <- factor(x = dplot$species, labels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)], levels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)])
+dplot$species <- factor(x = dplot$species, labels = print(unique(dplot$species)), levels = print(unique(dplot$species)))
 
-ggplot(srq_fit) +
-  geom_point(aes(x=moon_phase, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
-  geom_ribbon(aes(x=moon_phase, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
-  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
-  geom_line(aes(x=moon_phase, y=fit,colour=tau)) +
-  facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
-#============
+# plot distribution of arrival through lunar month
+ggplot(filter(dplot, !species %in% "Atherina hepsetus") ) + geom_bar(aes(x=moon_phase, y=cpue), fill="grey30", colour=NA, stat = 'identity') + facet_wrap(~species, ncol=3, scales = "free_y") + moon_x + labs(y="total number of larvae (scaled per species)")
 
-ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_phase, weight=cpue, y=..ncount..), binwidth=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y + labs(y="total number of larvae (scaled per species)")
 
 # # density
 # ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=cpue, y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
@@ -372,7 +388,7 @@ ggplot(filter(d0m, species %in% abundant_species)) + geom_histogram(aes(x=moon_p
 # ggplot(filter(d0m, species %in% abundant_species)) + geom_density(aes(x=moon_phase, weight=log1p(cpue), y=..scaled..), bw=0.05, fill="grey30", colour=NA) + facet_wrap(~species, ncol=3) + moon_x + no_y
 # # does not change much
 
-ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
+# ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="cpue (scaled per species)")
 
 # # log10 transformed
 # ggplot(filter(d0m, species %in% abundant_species), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="red", size=0.5) + facet_wrap(~species, ncol=3) + scale_y_log10() + moon_x
@@ -396,11 +412,20 @@ Another way to look at it is to regress CPUE on moon phase. Using quantile regre
 
 TODO review if quantile regression is correctly done here
 
+
+
 ```{r fig.height=4}
 suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
 
 # select data: common species, in summer, without extreme Spicara
-dd <- filter(d0m, species %in% abundant_species, in_summer(date), cpue < 250)
+dd <- filter(d0m, species %in% interest_species, !species %in% "Atherina hepsetus", in_summer(date), cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
+
+# standardize cpue per species (each species gets the same weight)
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+dd <- ddply(dd, ~species, function(x){
+  x$cpue <- range01(x$cpue)
+  x
+})
 
 # only consider distance to the new moon, irrespective of direction
 dd$moon_phase <- abs(dd$moon_phase)
@@ -411,106 +436,38 @@ dd$moon_phase <- abs(dd$moon_phase)
 # ggplot(dd) + geom_point(aes(x=moon_index1, y=cpue))
 # ggplot(dd) + geom_point(aes(x=moon_index2, y=cpue))
 
-# fit and predict quantile regression models
-x <- seq(0, 1, length.out=100)
-new <- data.frame(moon_phase=x, moon_index1=x, moon_index2=x)
 
-quantiles <- c(0.5, 0.75, 0.9, 0.95, 0.99)
-qpred <- ldply(quantiles, function(q) {
-  # quantile regression on log(n+1)
-  m <- rq(log1p(cpue) ~ moon_phase, tau=q, data=dd)
+quantiles <- c(0.25, 0.5, 0.75, 0.9)
 
-  # predict regression curve
-  pred <- tryCatch(
-    predict(m, newdata=new, interval="confidence"),
-    error=function(x) {return(data.frame(fit=rep(0, times=100), lower=0, higher=0))}
-  )
-  # switch back to cpue
-  pred <- expm1(pred)
-  
-  # add "metadata"
-  pred <- cbind(new, pred)
-  pred$quantile <- q
+# Compute rql for all quantiles
+qpred <- rql(cpue ~ moon_phase, tau=quantiles, data=dd)
 
-  return(pred)
-})
-qpred$quantile <- factor(qpred$quantile)
+# check significance of the regression curves
+summary.rql(qpred, se="boot", R=1000, bsmethod="xy")
+
+# new data for prediction
+x <- seq(0, 14, length.out=14)
+new <- data.frame(moon_phase=x)
+qpreds <- predict.rql(qpred, new = new)
+
+# Convert tau to factor 
+qpreds$quantile <- factor(qpreds$tau)
 
 # plot the result
 ggplot(mapping=aes(x=moon_phase)) +
   geom_point(aes(y=cpue), data=dd, alpha=0.5) +
-  geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpred, alpha=0.3) +
-  geom_path(aes(y=fit, colour=quantile), data=qpred) +
+  geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpreds, alpha=0.3) +
+  geom_path(aes(y=fit, colour=quantile), data=qpreds) + scale_color_discrete("Quantile", labels = c(expression("0.25"^"°"), expression("0.5"^"***"), expression("0.75"^"***"), expression("0.9"^"***"))) + scale_fill_discrete("Quantile", labels = c(expression("0.25"^"°"), expression("0.5"^"***"), expression("0.75"^"***"), expression("0.9"^"***"))) +
   # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("cpue (in summer, log(n+1) transformed)", trans="log1p") +
-  scale_x_continuous("moon phase", breaks=c(0, 0.5, 1), labels=c("\U0098", "\U00BA", "\U0099")) +
-  theme(axis.text.x=element_text(family="Wingdings 2"))
+  scale_y_continuous("CPUE (scaled per species)") +
+  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
+  theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0) 
 
-
-
-
-# WEIGHT per effort around lunar phase
-# select data: common species, in summer, without extreme Spicara
-dd <- filter(d0m, species %in% abundant_species, in_summer(date), cpue < 250)
-
-# only consider distance to the new moon, irrespective of direction
-dd$moon_phase <- abs(dd$moon_phase)
-
-# check effort distribution
-ggplot(dd, aes(x = moon_phase)) + geom_histogram(binwidth = 0.01)
-
-# compute effort per moonphase
-ef_moon <- data.frame(table(round(dd$moon_phase, 2)))
-ef_moon <- dplyr::rename(ef_moon, moon_phase = Var1, effort = Freq)
-ef_moon$moon_phase <- as.numeric(as.character(ef_moon$moon_phase))
-ef_moon$effort <- ef_moon$effort / sum(ef_moon$effort)
-dd$moon_phase <- round(dd$moon_phase, 2)
-str(dd)
-str(ef_moon)
-
-
-# Join with effort (% of total effort per moon phase)
-dd <- left_join(dd, ef_moon, by = "moon_phase")
-
-# fit and predict quantile regression models
-x <- seq(0, 1, length.out=100)
-new <- data.frame(moon_phase=x, moon_index1=x, moon_index2=x)
-
-quantiles <- c(0.5, 0.75, 0.9, 0.95, 0.99)
-qpred <- ldply(quantiles, function(q) {
-  # quantile regression on log(n+1)
-  m <- rq(log1p(cpue / effort) ~ moon_phase, tau=q, data=dd)
-
-  # predict regression curve
-  pred <- tryCatch(
-    predict(m, newdata=new, interval="confidence"),
-    error=function(x) {return(data.frame(fit=rep(0, times=100), lower=0, higher=0))}
-  )
-  # switch back to cpue
-  pred <- expm1(pred)
-  
-  # add "metadata"
-  pred <- cbind(new, pred)
-  pred$quantile <- q
-
-  return(pred)
-})
-qpred$quantile <- factor(qpred$quantile)
-
-# plot the result
-ggplot(mapping=aes(x=moon_phase)) +
-  geom_point(aes(y=cpue/effort), data=dd, alpha=0.5) +
-  geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpred, alpha=0.3) +
-  geom_path(aes(y=fit, colour=quantile), data=qpred) +
-  # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("cpue (in summer, log(n+1) transformed)", trans="log1p") +
-  scale_x_continuous("moon phase", breaks=c(0, 0.5, 1), labels=c("\U0098", "\U00BA", "\U0099")) +
-  theme(axis.text.x=element_text(family="Wingdings 2"))
 
 
 ```
 
-So, overall, high catches almost always occur around the new moon but not all new moons yield high catches (actually, most do not), even in the good season.
+So, overall, we observe a significant influence of the moon, with higher catches around the new moon for all quantiles, the influence being higher for higher quantiles : highest catches systematically occur around the new moon, even more than average catches. 
 
 
 ## Seasonal variations
