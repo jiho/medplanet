@@ -46,18 +46,27 @@ summary.rql <- function(object, ...) {
 # @param object list of rq() objects, returned by rql
 # @param ... passed to predict.rq (and ldply => .parallel can be used)
 # NB: always returns a data.frame with at least columns tau (factor) and fit
-predict.rql <- function(object, ...) {
+predict.rql <- function(object, se="boot", R=1000, bsmethod="xy", new, ...) {
   p <- plyr::ldply(object, function(x, ...) {
-    p <- predict.rq(x, ...)
-    if (is.vector(p)) {
-      p <- data.frame(fit=p)
-    } else {
-      p <- as.data.frame(p)
-    }
+    # predict regression curve
+    p <- tryCatch(
+      predict.rq(x, newdata = new, interval="confidence", ...),
+      error=function(x) {return(data.frame(fit=rep(0, times=nrow(new)), lower=0, higher=0))}
+    )
+    # p <- predict.rq(x, ...)
+    # if (is.vector(p)) {
+    #   p <- data.frame(fit=p)
+    # } else {
+    #   p <- as.data.frame(p)
+    # }
+    p <- cbind(new, p)
     return(p)
   }, .id="tau", ...)
   return(p)
 }
+
+predict.rql(qpred, new = new)
+
 
 # Transform an rqs object into an rql object
 #
