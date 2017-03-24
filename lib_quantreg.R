@@ -137,7 +137,7 @@ as.rql <- function(object, ...) {
 # Smooth data using a moving average
 #
 # @param x vector, matrix, or data.frame of data
-# @param order order of the moving average, will be made integer. The window is of size 2*k+1
+# @param k order of the moving average, will be made integer. The window is of size 2*k+1
 mav <- function(x, k, ...) {
   if (is.vector(x)) {
     x <- matrix(x, ncol=1)
