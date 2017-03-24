@@ -360,26 +360,26 @@ ggplot(ps, aes(group1, group2)) +
 
 ### Diversity index by site, region and topography
 
-```{r}
-dd_div <- left_join(select(d0, date, year, site, species, cpue), select(sites, site, topography, region))
+```{r diversity}
+dd_div <- left_join(select(d0, date, year, site, species, cpue), select(sites, site, topography, rhone))
 
-div <- dd_div %>% filter(cpue!=0) %>% group_by(date, year, site) %>% summarise(shannon = diversity(cpue, index="shannon", 
+div <- dd_div %>% filter(cpue!=0) %>% group_by(date, year, site, topography, rhone) %>% summarise(shannon = diversity(cpue, index="shannon", 
 base=2), pielou = shannon/(log(length(species), base=2))) %>% ungroup()
 
-#Diversity index by site
+# Diversity index by site
 div %>% group_by(site) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
 shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
 na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
 (pielou, na.rm=T),1)))
 
-#Diversity index by region
-div %>% group_by(region) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
+# Diversity index by region
+div %>% group_by(rhone) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
 shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
 na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
 (pielou, na.rm=T),1)))
 
-#Diversity index by topography
-div %>% group_by(region) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
+# Diversity index by topography
+div %>% group_by(topography) %>% summarise(shannon_mean = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
 shannon_median = str_c(round(median(shannon),2),"±",round(mad(shannon),1)), pielou_mean = str_c(round(mean(pielou, 
 na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)), pielou_median = str_c(round(median(pielou, na.rm=T),2),"±",round(mad
 (pielou, na.rm=T),1)))
