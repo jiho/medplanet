@@ -394,6 +394,23 @@ div_stats <- function(x) {
 div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
 div %>% group_by(rhone) %>% do(div_stats(.)) %>% as.data.frame()
 div %>% group_by(topography) %>% do(div_stats(.)) %>% as.data.frame()
+
+#Test differences between site/rhone/topography for each index
+# Test for shannon index
+wilcox.test(shannon~rhone, div)
+wilcox.test(shannon~topography, div)
+kruskal.test(shannon~site, div)
+
+#pairwise.wilcox.test(div$shannon, div$site, p.adjust.method = "holm")
+
+
+# Test for pielou index
+wilcox.test(pielou~rhone, div)
+wilcox.test(pielou~topography, div)
+kruskal.test(pielou~site, div)
+
+#pairwise.wilcox.test(div$pielou, div$site, p.adjust.method = "holm")
+
 ```
 
 
