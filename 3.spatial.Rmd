@@ -223,7 +223,7 @@ More species are caught in Villefranche probably because sampling is done in win
 
 Species richness vs effort (nb of nights fishes or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do. 
 
-```{r specaccum, fig.height=4}
+```{r specaccum, fig.height=5}
 dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 # cleanup data
 dd <- filter(dd, !is.na(species))
@@ -262,12 +262,19 @@ sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date,
 # and per CARE
 # sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
 
-# and some plots
-# ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
-ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
 
-# ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
-# ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + theme(legend.key.width = unit(1.4, "cm"), legend.position="bottom")
+# and some plots
+differentiating_scales <- list(
+  scale_linetype_manual(values=rep(c("solid", "22", "11"), times=5)),
+  scale_fill_discrete(h=c(0,280)+15), scale_colour_discrete(h=c(0,280)+15),
+  theme(legend.key.width = unit(1, "cm"), legend.position="bottom")
+)
+
+# ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site))+ differentiating_scales
+ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + differentiating_scales
+
+# ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
+# ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
 ```
 
 The richness at an effort of 20 nights (largest where all stations can be tested) show that Carry is significantly less diverse than several other sites. At 50 and 150 nights, Bastia is significantly less diverse than Leucate and Villefranche. When comparable, the others are not significantly different.
@@ -338,7 +345,7 @@ pairwise.specaccum.test <- function(comm, g, effort=c(10, 50, 100), nperm=1000, 
 ps <- pairwise.specaccum.test(comm=select(dw, -date, -site, -n_gear), g=dw$site, effort=c(20, 50, 150))
 ```
 
-```{r plot_comparison, fig.height=4}
+```{r plot_comparison, fig.height=5}
 ps$group1 <- factor(ps$group1, levels=sites$site)
 ps$group2 <- factor(ps$group2, levels=sites$site)
 ps$signif <- ps$p.value < 0.05
@@ -346,8 +353,8 @@ ps$signif <- ps$p.value < 0.05
 ps <- bind_rows(ps, rename(ps, group1=group2, group2=group1))
 # plot
 ggplot(ps, aes(group1, group2)) +
-  geom_point(aes(colour=p.value), na.rm=T, size=5, shape=15) +
-  geom_point(colour="red", na.rm=T, size=5, shape=22, data=filter(ps, signif)) +
+  geom_point(aes(colour=p.value), na.rm=T, size=4, shape=15) +
+  geom_point(colour="red", na.rm=T, size=4, shape=22, data=filter(ps, signif)) +
   facet_wrap(~effort, ncol=2) + coord_fixed() +
   scale_colour_distiller("p", palette="YlGnBu", direction=1, na.value=NA) +
   theme(
