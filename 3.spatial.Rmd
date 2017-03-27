@@ -105,7 +105,7 @@ pw$signif <- pw$p.value < 0.05
 pw$group1 <- factor(pw$group1, levels=sites$site)
 pw$group2 <- factor(pw$group2, levels=sites$site)
 # make symmetric
-pw <- bind_rows(pw, rename(pw, group1=group2, group2=group1))
+pw <- bind_rows(pw, dplyr::rename(pw, group1=group2, group2=group1))
 # plot
 ggplot(pw, aes(group1, group2)) +
   geom_point(aes(colour=p.value), na.rm=T, size=5, shape=15) +
@@ -350,7 +350,7 @@ ps$group1 <- factor(ps$group1, levels=sites$site)
 ps$group2 <- factor(ps$group2, levels=sites$site)
 ps$signif <- ps$p.value < 0.05
 # make symmetric
-ps <- bind_rows(ps, rename(ps, group1=group2, group2=group1))
+ps <- bind_rows(ps, dplyr::rename(ps, group1=group2, group2=group1))
 # plot
 ggplot(ps, aes(group1, group2)) +
   geom_point(aes(colour=p.value), na.rm=T, size=4, shape=15) +
