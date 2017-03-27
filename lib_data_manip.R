@@ -20,3 +20,11 @@ sum_tbl <- function(x, var) {
 
 # force the order of levels of a factor to be what it is in the original data
 ordered <- function(x) {factor(x, levels=unique(x))}
+
+stars <- function(x) {
+  as.character(symnum(x,
+    cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+    symbols = c("***", "**", "*", ".", " "),
+    legend=F
+  ))
+}

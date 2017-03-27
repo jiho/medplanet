@@ -429,7 +429,7 @@ So overall, the following sites are characterised by a larger proportion of the 
 
 Many assocations are geographic but there are some exceptions: Bastia associated with Leucate (probably because of sandy bottom and laguna in both locations); Post-Cros associated with Agde and Port Vendres (no explanation...).
 
-```{r CA_sites, fig.height=5}
+```{r CA_sites, fig.height=5, fig.width=8}
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ddm <- as.multivar(dd, "site")
 
@@ -442,7 +442,7 @@ dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2")
 
 # Try to find cutoff with some criterion
-NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+# NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # TODO how to choose?
 
 # assemble all data
@@ -472,7 +472,7 @@ p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
 glayout(list(p1, 1, 1), list(p2, 1, 2))
 ```
 
-Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to the rhone (side of the Rhone).
+Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
 
 ```{r}
 ddm$rhone <- sites$rhone
@@ -483,297 +483,221 @@ adonis(dist_matrix~rhone+topography, ddm, permutations = 999)$aov.tab
 
 ## Synchronicity among sites
 
-### Time arrival of abundant species : Plot
+### Time of arrival of abundant species among sites
 
-```{r fig.height=8}
-# mean CPUE per week, site, and species for common species
-dd <- d0 %>% filter(year !=2016, species %in% abundant_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+```{r time_of_arrival, fig.height=8}
+# mean CPUE per week, site, and species for abundant species
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(yweek, year, site, species) %>% summarise(cpue=mean(cpue))
+# we choose a granularity of one week to smooth out day-today variability and still keep resolution
 
 # create a new weekly date coordinate
 dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
 # and a new fake one starting all the same year
-dd$fake_date <- ymd("2014-01-01") + weeks(dd$yweek)
+dd$fake_date <- ymd("2010-01-01") + weeks(dd$yweek)
 
-# rescale abundances per species, site and year, to get a comparable peak per year
+# rescale abundances per species, site, and year, to get a comparable peak per year
 dd <- dd %>% group_by(species, site, year) %>% mutate(scaled_cpue=cpue/max(cpue))
 dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
-
-# # remove large date jumps (i.e. add NAs at the beginning of the jump)
-# dd <- arrange(dd, species, site, date) %>% ungroup()
-# dd <- ddply(dd, ~species+site, function(x, large=30) {
-#   large_jumps <- c(diff(x$date) > large, FALSE)
-#   # repeat each line at the beginning of a large jump
-#   x <- x[rep(1:nrow(x), as.numeric(large_jumps)+1),]
-#   # replace the abundances at that date by NA
-#   large_jumps <- c(diff(x$date) > large, FALSE)
-#   x$scaled_cpue[large_jumps] <- NA
-#   return(x)
-# })
 
 # rename species for display
 dd$species_abbr <- abbrev_sp(dd$species, n=4)
 
-# group sites per region
-sites$region <- c(
-  rep("Golfe du Lion", 3),
-  rep("Marseille et environs", 4),
-  rep("Var", 2),
-  rep("Alpes Mar.", 1),
-  rep("Corse", 3)
-)
-
-# we want to use a combination of colour and linetype to identify all sites
-# ggplot2 cannot do that on its own so we need to manually compute the interaction between the two and create the appropriate scales
-
-# prepare manual colours
-colours <- scales::hue_pal(h = c(0, 360) + 15, c = 100, l = 65, h.start = 0)(length(unique(sites$region)))
-sites$region_id <- as.numeric(as.factor(sites$region))
-sites$colours <- colours[sites$region_id]
-
-# prepare manual linetypes
-linetypes <- c("solid", "11", "12", "21")
-# linetypes <- 1:4
-sites$region_change <- c(FALSE, diff(sites$region_id) != 0)
-sites$linetypes <- 0
-index <- 0
-for (i in 1:nrow(sites)) {
-  if (sites$region_change[i]) {
-    index <- 1
-  } else {
-    index <- index + 1
-  }
-  sites$linetypes[i] <- index
-}
-sites$linetypes <- linetypes[sites$linetypes]
-
-# compute the interaction, which will be mapped in ggplot
-dd <- left_join(dd, select(sites, site, region), by="site")
-dd$region_site <- interaction(dd$region, dd$site)
-dd$region_site <- factor(dd$region_site, labels=sites$site)
-
-# nice plot
+# plot
 ggplot(dd) +
-  geom_line(aes(x=fake_date, y=scaled_cpue, colour=region_site, linetype=region_site)) +
+  geom_line(aes(x=fake_date, y=scaled_cpue, colour=site, linetype=site)) +
   facet_grid(species_abbr~year)+
   scale_x_date("", date_breaks="2 month", date_labels="%b", minor_breaks=NULL) +
   theme(
     axis.text.x=element_text(angle=45, hjust=1),
-    legend.position="top"
+    legend.position="bottom"
   ) +
-  scale_linetype_manual("site", values=sites$linetypes) +
-  scale_colour_manual("site", values=sites$colours) +
+  scale_linetype_manual(values=rep(c("solid", "22", "11"), times=5)) +
+  scale_colour_discrete(h=c(0,280)+15) +
   no_y
 ```
 
+Difficult to read...
 
-### Time arrival anomaly
+### Anomaly in date of arrival among sites
 
-To investigate the time lag of larvae arrival between sites and between years, this two species were no take in count. Only the abundant and frequent species (= 10 species) were selected.  
+The time of arrival of each species throughout the year is plotted to detect its peak. Winter species are shifted by 183 days (half a year).
 
-```{r}
-library(isotone)
+```{r compute_anomaly, fig.height=9}
+dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
-## Remove year 2016 and select species 
-dd <- d0 %>% filter(year !=2016, species %in% interest_species) %>% group_by(date, yweek, yday, year, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+# for winter species, shift the time
+dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] <- (dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] + 183) %% 366
 
+# compute the mean arrival day by species/sites/year
+dp <- dd %>% filter(cpue > 0) %>% group_by(species, site, year) %>% summarise(peak=weighted.mean(yday, cpue, na.rm=TRUE))
+# compute reference yday for each species
+dp <- dp %>% group_by(species) %>% mutate(mean_peak = mean(peak))
+dp$lag <- dp$peak - dp$mean_peak
 
-dd <- filter(dd, cpue!=0)
-
-## Check time of arrival by species to identify winter species
-ggplot(dd) +
-  geom_histogram(aes(x=yweek),binwidth=1) +
-  #geom_histogram(aes(x=yweek, weight=cpue),binwidth=1) +
-  geom_density(aes(x=yweek, y=..count..)) +
-  facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
-
+# check that the detected reference yday makes sense
+ggplot(dd) + facet_wrap(~species, scales="free_y", ncol=3) + theme(legend.position="bottom") +
+  geom_point(aes(x=yday, y=cpue, colour=site), alpha=0.5) + scale_y_log10() +
+  geom_vline(aes(xintercept=mean_peak), data=unique(select(dp, species, mean_peak)))
 ```
 
-```{r}
-#-----------
+This leads to remove *Boops boops* which is caught in only two sites and *Sarpa salpa* which has a bimodal pattern. The the time lag between the reference arrival date (line) and the observed arrival date at each site are investigated per site.
 
-## Select winter species and choice a date to start the larvae arrival period
-winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
+Port Vendres is late. Eastern sites are mostly early (La Ciota, Villfranche, and Bastia significantly so). But Port Cros is significantly late, hence breaking the pattern.
 
-winter$fake_date <- "2012-10-01"
+```{r test_anomaly, fig.height=5}
+dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa"))
+ggplot(dp) +
+  geom_vline(xintercept=0, size=2, colour="white") +
+  geom_histogram(aes(x=lag), binwidth=1) +
+  geom_density(aes(x=lag, y=..count..)) +
+  facet_wrap(~site, ncol=3)
 
-
-##Modify day and week according to this new date
-
-winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
-winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
-
-winter$season <- "2012-2013"
-winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
-winter$season[which(winter$shift_day>=731 & winter$shift_day<1096)] <- "2014-2015"
-winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
-
-winter$shift_day <- winter$shift_day%%365
-winter$shift_week <- winter$shift_week%%52
-
-
-## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
-## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season 
-winter$fake_year <- NA
-winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
-winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
-winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
-winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
-winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
-
-```
-
-2012 = only species which recruit in summer
-2013 = winter species (season 2012-2013) + summer species of 2013
-2014 = winter species (season 2013-2014) + summer species of 2014
-2015 = winter species (season 2015-2016) + summer species of 2015
-
-```{r}
-#----------------
-## Summer species 
-summer <- dd[-which(dd$species=="Sarpa salpa"),] 
-summer <- summer[-which(summer$species=="Pagellus acarne"),]
-summer <- select(summer, year, species, site, yweek,cpue)
-
-#---------
-
-#Paste Summer and winter species in a same data.frame
-#samples <- rbind(as.data.frame(summer), as.data.frame(winter))
-samples <- summer
-
-#Compute the mean arrival week by species/sites/year
-ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
-ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
-
-
-#Join the two data.frame to comute lag time for each site
-lag <- left_join(ref_detailed, ref_sp, by=c("species"))
-lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
-
-```
-
-```{r fig.height=7}
-ggplot(lag) +
-  geom_histogram(aes(x=lag_week),binwidth=1) +
-  geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~site, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
-```
-
-Test if arrival anomaly (unit of lag_time = week) of each site is relevant with one sample wilcox.test. 
-
-```{r}
-descriptive_stats <- lag %>%
+t <- dp %>%
   group_by(site) %>%
-  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
-
-suppressWarnings(test <- lag %>% group_by(site) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
-
-# make a nice table with both
-left_join(descriptive_stats, select(test, statistic, p.value), by="site") %>% ungroup()
+  do({
+    data.frame(
+      mean=mean(.$lag, na.rm=T),
+      sd=sd(.$lag, na.rm=T),
+      med=median(.$lag, na.rm=T),
+      mad=mad(.$lag, na.rm=T),
+      glance(wilcox.test(.$lag, mu = 0, alternative = "two.sided")) %>% select(statistic, p.value)
+    )
+  }) %>% ungroup()
+t$signif <- stars(t$p.value)
+t
 ```
 
 ## Synchonicity among years 
 
 Time arrival per year
 
-```{r}
-
-samples <- summer
-# join with topography
-samples <- left_join(samples, select(sites, site))
-
-#Compute the mean arrival week by species/sites/year
-ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
-ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
-
-
-#Join the two data.frame to comute lag time for each site
-lag <- left_join(ref_detailed, ref_sp, by=c("species"))
-lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
-
-
-#  Remove 2012 because not full
-lag <- filter(lag, !year == 2012)
-
-ggplot(lag) +
-  geom_histogram(aes(x=lag_week),binwidth=1) +
-  geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
-
-```
+TODO commented out, move to temporal.
 
 ```{r}
-#Compute mean and median lag 
-descriptive_stats <- lag %>%
-  group_by(year) %>%
-  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+# 
+# dd <- filter(dd, cpue!=0)
 
-suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+# ## Check time of arrival by species to identify winter species
+# ggplot(dd) +
+#   geom_histogram(aes(x=yweek),binwidth=1) +
+#   #geom_histogram(aes(x=yweek, weight=cpue),binwidth=1) +
+#   geom_density(aes(x=yweek, y=..count..)) +
+#   facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
-# make a nice table with both
-left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
-# # A tibble: 6 × 6
-#     year   topography     stats median statistic p.value
-#   <fctr>       <fctr>     <chr>  <dbl>     <dbl>   <dbl>
-# 1   2013 Gulf of Lion  1.62±3.7      1      1550 0.18053
-# 2   2013 Ligurian sea  -0.8±4.3      0      1550 0.18053
-# 3   2014 Gulf of Lion  -0.7±4.5     -1      1634 0.09546
-# 4   2014 Ligurian sea -0.12±4.4     -1      1634 0.09546
-# 5   2015 Gulf of Lion -2.56±2.4     -2       194 0.00013
-# 6   2015 Ligurian sea -1.05±4.2     -1       194 0.00013
+# #-----------
+# 
+# ## Select winter species and choice a date to start the larvae arrival period
+# winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
+# 
+# winter$fake_date <- "2012-10-01"
+# 
+# 
+# ##Modify day and week according to this new date
+# 
+# winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
+# winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
+# 
+# winter$season <- "2012-2013"
+# winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
+# winter$season[which(winter$shift_day>=731 & winter$shift_day<1096)] <- "2014-2015"
+# winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
+# 
+# winter$shift_day <- winter$shift_day%%365
+# winter$shift_week <- winter$shift_week%%52
+# 
+# 
+# ## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
+# ## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season 
+# winter$fake_year <- NA
+# winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
+# winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
+# winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
+# winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
+# winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
+
+# 2012 = only species which recruit in summer
+# 2013 = winter species (season 2012-2013) + summer species of 2013
+# 2014 = winter species (season 2013-2014) + summer species of 2014
+# 2015 = winter species (season 2015-2016) + summer species of 2015
+
+# samples <- summer
+# # join with topography
+# samples <- left_join(samples, select(sites, site))
+# 
+# #Compute the mean arrival week by species/sites/year
+# ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+# ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+# 
+# 
+# #Join the two data.frame to comute lag time for each site
+# lag <- left_join(ref_detailed, ref_sp, by=c("species"))
+# lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+# 
+# 
+# #  Remove 2012 because not full
+# lag <- filter(lag, !year == 2012)
+# 
+# ggplot(lag) +
+#   geom_histogram(aes(x=lag_week),binwidth=1) +
+#   geom_density(aes(x=lag_week, y=..count..)) +
+#   facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+# 
+# #Compute mean and median lag 
+# descriptive_stats <- lag %>%
+#   group_by(year) %>%
+#   summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+# 
+# suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+# 
+# # make a nice table with both
+# left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+# # # A tibble: 6 × 6
+# #     year   topography     stats median statistic p.value
+# #   <fctr>       <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# # 1   2013 Gulf of Lion  1.62±3.7      1      1550 0.18053
+# # 2   2013 Ligurian sea  -0.8±4.3      0      1550 0.18053
+# # 3   2014 Gulf of Lion  -0.7±4.5     -1      1634 0.09546
+# # 4   2014 Ligurian sea -0.12±4.4     -1      1634 0.09546
+# # 5   2015 Gulf of Lion -2.56±2.4     -2       194 0.00013
+# # 6   2015 Ligurian sea -1.05±4.2     -1       194 0.00013
+# 
+# # Time arrival per year and topography
+# 
+# samples <- summer
+# # join with topography
+# samples <- left_join(samples, select(sites, site, topography))
+# 
+# #Compute the mean arrival week by species/sites/year
+# ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+# ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+# 
+# 
+# #Join the two data.frame to comute lag time for each site
+# lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
+# lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+# 
+# 
+# #  Remove 2012 because not full
+# lag <- filter(lag, !year == 2012)
+# 
+# ggplot(lag) +
+#   geom_histogram(aes(x=lag_week),binwidth=1) +
+#   geom_density(aes(x=lag_week, y=..count..)) +
+#   facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+# 
+# #Compute mean and median lag 
+# descriptive_stats <- lag %>%
+#   group_by(year, topography) %>%
+#   summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
+# 
+# suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+# 
+# # make a nice table with both
+# left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+# # A tibble: 3 × 5
+# #     year     stats median statistic   p.value
+# #   <fctr>     <chr>  <dbl>     <dbl>     <dbl>
+# # 1   2013  0.17±4.5      1      1596 0.2598032
+# # 2   2014 -0.53±4.5     -1      1658 0.0297625
+# # 3   2015 -2.38±3.4     -2       106 0.0000083
 ```
-
-
-Time arrival per year and topography
-
-```{r}
-
-samples <- summer
-# join with topography
-samples <- left_join(samples, select(sites, site, topography))
-
-#Compute the mean arrival week by species/sites/year
-ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
-ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
-
-
-#Join the two data.frame to comute lag time for each site
-lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
-lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
-
-
-#  Remove 2012 because not full
-lag <- filter(lag, !year == 2012)
-
-ggplot(lag) +
-  geom_histogram(aes(x=lag_week),binwidth=1) +
-  geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
-
-```
-
-```{r}
-#Compute mean and median lag 
-descriptive_stats <- lag %>%
-  group_by(year, topography) %>%
-  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week)) 
-
-suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
-
-# make a nice table with both
-left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
-# A tibble: 3 × 5
-#     year     stats median statistic   p.value
-#   <fctr>     <chr>  <dbl>     <dbl>     <dbl>
-# 1   2013  0.17±4.5      1      1596 0.2598032
-# 2   2014 -0.53±4.5     -1      1658 0.0297625
-# 3   2015 -2.38±3.4     -2       106 0.0000083
-```
-
-
-2012 = only species which recruit in summer
-2013 = winter species (season 2012-2013) + summer species of 2013
-2014 = winter species (season 2013-2014) + summer species of 2014
-2015 = winter species (season 2015-2016) + summer species of 2015
-
-
-
