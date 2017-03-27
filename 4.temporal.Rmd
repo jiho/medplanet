@@ -38,7 +38,8 @@ q <- c(.25, .5, .75, .9)
 ```
 
 ```{r srq}
-srq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+
+srq_fit <- srq(dd$days, dd$cpue,  tau=q, interval="confidence", df=30, se="boot", R=1000)
 
 srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
 srq_fit$lower[srq_fit$lower < 0] <- 0
@@ -448,8 +449,8 @@ summary.rql(qpred, se="boot", R=1000, bsmethod="xy")
 # new data for prediction
 x <- seq(0, 14, length.out=14)
 new <- data.frame(moon_phase=x)
-qpreds <- predict.rql(qpred, new = new)
-
+qpreds <- predict.rql(qpred, new = new, interval="confidence")
+qpreds$moon_phase <- rep(x, times = length(unique(quantiles)))
 # Convert tau to factor 
 qpreds$quantile <- factor(qpreds$tau)
 
