@@ -242,3 +242,10 @@ To summarise:
 - `r round((length(unique(na.omit(d$family)))*100)/length(unique(l$family)), 0)`% of families, `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l$species)), 0)`% of species recorded in Louisy were caught in CAREs. 
 
 - `r round((length(unique(na.omit(d$family)))*100)/length(unique(l_demersal$family)), 0)`% of families , `r round((length(unique(na.omit(d$genus)))*100)/length(unique(l_demersal$genus)), 0)`% of genera, and `r round((length(unique(na.omit(d$species)))*100)/length(unique(l_demersal$species)), 0)`% of species recorded as french demersal fish were caught in CAREs.
+
+```{r}
+## Summary by species : Abundance, cpue, and relative abundance
+dd <- d %>% group_by(family, genus, species) %>% summarise(Abondance = sum(n), cpue = round(sum(cpue),3), ra = round((sum(n)*100/sum(d$n)),3))
+```
+
+

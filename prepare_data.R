@@ -211,6 +211,10 @@ d$family[which(d$family == "ni")] <- NA
 d$family[which(d$family == "anguilliformes")] <- NA
 d$family <- str_to_title(d$family)
 d$genus <- str_to_title(d$genus)
+
+d$genus[which(d$genus=="Pagellus"&d$species=="mormyrus")] <- "Lithognathus"
+d$genus[which(d$genus=="Mugilidae"&d$family=="Mugilidae")] <- NA
+
 # abbreviated species
 d$sp <- str_c(str_sub(d$genus, 1, 1), ". ", d$species)
 # full species
