@@ -53,6 +53,9 @@ ggplot(srq_fit) +
   geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
 ```
 
+
+
+
 ```{r llrq}
 registerDoParallel(cores=2)
 # system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
@@ -68,14 +71,21 @@ last_plot() %+% llrq_fit
 # TODO do the same per genus/species
 ```
 
+The second fit is better because it highlights both the spring-summer and the autumn peaks. 
 
 ```{r}
+library(stringr)
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
 
 dd$month <- as.factor(month.abb[dd$month])
 ca <- CA(as.multivar(dd, "month"), graph=F)
 autoplot(ca, size=1, dimensions=c(1,2))
 ```
+
+Three main assemblages: 
+- Winter, with lower diversity (two main spp)
+- Spring and early summer, with few main species quite spread = associated with different months
+- Summer and early fall, with high diversity, quite similar among months
 
 
 ## Temporal scales of variability
@@ -405,13 +415,9 @@ in_summer <- function(x) {
 ggplot(filter(d0m, species %in% abundant_species, in_summer(date)), aes(x=moon_phase, y=cpue)) + geom_point(size=1, alpha=0.5) + geom_smooth(se=F, colour="#F55D5B", size=0.5, data=filter(dm, species %in% abundant_species), method="loess") + facet_wrap(~species, ncol=3, scales="free_y") + moon_x + no_y + labs(y="summer cpue (scaled per species)")
 ```
 
-TODO scale by sampling effort: compute *mean* of CPUE per lunar period (quarter?)
 
-TODO instead of polynomial fits, use local linear quantile regression llrq
 
 Another way to look at it is to regress CPUE on moon phase. Using quantile regression, we can focus on the common scenario (median, quantile=0.5), or the higher catches (quantiles > 0.5). We see that the median catch is basically 0 everywhere and that only the 90th percentile (quantile=0.9) starts to respond to moon phase.
-
-TODO review if quantile regression is correctly done here
 
 
 
@@ -445,6 +451,7 @@ qpred <- rql(cpue ~ moon_phase, tau=quantiles, data=dd)
 
 # check significance of the regression curves
 summary.rql(qpred, se="boot", R=1000, bsmethod="xy")
+
 
 # new data for prediction
 x <- seq(0, 14, length.out=14)
@@ -599,24 +606,38 @@ In total CPUE, pooling all taxa together, the catch seems similar over the years
 dd <- d0 %>% filter(year != 2016, year != 2012) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
 
 ggplot(dd, aes(x=year, y=cpue)) + geom_violin(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
+
+# Or boxplot, easier to check for differences
+ggplot(dd, aes(x=year, y=cpue)) + geom_boxplot(na.rm=T) + geom_point(alpha=0.2, size=1) + scale_y_continuous(trans="log10")
+
 ```
 
 Pairwise aovq test pvalues
 ```{r warning=FALSE}
-dd <- d0 %>% filter(year != 2016, year != 2012) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+
+dd <- d0 %>% filter(!year == 2016, !year == 2012) %>% group_by(date, year, site) %>% summarise(cpue=sum(cpue))
+dd$year <- factor(dd$year, levels = c(2013, 2014, 2015))
+
 
 test <- aovq(cpue ~ year, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 
 pw <- suppressMessages(pairwise.aovq(dd$cpue, dd$year, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
 # plot
-pw <- ldply(pw, function(x) {
-  x <- melt(x)
-  x$X1 <- factor(x$X1, levels=levels(dd$year))
-  x$X2 <- factor(x$X2, levels=levels(dd$year))
-  x$signif <- x$value < 0.05
+(pw <- ldply(pw, function(x) {
+  # x <- pw$`0.9`
+  x <- reshape2::melt(x$p.value)
+  x$Var1 <- factor(x$Var1, levels=levels(dd$year))
+  x$Var2 <- factor(x$Var2, levels=levels(dd$year))
+  x$signif <- round(x$value, 2) <= 0.05
+  # x <- data.frame(x)
   return(x)
-})
-ggplot(pw) + geom_point(aes(X1, X2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank()) + facet_wrap(~.id, ncol=1)
+}))
+
+```
+
+
+```{r}
+ggplot(pw) + geom_point(aes(Var1, Var2, shape=signif, colour=signif), na.rm=T) + theme(axis.text.x = element_text(angle=30, hjust=1), axis.title=element_blank()) + facet_wrap(~.id, ncol=1)
 ```
 
 
