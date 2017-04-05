@@ -680,3 +680,200 @@ However, years 2013 2014 have the same (or very similar) sampling effort (in ter
 2015 : Only Embiez, Ciotat, Cassis, Marseille, Villefranche.
 
 So difference between years in species composition is not due to difference in sampling sites. 
+
+
+## Synchonicity among years 
+
+Time arrival per year
+
+```{r}
+
+head(d)
+dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, yweek, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+
+dd <- filter(dd, cpue!=0)
+
+## Check time of arrival by species to identify winter species
+ggplot(dd) +
+  geom_histogram(aes(x=yweek),binwidth=1) +
+  #geom_histogram(aes(x=yweek, weight=cpue),binwidth=1) +
+  geom_density(aes(x=yweek, y=..count..)) +
+  facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+#-----------
+
+## Select winter species and choice a date to start the larvae arrival period
+winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
+
+winter$fake_date <- "2012-10-01"
+
+
+##Modify day and week according to this new date
+
+winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
+winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
+
+winter$season <- "2012-2013"
+winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
+winter$season[which(winter$shift_day>=731 & winter$shift_day<1096)] <- "2014-2015"
+winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
+
+winter$shift_day <- winter$shift_day%%365
+winter$shift_week <- winter$shift_week%%52
+
+
+## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
+## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season
+winter$fake_year <- NA
+winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
+winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
+winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
+winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
+winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
+
+```
+
+2012 = only species which recruit in summer
+2013 = winter species (season 2012-2013) + summer species of 2013
+2014 = winter species (season 2013-2014) + summer species of 2014
+2015 = winter species (season 2015-2016) + summer species of 2015
+
+```{r}
+
+summer <- dd %>% filter(species %in% interest_species) %>% filter(species != c("Sarpa salpa", "Pagellus acarne")) %>% ungroup()
+samples <- summer
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+#Compute mean and median lag
+descriptive_stats <- lag %>%
+  group_by(year) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
+
+suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+# A tibble: 3 × 5
+#     year     stats median statistic p.value
+#   <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# 1   2013  -0.2±6.1    0.5      1840 0.52060
+# 2   2014 -1.24±6.7   -1.0      1894 0.00966
+# 3   2015 -2.09±5.2   -2.0       234 0.00016
+
+
+
+# Time arrival per year and topography
+
+samples <- summer
+# join with topography
+samples <- left_join(samples, select(sites, site, topography))
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+#Compute mean and median lag
+descriptive_stats <- lag %>%
+  group_by(year, topography) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
+
+
+suppressWarnings (test <- lag %>% group_by(year, topography) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "topography")) %>% ungroup()
+# # A tibble: 6 × 6
+#     year   topography     stats median statistic p.value
+#   <fctr>       <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# 1   2013 Gulf of Lion -0.14±6.7      1       364  0.1342
+# 2   2013 Ligurian sea -0.28±5.2      0       540  0.6189
+# 3   2014 Gulf of Lion -0.98±5.1     -1       298  0.1310
+# 4   2014 Ligurian sea -1.26±7.3     -1       661  0.0904
+# 5   2015 Gulf of Lion  -1.4±5.7     -2        83  0.0021
+# 6   2015 Ligurian sea -1.83±5.8     -1        86  0.1819
+
+
+# Time arrival per year and site
+
+samples <- summer
+# join with topography
+samples <- left_join(samples, select(sites, site))
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species, site) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species", "site"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_wrap(site~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+#Compute mean and median lag
+descriptive_stats <- lag %>%
+  group_by(site, year) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
+
+
+suppressWarnings (test <- lag %>% group_by(site, year) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by=c("site", "year")) %>% ungroup()
+# # A tibble: 26 × 6
+#      year          site     stats median statistic p.value
+#    <fctr>        <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# 1    2013       Leucate      -2±8    0.0      25.0   0.837
+# 2    2013  Port Vendres     0±1.3    0.0       5.0   1.000
+# 3    2013          Agde     0±1.2    0.0       5.0   1.000
+# 4    2013     Marseille     0±4.7    0.0       5.0   1.000
+# 5    2013     Port-Cros   0.1±1.1    0.0       8.5   0.890
+# 6    2013  Villefranche -0.56±3.6    0.0      13.5   1.000
+# 7    2013     Bonifacio -0.57±1.5    0.0       2.5   0.424
+# 8    2013 Saint Florent -1.31±2.6    0.0       6.5   0.121
+# 9    2013        Bastia  -0.2±6.8    0.0      18.0   0.632
+# 10   2014       Leucate -2.21±4.4   -1.5      11.5   0.033
+
+
+```
+
