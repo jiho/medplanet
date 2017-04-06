@@ -68,6 +68,15 @@ We focus on *coastal fish* taxa only. A total of `r sum(d$n)` larvae were caught
 ```{r}
 dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=sum(cpue))
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
+
+# Compute mean CPUE
+dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue), sd = sd(cpue))
+# # A tibble: 1 × 2
+#   meanCPUE    sd
+#      <dbl> <dbl>
+# 1      2.8   9.3
+
+
 ```
 
 Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
