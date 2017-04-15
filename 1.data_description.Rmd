@@ -50,6 +50,8 @@ ggplot(effort) + geom_point(aes(x=date, y=site), shape="|") +
   ) + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
 ```
 
+Resulting in a total of `r nrow(effort)` nights sampled, in `r nrow(sites)` sites.
+
 ## Sampling effort
 
 At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Unless otherwise stated, it includes nights with 0 catches.
