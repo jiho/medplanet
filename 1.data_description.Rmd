@@ -70,11 +70,29 @@ dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
 
 # Compute mean CPUE
-dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue), sd = sd(cpue))
+d0 %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue, trim = 0), sd = sd(cpue))
 # # A tibble: 1 × 2
 #   meanCPUE    sd
 #      <dbl> <dbl>
-# 1      2.8   9.3
+#  1      4.5   30
+
+d0 %>% filter(cpue < 500) %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% group_by(site) %>% summarize(meanCPUE=mean(cpue, trim = 0.0), sd = sd(cpue))
+# # A tibble: 13 × 3
+#             site meanCPUE    sd
+#           <fctr>    <dbl> <dbl>
+# 1        Leucate     1.77   3.2
+# 2   Port Vendres     1.50   3.1
+# 3           Agde     1.60   1.7
+# 4          Carry     0.81   1.4
+# 5      Marseille     1.38   3.4
+# 6         Cassis     7.51  13.5
+# 7      La Ciotat     5.34   9.1
+# 8     Les Embiez     5.98  11.9
+# 9      Port-Cros     5.91  12.3
+# 10  Villefranche     5.07  11.2
+# 11     Bonifacio     4.07  12.0
+# 12 Saint Florent    17.59  51.0
+# 13        Bastia     1.08   2.3
 
 
 ```
