@@ -16,16 +16,15 @@
 #' https://sites.google.com/site/whangyjhomepage/research/software
 #'
 #' @examples
-#' # Create data with mostly noise in the median values and a periodic
-#' # signal in the extreme (high and low) values
+#' # Create data with mostly noise and a periodic signal for high values only
 #' set.seed(12)
 #' n <- 200
 #' x <- 1:n
 #' y1 <- runif(n, -1, 1)
 #' y2 <- cos(x/(n/10)*pi) * 1.05
-#' y <- ifelse(y2 > 1 | y2 < -1, y2, y1)
+#' y <- ifelse(y2 > 1, y2, y1)
 #' plot(x, y, "l")
-#' qm <- quantilogram(y, tau=c(0.1, 0.5, 0.9), lag.max=50)
+#' qm <- quantilogram(y, tau=c(0.5, 0.9), lag.max=50)
 #' plot(qm)
 quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(length(y))) {
   y <- data.matrix(y)
