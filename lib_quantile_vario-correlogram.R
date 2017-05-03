@@ -31,7 +31,7 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   y <- data.matrix(y)
 
   n <- nrow(y)
-  nk <- lag.max
+  nk <- round(lag.max)
   ll  <-  seq(from=1,by=1,length.out=nk)/nk
 
   talpha  <-  as.matrix(tau) ;
