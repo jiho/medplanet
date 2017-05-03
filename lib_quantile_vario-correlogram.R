@@ -50,8 +50,7 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   while (jalpha<=nalpha) {
     alpha  <-  talpha[jalpha]
 
-    #	muhat <- quantile(y,alpha,type=2)
-    muhat <- quant(y,alpha)
+    muhat <- quant(y, alpha)
     epshat <-  y - muhat*as.matrix(rep(1,n))
 
     check <- (epshat >0) - (epshat <0) - (1-2*alpha)*as.matrix(rep(1,n))
@@ -85,11 +84,16 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   return(signum)
 }
 
-quant <- function(y,alpha){
-  n <- nrow(y) ;
-  nq <- round(alpha*n);
-  y_sorted <- sort(y) ;
-  q <- y_sorted[nq] ;
+#' Empirical quantile computation
+#'
+#' Fast alternative to quantile(x, probs, type=1)
+#'
+#' @param x numeric vector.
+#' @param probs numeric vector of probabilities with values in [0,1].
+quant <- function(x, probs){
+  nq <- round(probs*length(x));
+  x_sorted <- sort(x) ;
+  q <- x_sorted[nq] ;
   return(q) ;
 }
 
