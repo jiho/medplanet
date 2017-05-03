@@ -26,10 +26,7 @@
 #' y <- ifelse(y2 > 1 | y2 < -1, y2, y1)
 #' plot(x, y, "l")
 #' qm <- quantilogram(y, tau=c(0.1, 0.5, 0.9), lag.max=50)
-#' # par(mfrow=c(3,1))
-#' plot(var ~ lag, data=subset(qm, tau==0.1), type="b")
-#' plot(var ~ lag, data=subset(qm, tau==0.5), type="b")
-#' plot(var ~ lag, data=subset(qm, tau==0.9), type="b")
+#' plot(qm)
 quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(length(y))) {
   y <- data.matrix(y)
 
@@ -79,10 +76,29 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   signum <- as.data.frame(signum)
   signum$lag <- x
 
-  signum <- tidyr::gather(signum, key="tau", value="var", 1:nalpha)
+  out <- list(
+    tau=tau,
+    quantilogram=signum,
+    box.ljung=bp,
+    sel=sel,
+    seu=seu
+  )
+  class(out) <- "quantilogram"
 
-  return(signum)
+  return(out)
 }
+
+plot.quantilogram <- function(x, alpha=0.05) {
+  library("ggplot2")
+  X <- gather(x$quantilogram, key="tau", value="value", -lag)
+  X$seu <- rep(x$seu, each=nrow(x$quantilogram))
+
+  ggplot(X) + facet_wrap(~tau) +
+    geom_hline(yintercept=x$sel * qnorm(alpha/2) * c(-1,1), colour="#3366FF") +
+    geom_hline(aes(yintercept=seu * qnorm(alpha/2) * c(-1,1)), colour="#3366FF", linetype="dashed") +
+    geom_linerange(aes(x=lag, ymin=0, ymax=value))
+}
+
 
 #' Empirical quantile computation
 #'
