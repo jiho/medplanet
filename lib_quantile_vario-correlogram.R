@@ -41,9 +41,7 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   seu <- mat.or.vec(nalpha,1) ;
   bp <- mat.or.vec(nk,nalpha) ;
 
-  jalpha  <-  1;
-
-  while (jalpha<=nalpha) {
+  for (jalpha in 1:nalpha) {
     alpha  <-  talpha[jalpha]
 
     muhat <- quant(y, alpha)
@@ -54,16 +52,13 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
     sign_sign <- check[1:(n-1)]*check[2:n]
     signum[1,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-1)]^2)
     a <- as.matrix(mat.or.vec(nk,1)) ;
-    k <- 2 ;
-    while (k<=nk){
+    for (k in 2:nk){
       sign_sign <- as.matrix(mat.or.vec(n-k,1))
       sign_sign <- check[1:(n-k)]*check[(k+1):n]
       signum[k,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
-      k <- k+1 ;
     }
     Vk[jalpha] <- 1 +  ( max(  c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
     seu[jalpha] <- sqrt(Vk[jalpha]/n)
-    jalpha <- jalpha+1
   }
 
   bp <- apply((signum^2),2,cumsum)
