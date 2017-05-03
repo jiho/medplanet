@@ -4,6 +4,104 @@
 # (c) 2017 Jean-Olivier Irisson, GNU General Public License v3
 #
 
+#' Quantilogram
+#'
+#' @param x a vector representing a regular, univariate, time series.
+#' @param tau a vector of quantles to test
+#' @param lag.max maximum lag at which to calculate the autocorrelation of quantiles.
+#'
+#' @references
+#' Linton, O. and Whang, Y.-J. The quantilogram: with an application to evaluating directional predictability. Journal of Econometrics, 141(1):250--282, 2007.
+#' http://www.sciencedirect.com/science/article/pii/S0304407607000152
+#' https://sites.google.com/site/whangyjhomepage/research/software
+#'
+#' @examples
+#' # Create data with mostly noise in the median values and a periodic
+#' # signal in the extreme (high and low) values
+#' set.seed(12)
+#' n <- 200
+#' x <- 1:n
+#' y1 <- runif(n, -1, 1)
+#' y2 <- cos(x/(n/10)*pi) * 1.05
+#' y <- ifelse(y2 > 1 | y2 < -1, y2, y1)
+#' plot(x, y, "l")
+#' qm <- quantilogram(y, tau=c(0.1, 0.5, 0.9), lag.max=50)
+#' # par(mfrow=c(3,1))
+#' plot(var ~ lag, data=subset(qm, tau==0.1), type="b")
+#' plot(var ~ lag, data=subset(qm, tau==0.5), type="b")
+#' plot(var ~ lag, data=subset(qm, tau==0.9), type="b")
+quantilogram <- function(x, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=100) {
+  y <- x
+
+  y <- data.matrix(y)
+
+  n <- nrow(y)
+  nk <- lag.max
+  ll  <-  seq(from=1,by=1,length.out=nk)/nk
+
+  talpha  <-  as.matrix(tau) ;
+  nalpha  <-  nrow(talpha) ;
+  sign_sign <- mat.or.vec(n,1) ;
+  signum <- mat.or.vec(nk,nalpha) ;
+  psignum <- mat.or.vec(nk,nalpha) ;
+  Vk <- mat.or.vec(nalpha,1) ;
+  seu <- mat.or.vec(nalpha,1) ;
+  bp <- mat.or.vec(nk,nalpha) ;
+
+  jalpha  <-  1;
+
+  while (jalpha<=nalpha) {
+    alpha  <-  talpha[jalpha]
+
+    #	muhat <- quantile(y,alpha,type=2)
+    muhat <- quant(y,alpha)
+    epshat <-  y - muhat*as.matrix(rep(1,n))
+
+    check <- (epshat >0) - (epshat <0) - (1-2*alpha)*as.matrix(rep(1,n))
+    sign_sign <- as.matrix(mat.or.vec(n-1,1))
+    sign_sign <- check[1:(n-1)]*check[2:n]
+    signum[1,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-1)]^2)
+    a <- as.matrix(mat.or.vec(nk,1)) ;
+    k <- 2 ;
+    while (k<=nk){
+      sign_sign <- as.matrix(mat.or.vec(n-k,1))
+      sign_sign <- check[1:(n-k)]*check[(k+1):n]
+      signum[k,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
+      a <- solve(toeplitz( c(1,signum[1:(k-1),jalpha])  ))%*%signum[1:k,jalpha]
+      psignum[k,jalpha] <- a[k] ;
+
+      k <- k+1 ;
+    }
+    #/* ssignum=w*signum[.,alpha] ; */
+    Vk[jalpha] <- 1 +  ( max(  c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
+    seu[jalpha] <- sqrt(Vk[jalpha]/n)
+    jalpha <- jalpha+1
+  }
+
+  # msign <- signum[,5]
+  bp <- apply((signum^2),2,cumsum)
+  bpp <- apply((psignum^2),2,cumsum)
+
+  sel <- sqrt(1/n)
+
+  x <- ll*nk ;
+  colnames(signum) <- tau
+  signum <- as.data.frame(signum)
+  signum$lag <- x
+
+  signum <- tidyr::gather(signum, key="tau", value="var", 1:nalpha)
+
+  return(signum)
+}
+
+quant <- function(y,alpha){
+  n <- nrow(y) ;
+  nq <- round(alpha*n);
+  y_sorted <- sort(y) ;
+  q <- y_sorted[nq] ;
+  return(q) ;
+}
+
 
 #' Autocorrelation function estimation
 #'
