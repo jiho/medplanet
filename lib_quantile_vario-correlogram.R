@@ -43,7 +43,6 @@ quantilogram <- function(x, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=100) {
   nalpha  <-  nrow(talpha) ;
   sign_sign <- mat.or.vec(n,1) ;
   signum <- mat.or.vec(nk,nalpha) ;
-  psignum <- mat.or.vec(nk,nalpha) ;
   Vk <- mat.or.vec(nalpha,1) ;
   seu <- mat.or.vec(nalpha,1) ;
   bp <- mat.or.vec(nk,nalpha) ;
@@ -67,20 +66,14 @@ quantilogram <- function(x, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=100) {
       sign_sign <- as.matrix(mat.or.vec(n-k,1))
       sign_sign <- check[1:(n-k)]*check[(k+1):n]
       signum[k,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
-      a <- solve(toeplitz( c(1,signum[1:(k-1),jalpha])  ))%*%signum[1:k,jalpha]
-      psignum[k,jalpha] <- a[k] ;
-
       k <- k+1 ;
     }
-    #/* ssignum=w*signum[.,alpha] ; */
     Vk[jalpha] <- 1 +  ( max(  c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
     seu[jalpha] <- sqrt(Vk[jalpha]/n)
     jalpha <- jalpha+1
   }
 
-  # msign <- signum[,5]
   bp <- apply((signum^2),2,cumsum)
-  bpp <- apply((psignum^2),2,cumsum)
 
   sel <- sqrt(1/n)
 
