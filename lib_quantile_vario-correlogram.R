@@ -72,11 +72,15 @@ quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(lengt
   return(out)
 }
 
+
 plot.quantilogram <- function(x, alpha=0.05) {
   library("ggplot2")
-  X <- gather(x$quantilogram, key="tau", value="value", -lag)
-  X$seu <- rep(x$seu, each=nrow(x$quantilogram))
-
+  # reformat data
+  X <- reshape2::melt(x$quantilogram)
+  names(X) <- c("lag", "tau", "value")
+  X$lag <- x$lag[X$lag]
+  X$seu <- rep(x$seu, each=length(x$lag))
+  # and plot it
   ggplot(X) + facet_wrap(~tau) +
     geom_hline(yintercept=x$sel * qnorm(alpha/2) * c(-1,1), colour="#3366FF") +
     geom_hline(aes(yintercept=seu * qnorm(alpha/2) * c(-1,1)), colour="#3366FF", linetype="dashed") +
