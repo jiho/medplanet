@@ -27,51 +27,41 @@
 #' qm <- quantilogram(y, tau=c(0.5, 0.9), lag.max=50)
 #' plot(qm)
 quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(length(y))) {
-  y <- data.matrix(y)
 
-  n <- nrow(y)
-  nk <- round(lag.max)
-  ll  <-  seq(from=1,by=1,length.out=nk)/nk
+  n <- length(y)
+  lag.max <- round(lag.max)
+  talpha <- tau
+  nalpha <- length(tau)
 
-  talpha  <-  as.matrix(tau) ;
-  nalpha  <-  nrow(talpha) ;
-  sign_sign <- mat.or.vec(n,1) ;
-  signum <- mat.or.vec(nk,nalpha) ;
-  Vk <- mat.or.vec(nalpha,1) ;
-  seu <- mat.or.vec(nalpha,1) ;
-  bp <- mat.or.vec(nk,nalpha) ;
+  signum <- mat.or.vec(lag.max+1, nalpha)
+  Vk <- mat.or.vec(nalpha, 1)
+
+  # compute sample quantiles
+  muhat <- quant(y, talpha)
 
   for (jalpha in 1:nalpha) {
-    alpha  <-  talpha[jalpha]
-
-    muhat <- quant(y, alpha)
-    epshat <-  y - muhat*as.matrix(rep(1,n))
-
-    check <- (epshat >0) - (epshat <0) - (1-2*alpha)*as.matrix(rep(1,n))
-    sign_sign <- as.matrix(mat.or.vec(n-1,1))
-    sign_sign <- check[1:(n-1)]*check[2:n]
-    signum[1,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-1)]^2)
-    a <- as.matrix(mat.or.vec(nk,1)) ;
-    for (k in 2:nk){
-      sign_sign <- as.matrix(mat.or.vec(n-k,1))
+    # select the current quantile
+    alpha <- talpha[jalpha]
+    # anomaly to the quantile
+    epshat <- y - muhat[jalpha]
+    # check function
+    check <- (epshat > 0) - (epshat < 0) - 1 + 2*alpha
+    for (k in 0:lag.max){
       sign_sign <- check[1:(n-k)]*check[(k+1):n]
-      signum[k,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
+      signum[k+1, jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
     }
-    Vk[jalpha] <- 1 +  ( max(  c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
-    seu[jalpha] <- sqrt(Vk[jalpha]/n)
+    Vk[jalpha] <- 1 + ( max(c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
   }
 
+  colnames(signum) <- tau
   bp <- apply((signum^2),2,cumsum)
 
   sel <- sqrt(1/n)
-
-  x <- ll*nk ;
-  colnames(signum) <- tau
-  signum <- as.data.frame(signum)
-  signum$lag <- x
+  seu <- sqrt(Vk/n)
 
   out <- list(
     tau=tau,
+    lag=0:lag.max,
     quantilogram=signum,
     box.ljung=bp,
     sel=sel,
