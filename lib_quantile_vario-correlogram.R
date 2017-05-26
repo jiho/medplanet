@@ -24,8 +24,19 @@
 #' y2 <- cos(x/(n/10)*pi) * 1.05
 #' y <- ifelse(y2 > 1, y2, y1)
 #' plot(x, y, "l")
-#' qm <- quantilogram(y, tau=c(0.5, 0.9), lag.max=50)
-#' plot(qm)
+#' q <- c(0.25, 0.5, 0.75, 0.9)
+#' rqm <- quantilogram(y, tau=q, lag.max=50)
+#' plot(rqm)
+#' # bootstrap
+#' bqm <- plyr::laply(1:1000, function(i) {
+#'   quantilogram(sample(y), tau=q, lag.max=50)$quantilogram
+#' })
+#' qm <- reshape2::melt(rqm$quantilogram)
+#' names(qm) <- c("lag", "tau", "value")
+#' qm$lag <- rqm$lag[qm$lag]
+#' qm$q1 <- reshape2::melt(plyr::aaply(bqm, 2:3, quantile, probs=0.025))$value
+#' qm$q2 <- reshape2::melt(plyr::aaply(bqm, 2:3, quantile, probs=0.975))$value
+#' ggplot(qm) + geom_ribbon(aes(x=lag, ymin=q1, ymax=q2), alpha=0.3) + geom_linerange(aes(x=lag, ymin=0, ymax=value)) + facet_wrap(~tau)
 quantilogram <- function(y, tau=c(0.25, 0.5, 0.75, 0.95), lag.max=10*log10(length(y))) {
 
   n <- length(y)
