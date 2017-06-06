@@ -39,24 +39,21 @@ q <- c(.25, .5, .75, .9)
 
 ```{r srq}
 
-srq_fit <- srq(dd$days, dd$cpue,  tau=q, interval="confidence", df=30, se="boot", R=1000)
-
-srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
-srq_fit$lower[srq_fit$lower < 0] <- 0
-
-ggplot(srq_fit) +
-  geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
-  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
-  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
-  geom_line(aes(x=date, y=fit,colour=tau)) +
-  geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
-  geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
+# srq_fit <- srq(dd$days, dd$cpue,  tau=q, interval="confidence", df=30, se="boot", R=1000)
+# 
+# srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
+# srq_fit$lower[srq_fit$lower < 0] <- 0
+# 
+# ggplot(srq_fit) +
+#   geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+#   geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+#   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+#   geom_line(aes(x=date, y=fit,colour=tau)) +
+#   geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+#   geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
 ```
 
-
-
-
-```{r llrq}
+```{r llrq2}
 registerDoParallel(cores=2)
 # system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
 system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
@@ -71,7 +68,7 @@ last_plot() %+% llrq_fit
 # TODO do the same per genus/species
 ```
 
-The second fit is better because it highlights both the spring-summer and the autumn peaks. 
+Highlights both the spring-summer and the autumn peaks.
 
 ```{r}
 library(stringr)
@@ -488,32 +485,37 @@ dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
 q <- c(.25, .5, .75, .9)
 
-srq_fit <- srq(dd$fake_date, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+# srq_fit <- srq(dd$fake_date, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+# 
+# srq_fit$fake_date <- srq_fit$x
+# srq_fit$lower[srq_fit$lower < 0] <- 0
+# 
+# ggplot(srq_fit) +
+#   geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+#   geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+#   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+#   geom_line(aes(x=fake_date, y=fit,colour=tau)) +
+#   geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+#   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+```
 
-srq_fit$fake_date <- srq_fit$x
-srq_fit$lower[srq_fit$lower < 0] <- 0
+```{r llrq}
+registerDoParallel(cores=2)
+# system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
+system.time(llrq_fit <- llrq(dd$yday, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
+stopImplicitCluster()
 
-ggplot(srq_fit) +
+llrq_fit$fake_date  <- ymd("2014-01-01") + llrq_fit$x
+llrq_fit$lower[llrq_fit$lower < 0] <- 0
+
+# same plot with different data
+ggplot(llrq_fit) +
   geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
   geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
   geom_line(aes(x=fake_date, y=fit,colour=tau)) +
   geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
-```
-
-```{r llrq}
-registerDoParallel(cores=2)
-# system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
-system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
-stopImplicitCluster()
-
-llrq_fit$fake_date <- llrq_fit$x 
-llrq_fit$lower[llrq_fit$lower < 0] <- 0
-
-# same plot with different data
-last_plot() %+% llrq_fit
-
 ```
 
 
