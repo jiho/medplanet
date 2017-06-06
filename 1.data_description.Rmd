@@ -72,14 +72,11 @@ dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
 
 # Compute mean CPUE
-dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue), sd = sd(cpue))
-# # A tibble: 1 × 2
-#   meanCPUE    sd
-#      <dbl> <dbl>
-# 1      2.8   9.3
-
-
+cpue_stats <- dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
 ```
+
+Pooling accross sites, CPUEs were `r cpue_stats$mean`+/-`r cpue_stats$sd` (mean+/-sd) or, more robustly, `r cpue_stats$median`+/-`r cpue_stats$mad` (median+/-mad).
+
 
 Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
 
