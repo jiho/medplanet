@@ -70,7 +70,7 @@ last_plot() %+% llrq_fit
 
 Highlights both the spring-summer and the autumn peaks.
 
-```{r}
+```{r, fig.height=5}
 library(stringr)
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
 
@@ -522,7 +522,7 @@ Time arrival anomaly => see 3.Spatial.Rmd
 
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
-```{r fig.height=7}
+```{r fig.height=9}
 # dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
 # 
 # # create a fake date coordinate
@@ -581,7 +581,7 @@ dd <- filter(dd, !is.na(species))
 
 # plots
 ggplot(dd) +
-  geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue)) +
+  geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue), alpha=0.7) +
   # scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
   labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 5) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic"))
 
@@ -685,7 +685,7 @@ So difference between years in species composition is not due to difference in s
 
 Time arrival per year
 
-```{r}
+```{r, fig.height=6}
 dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, yweek, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
 dd <- filter(dd, cpue!=0)
@@ -756,7 +756,9 @@ ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+```
 
+```{r, fig.height=4}
 #Compute mean and median lag
 descriptive_stats <- lag %>%
   group_by(year) %>%
@@ -772,8 +774,6 @@ left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% un
 # 1   2013  -0.2±6.1    0.5      1840 0.52060
 # 2   2014 -1.24±6.7   -1.0      1894 0.00966
 # 3   2015 -2.09±5.2   -2.0       234 0.00016
-
-
 
 # Time arrival per year and topography
 
@@ -797,7 +797,7 @@ lag <- filter(lag, !year == 2012)
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_grid(year~topography)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 #Compute mean and median lag
 descriptive_stats <- lag %>%
@@ -820,7 +820,9 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "top
 # 5   2015 Gulf of Lion  -1.4±5.7     -2        83  0.0021
 # 6   2015 Ligurian sea -1.83±5.8     -1        86  0.1819
 
+```
 
+```{r, fig.height=9}
 # Time arrival per year and site
 
 samples <- summer
@@ -843,7 +845,7 @@ lag <- filter(lag, !year == 2012)
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(site~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_grid(site~year)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 #Compute mean and median lag
 descriptive_stats <- lag %>%
