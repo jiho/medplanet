@@ -287,29 +287,6 @@ weighted_correlogram <- function(x, y, w=rep(1, length(y)), dist.max=diff(range(
 }
 
 
-# x <- 1:100
-# y <- sin(x/100*4*pi)
-# plot(x, y)
-#
-# acf(y, lag.max=70)
-# acf(sample(y), lag.max=70)
-#
-# a <- correlogram(x, y, dist.max=70, bin=1); barplot(a$acf)
-# a <- weighted_correlogram(sample(x), y, dist.max=70, bin=1); barplot(a$acf)
-# a <- weighted_correlogram(x, sample(y), dist.max=70, bin=1); barplot(a$acf)
-# w <- dnorm(y-quantile(y, 0.5), sd=0.3)
-# a <- weighted_correlogram(x, y, w, dist.max=70, bin=1); barplot(a$acf)
-# a <- weighted_correlogram(sample(x), y, w, dist.max=70, bin=1); barplot(a$acf)
-#
-# x <- 1:100
-# y <- runif(length(y))
-# plot(x, y)
-# acf(y, lag.max=70)
-# w <- dnorm(y-quantile(y, 0.75), sd=0.3)
-# a <- weighted_correlogram(x, y, w, dist.max=70, bin=1); barplot(a$acf)
-#
-
-
 # variogram <- function(x, y, dist.max=diff(range(x, na.rm=T))/3, cloud=FALSE, bin=dist.max/30) {
 #   # distance
 #   dx <- as.numeric(dist(x))
