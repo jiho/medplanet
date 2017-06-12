@@ -144,6 +144,77 @@ plot.quantilogram <- function(x, alpha=0.05) {
 }
 
 
+quanto <- function(y, talpha) {
+  y <- data.matrix(y)
+  talpha <- as.matrix(talpha)
+
+  n <- nrow(y) ;
+  nk <- 100 ;
+  ll  <-  seq(from=1,by=1,length.out=nk)/nk ;
+
+  nalpha  <-  nrow(talpha) ;
+  sign_sign <- mat.or.vec(n,1) ;
+  signum <- mat.or.vec(nk,nalpha) ;
+  psignum <- mat.or.vec(nk,nalpha) ;
+  Vk <- mat.or.vec(nalpha,1) ;
+  seu <- mat.or.vec(nalpha,1) ;
+  bp <- mat.or.vec(nk,nalpha) ;
+
+  jalpha  <-  1;
+
+
+  while (jalpha<=nalpha) {
+    alpha  <-  talpha[jalpha]
+
+    #	muhat <- quantile(y,alpha,type=2)
+    muhat <- quant(y,alpha)
+    epshat <-  y - muhat*as.matrix(rep(1,n))
+
+
+    check <- (epshat >0) - (epshat <0) -(1-2*alpha)*as.matrix(rep(1,n))
+    sign_sign <- as.matrix(mat.or.vec(n-1,1))
+    sign_sign <- check[1:(n-1)]*check[2:n]
+    signum[1,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-1)]^2)
+    a <- as.matrix(mat.or.vec(nk,1)) ;
+    k <- 2 ;
+    while (k<=nk){
+      sign_sign <- as.matrix(mat.or.vec(n-k,1))
+      sign_sign <- check[1:(n-k)]*check[(k+1):n]
+      signum[k,jalpha]  <-  mean(sign_sign)/mean(check[1:(n-k)]^2)
+      a <- solve(toeplitz( c(1,signum[1:(k-1),jalpha])  ))%*%signum[1:k,jalpha]
+      psignum[k,jalpha] <- a[k] ;
+
+      k <- k+1 ;
+    }
+
+    #/* ssignum=w*signum[.,alpha] ; */
+
+
+    Vk[jalpha] <- 1 +  ( max(  c(alpha,1-alpha))^2 )/(alpha*(1-alpha))
+
+    seu[jalpha] <- sqrt(Vk[jalpha]/n)
+
+    jalpha <- jalpha+1
+
+
+  }
+
+  msign <- signum[,5]
+
+
+  bp <- apply((signum^2),2,cumsum)
+  bpp <- apply((psignum^2),2,cumsum)
+
+  sel <- sqrt(1/n)
+
+
+  x <- ll*nk ;
+
+  return(list(quantilogram=signum, seu=seu, sel=sel))
+}
+
+
+
 #' Empirical quantile computation
 #'
 #' Fast alternative to quantile(x, probs, type=1)
