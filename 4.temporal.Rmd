@@ -19,27 +19,30 @@ library("FactoMineR")
 library("printr")
 library("lubridate")
 library("doParallel")
+registerDoParallel(cores=min(detectCores()-1, 12))
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
 source("lib_quantreg.R")    # perform quantile regression
+q <- c(.25, .5, .75, .9)    # quantiles of interest
 ```
 
 # Temporal variability
+
+## Main patterns
 
 The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
 
 ```{r ts_data}
 dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
-
-q <- c(.25, .5, .75, .9)
 ```
 
 ```{r srq}
+# NB: the linear fit, below, is better because it highlights the autumn peaks better.
 
-# srq_fit <- srq(dd$days, dd$cpue,  tau=q, interval="confidence", df=30, se="boot", R=1000)
+# system.time(srq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000))
 # 
 # srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
 # srq_fit$lower[srq_fit$lower < 0] <- 0
@@ -53,19 +56,21 @@ q <- c(.25, .5, .75, .9)
 #   geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
 ```
 
-```{r llrq2}
-registerDoParallel(cores=2)
+```{r llrq}
 # system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
 system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
-stopImplicitCluster()
 
 llrq_fit$date <- min(dd$date) + llrq_fit$x * 24 * 3600
 llrq_fit$lower[llrq_fit$lower < 0] <- 0
 
 # same plot with different data
-last_plot() %+% llrq_fit
-
-# TODO do the same per genus/species
+ggplot(llrq_fit) +
+  geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+  geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+  geom_line(aes(x=date, y=fit,colour=tau)) +
+  geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+  geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
 ```
 
 TODO do the same per genus/species
