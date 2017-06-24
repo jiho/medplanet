@@ -44,7 +44,7 @@
 #'
 #' \dontrun{
 #' # Bootstrap test
-#' bqm <- plyr::laply(1:1000, function(i) {
+#' bqm <- plyr::laply(1:300, function(i) {
 #'   as.matrix(quantilogram(x, sample(y), tau=q, dist.max=50, breaks=c(1:10, seq(10, 50, by=5)))$quantilogram)
 #' }, .progress="text")
 #' dqm <- reshape2::melt(qm$quantilogram, variable.name="tau")
