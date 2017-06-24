@@ -134,18 +134,31 @@ quantilogram <- function(x, y, tau=c(0.25, 0.5, 0.75, 0.95), dist.max=1/3*diff(r
   return(out)
 }
 
-plot.quantilogram <- function(x, alpha=0.05) {
+tidy.quantilogram <- function(x) {
+  # extract quantilogram
+  d <- x$quantilogram
+  # extract useful diagnostic information
+  d$dx <- x$dx
+  d$n <- x$n.used
+  d$sel <- x$sel
+  # convert to tall format
+  tidyr::gather(d, key="tau", value="corr", 1:length(x$tau))
+}
+
+plot.quantilogram <- function(x, alpha=0.05, mapping=aes()) {
   library("ggplot2")
   # reformat data
-  x$quantilogram$dist <- x$dx
-  X <- tidyr::gather(x$quantilogram, key="tau", value="value", -dist)
+  X <- tidy(x)
+  # combine mapping
+  mapping <- c(aes(x=dx, ymin=0, ymax=corr), mapping)
+  class(mapping) <- "uneval"
   # and plot it
   ggplot(X) + facet_wrap(~tau) +
     geom_hline(yintercept=x$sel * qnorm(alpha/2) * c(-1,1), colour="#3366FF") +
-    geom_linerange(aes(x=dist, ymin=0, ymax=value))
+    geom_linerange(mapping=mapping)
 }
 
-
+# Original implementation
 quanto <- function(y, talpha) {
   y <- data.matrix(y)
   talpha <- as.matrix(talpha)
@@ -214,7 +227,6 @@ quanto <- function(y, talpha) {
 
   return(list(quantilogram=signum, seu=seu, sel=sel))
 }
-
 
 
 #' Empirical quantile computation
