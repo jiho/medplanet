@@ -68,10 +68,14 @@ last_plot() %+% llrq_fit
 # TODO do the same per genus/species
 ```
 
-Highlights both the spring-summer and the autumn peaks.
+TODO do the same per genus/species
 
-```{r, fig.height=5}
-library(stringr)
+In terms of composition, three main assemblages can be distinguished:
+- Winter, with *P acarne* et *S salpa*,
+- Spring and early summer, with a few main species quite spread out (associated with different months),
+- Summer and early fall, with high diversity, and a similar composition among months.
+
+```{r CA, fig.height=5}
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
 
 dd$month <- as.factor(month.abb[dd$month])
@@ -79,10 +83,6 @@ ca <- CA(as.multivar(dd, "month"), graph=F)
 autoplot(ca, size=1, dimensions=c(1,2))
 ```
 
-Three main assemblages: 
-- Winter, with lower diversity (two main spp)
-- Spring and early summer, with few main species quite spread = associated with different months
-- Summer and early fall, with high diversity, quite similar among months
 
 
 ## Temporal scales of variability
