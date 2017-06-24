@@ -13,6 +13,7 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
+library("reshape2")
 library("plyr")
 library("tidyverse")
 library("FactoMineR")
@@ -21,10 +22,12 @@ library("lubridate")
 library("doParallel")
 registerDoParallel(cores=min(detectCores()-1, 12))
 
-source("lib_plot.R")        # colour scales and theme
-source("lib_data_manip.R")  # summarise tables
-source("lib_factorial.R")   # extract and plot info from CAs
-source("lib_quantreg.R")    # perform quantile regression
+source("lib_plot.R")         # colour scales and theme
+source("lib_data_manip.R")   # summarise tables
+source("lib_factorial.R")    # extract and plot info from CAs
+source("lib_quantreg.R")     # perform quantile regression
+source("lib_quantilogram.R") # compute quantilogram
+
 q <- c(.25, .5, .75, .9)    # quantiles of interest
 ```
 
