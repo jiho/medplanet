@@ -92,191 +92,52 @@ autoplot(ca, size=1, dimensions=c(1,2))
 ```
 
 
+## Dominant time scales of variability
 
-## Temporal scales of variability
+Abundances seem to vary at various scales: seasonal but maybe also lunar, etc. We also want to know if abundances are correlated from one day to the next. We can inspect the dominant scales of variability through a correlogram, which tests correlation at various scales. Here we use a quantilogram, which focuses on variability of data around various quantiles rather than around the mean, like a regular correlogram does.
 
-At which scale do abundances vary the most: do they mostly depend on season, month, etc. We can analyse the temporal scales of variability through a variogram. This computes the difference in CPUE between two successive days (delay = 1 day), two days on successive weeks (delay = 7 days), etc. to test whether the catches are more similar on successive days (autocorrelation) or on the same day in successive months (potential lunar effect), etc.
 
-This is done within each site, for all sampled nights, for the most common species (for which catches are relatively steady). The results below are for all pairwise differences (top) and some summaries --quartiles, median and mean-- (red lines on top, bottom).
+We start by computing the quantilogram for the total community (all species pooled) for the three sites where sampling is performed at high enough frequency for the quantilogram to be defined.
 
-```{r}
-dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
+```{r total_quantilogram}
+# focus on sites where the quantilogram can be well defined (other sites do not have enough data at all)
+dd <- d0 %>% filter(site %in% c("Leucate", "Villefranche", "Bastia")) %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
-# summary(dd$cpue)
-#  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-# 0.000   0.000   0.375   3.736   1.625 899.000
+# time coordinates and breaks
+dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
+breaks <- c(1:7, seq(7, 31, by=2), seq(31, 365*1.2, by=5))
 
-# compute variogram cloud (all pairwise differences)
-vario_cloud <- ddply(dd, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
+# compute quantilogram and conf int using permutations
+qm <- dd %>% group_by(site) %>% do({
+  # reference
+  qm <- quantilogram(.$days, .$cpue, dist.max=365*1.2, breaks=breaks) %>% tidy()
+
+  # permutations
+  pqm <- laply(1:1000, function(i) {
+    as.matrix(quantilogram(.$days, sample(.$cpue), dist.max=365*1.2, breaks=breaks)$quantilogram)
+  }, .parallel=TRUE)
+  qm$q1 <- melt(aaply(pqm, 2:3, quantile, probs=0.025))$value
+  qm$q2 <- melt(aaply(pqm, 2:3, quantile, probs=0.975))$value
+  
+  qm
 })
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
 
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
+# plot result
+sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=50), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")), theme(axis.text.x=element_text(hjust=1, angle=35)))
+ggplot(qm) + facet_grid(tau~site) +
+  geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
+  # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2), alpha=0.5, fill="red", data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1))
 
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
+# and zoom on small scale variability
+last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
 ```
 
-Same approacches for catches summarised by level (low, mid, high)
-TODO JO review all this part
+The confidence interval in Bastia clearly shows that the sampling was centred around the new moon which makes it difficult to estimate what happens at invervals that are not multiple of a lunar month.
 
-```{r}
-quant <- quantile(dd$cpue, prob = seq(0, 1, length = 100)) 
-# we consider that high catches = > 10 cpue, correspond to only 5% of data
-# quantile(dd$cpue, 0.80) = 2 larvae
-# quantile(dd$cpue, 0.95) = 12 larvae
-# quantile(dd$cpue, 0.99) = 50 larvae
+Still Bastia seems to highlight a periodicity of ~5.5 months for mid to high captures, which the others do not. No idea what that can be. In all three, but in Villefranche expecially, there seems to be high correlation at a bit less than a lunar cycle period. Finally, all highlight high correlation at low scales for low and mid capture ranges. This is likely driven by successive zeros. This short scale correlation is not apparent for high captures, highlighting that high capture events are isolated and exceptional.
 
-high_catches <- dd[which(dd$cpue> quantile(dd$cpue, 0.95)),] 
-mid_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.95)& dd$cpue> quantile(dd$cpue, 0.80)),]
-low_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.80)),]
-```
-
-For high catches (5% of data, > 12 cpue)
-
-```{r}
-vario_cloud <- ddply(high_catches, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
-})
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
-
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
-
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
-```
-
-For low catches (80% of data, < 2 cpue)
-
-```{r}
-vario_cloud <- ddply(low_catches, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
-})
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
-
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
-
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
-```
-
-TODO redo the same per species for a few species
-
-These plots can be interpreted as follows:
-
-- from one day to the next (left extreme of the plot), the median difference in CPUE is about 0.5 to 1 fish/CARE/night/site, when the median CPUE is `r median(dd$cpue)`. In other words, the variability is considerably greater than the observation, meaning that, in the vast majority of cases, how much you catch today does not allow to predict how much you will catch tomorrow.
-- variance is even higher from one lunar cycle to the next (one month delay).
-- a clear ~ 6 months long oscillation is visible, which probably matches the seasonal component highlighted above:
-    - high catches in spring-summer and somewhat higher catches in November (6 months between May and Nov),
-    - and, more importantly, steady, low catches in Sept-Oct and from Jan to April (6 months between Sept and March).
-
-Overall, catches are as variable in the short term (day to day) as in the long term (month to month or year to year). This, combined with the importance of the large peaks of settlement for the total catch, has important consequences for *sampling strategies*. Indeed, sampling too sparsely in time will likely lead to miss large peaks and change the interpretation of the data completely. Actually, from this analysis, the only safe sampling strategy would seem to be to sample *every single day*.
+Even for the most abundant species, we do not have enough data to compute the same quantilograms per species.
 
 ## Lunar phase variations
 
