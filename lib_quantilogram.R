@@ -105,7 +105,7 @@ quantilogram <- function(x, y, tau=c(0.25, 0.5, 0.75, 0.95), dist.max=1/3*diff(r
     # compute average quantilogram per bin
     qm <- qm %>%
       dplyr::group_by(dx) %>%
-      dplyr::summarise(signum=mean(sign) / mean(check[col]^2), alpha=alpha)
+      dplyr::summarise(signum=mean(sign) / mean(check[col]^2), alpha=alpha, n=n())
       # NB: given how lower.tri works, the reference (1:(n-k) in the original implementation) are the col index here, not the row index
   })
 
@@ -114,7 +114,8 @@ quantilogram <- function(x, y, tau=c(0.25, 0.5, 0.75, 0.95), dist.max=1/3*diff(r
 
   # extract distance
   dx <- signum$dx
-  signum <- signum[,-1]
+  n.used <- signum$n
+  signum <- dplyr::select(signum, -dx, -n)
 
   # compute box.ljung and other statistics
   bp <- apply((signum^2),2,cumsum)
@@ -123,6 +124,7 @@ quantilogram <- function(x, y, tau=c(0.25, 0.5, 0.75, 0.95), dist.max=1/3*diff(r
   out <- list(
     tau=tau,
     dx=dx,
+    n.used=n.used,
     quantilogram=signum,
     box.ljung=bp,
     sel=sel
