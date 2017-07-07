@@ -13,38 +13,61 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
+library("reshape2")
 library("plyr")
 library("tidyverse")
 library("FactoMineR")
 library("printr")
 library("lubridate")
 library("doParallel")
+registerDoParallel(cores=min(detectCores()-1, 12))
 
-source("lib_plot.R")        # colour scales and theme
-source("lib_data_manip.R")  # summarise tables
-source("lib_factorial.R")   # extract and plot info from CAs
-source("lib_quantreg.R")    # perform quantile regression
+source("lib_plot.R")         # colour scales and theme
+source("lib_data_manip.R")   # summarise tables
+source("lib_factorial.R")    # extract and plot info from CAs
+source("lib_quantreg.R")     # perform quantile regression
+source("lib_quantilogram.R") # compute quantilogram
+
+q <- c(.25, .5, .75, .9)    # quantiles of interest
 ```
 
 # Temporal variability
+
+## Main patterns
 
 The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
 
 ```{r ts_data}
 dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
-
-q <- c(.25, .5, .75, .9)
 ```
 
 ```{r srq}
+# NB: the linear fit, below, is better because it highlights the autumn peaks better.
 
-srq_fit <- srq(dd$days, dd$cpue,  tau=q, interval="confidence", df=30, se="boot", R=1000)
+# system.time(srq_fit <- srq(dd$days, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000))
+# 
+# srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
+# srq_fit$lower[srq_fit$lower < 0] <- 0
+# 
+# ggplot(srq_fit) +
+#   geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+#   geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+#   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+#   geom_line(aes(x=date, y=fit,colour=tau)) +
+#   geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+#   geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
+```
 
-srq_fit$date <- min(dd$date) + srq_fit$x * 24 * 3600
-srq_fit$lower[srq_fit$lower < 0] <- 0
+```{r llrq}
+# system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
+system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
 
-ggplot(srq_fit) +
+llrq_fit$date <- min(dd$date) + llrq_fit$x * 24 * 3600
+llrq_fit$lower[llrq_fit$lower < 0] <- 0
+
+# same plot with different data
+ggplot(llrq_fit) +
   geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
   geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
@@ -53,28 +76,14 @@ ggplot(srq_fit) +
   geom_rug(aes(x=date), dd, sides="b", alpha=0.1)
 ```
 
+TODO do the same per genus/species
 
+In terms of composition, three main assemblages can be distinguished:
+- Winter, with *P acarne* et *S salpa*,
+- Spring and early summer, with a few main species quite spread out (associated with different months),
+- Summer and early fall, with high diversity, and a similar composition among months.
 
-
-```{r llrq}
-registerDoParallel(cores=2)
-# system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
-system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
-stopImplicitCluster()
-
-llrq_fit$date <- min(dd$date) + llrq_fit$x * 24 * 3600
-llrq_fit$lower[llrq_fit$lower < 0] <- 0
-
-# same plot with different data
-last_plot() %+% llrq_fit
-
-# TODO do the same per genus/species
-```
-
-The second fit is better because it highlights both the spring-summer and the autumn peaks. 
-
-```{r}
-library(stringr)
+```{r CA, fig.height=5}
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) %>% summarise(mean=mean(cpue))
 
 dd$month <- as.factor(month.abb[dd$month])
@@ -82,196 +91,53 @@ ca <- CA(as.multivar(dd, "month"), graph=F)
 autoplot(ca, size=1, dimensions=c(1,2))
 ```
 
-Three main assemblages: 
-- Winter, with lower diversity (two main spp)
-- Spring and early summer, with few main species quite spread = associated with different months
-- Summer and early fall, with high diversity, quite similar among months
+
+## Dominant time scales of variability
+
+Abundances seem to vary at various scales: seasonal but maybe also lunar, etc. We also want to know if abundances are correlated from one day to the next. We can inspect the dominant scales of variability through a correlogram, which tests correlation at various scales. Here we use a quantilogram, which focuses on variability of data around various quantiles rather than around the mean, like a regular correlogram does.
 
 
-## Temporal scales of variability
+We start by computing the quantilogram for the total community (all species pooled) for the three sites where sampling is performed at high enough frequency for the quantilogram to be defined.
 
-At which scale do abundances vary the most: do they mostly depend on season, month, etc. We can analyse the temporal scales of variability through a variogram. This computes the difference in CPUE between two successive days (delay = 1 day), two days on successive weeks (delay = 7 days), etc. to test whether the catches are more similar on successive days (autocorrelation) or on the same day in successive months (potential lunar effect), etc.
+```{r total_quantilogram}
+# focus on sites where the quantilogram can be well defined (other sites do not have enough data at all)
+dd <- d0 %>% filter(site %in% c("Leucate", "Villefranche", "Bastia")) %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
-This is done within each site, for all sampled nights, for the most common species (for which catches are relatively steady). The results below are for all pairwise differences (top) and some summaries --quartiles, median and mean-- (red lines on top, bottom).
+# time coordinates and breaks
+dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
+breaks <- c(1:7, seq(7, 31, by=2), seq(31, 365*1.2, by=5))
 
-```{r}
-dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(days_since_start, site) %>% summarise(cpue=sum(cpue)) %>% group_by(site) %>% arrange(days_since_start)
+# compute quantilogram and conf int using permutations
+qm <- dd %>% group_by(site) %>% do({
+  # reference
+  qm <- quantilogram(.$days, .$cpue, dist.max=365*1.2, breaks=breaks) %>% tidy()
 
-# summary(dd$cpue)
-#  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-# 0.000   0.000   0.375   3.736   1.625 899.000
-
-# compute variogram cloud (all pairwise differences)
-vario_cloud <- ddply(dd, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
+  # permutations
+  pqm <- laply(1:1000, function(i) {
+    as.matrix(quantilogram(.$days, sample(.$cpue), dist.max=365*1.2, breaks=breaks)$quantilogram)
+  }, .parallel=TRUE)
+  qm$q1 <- melt(aaply(pqm, 2:3, quantile, probs=0.025))$value
+  qm$q2 <- melt(aaply(pqm, 2:3, quantile, probs=0.975))$value
+  
+  qm
 })
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
 
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
+# plot result
+sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=50), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")), theme(axis.text.x=element_text(hjust=1, angle=35)))
+ggplot(qm) + facet_grid(tau~site) +
+  geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
+  # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2), alpha=0.5, fill="red", data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1))
 
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
+# and zoom on small scale variability
+last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
 ```
 
-Same approacches for catches summarised by level (low, mid, high)
-TODO JO review all this part
+The confidence interval in Bastia clearly shows that the sampling was centred around the new moon which makes it difficult to estimate what happens at invervals that are not multiple of a lunar month.
 
-```{r}
-quant <- quantile(dd$cpue, prob = seq(0, 1, length = 100)) 
-# we consider that high catches = > 10 cpue, correspond to only 5% of data
-# quantile(dd$cpue, 0.80) = 2 larvae
-# quantile(dd$cpue, 0.95) = 12 larvae
-# quantile(dd$cpue, 0.99) = 50 larvae
+Still Bastia seems to highlight a periodicity of ~5.5 months for mid to high captures, which the others do not. No idea what that can be. In all three, but in Villefranche expecially, there seems to be high correlation at a bit less than a lunar cycle period. Finally, all highlight high correlation at low scales for low and mid capture ranges. This is likely driven by successive zeros. This short scale correlation is not apparent for high captures, highlighting that high capture events are isolated and exceptional.
 
-high_catches <- dd[which(dd$cpue> quantile(dd$cpue, 0.95)),] 
-mid_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.95)& dd$cpue> quantile(dd$cpue, 0.80)),]
-low_catches <- dd[which(dd$cpue < quantile(dd$cpue, 0.80)),]
-```
-
-For high catches (5% of data, > 12 cpue)
-
-```{r}
-vario_cloud <- ddply(high_catches, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
-})
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
-
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
-
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
-```
-
-For low catches (80% of data, < 2 cpue)
-
-```{r}
-vario_cloud <- ddply(low_catches, ~site, function(x) {
-  delay <- dist(x$days_since_start)
-  # diff <- dist(log1p(x$cpue))
-  diff <- dist(x$cpue)
-  d <- data.frame(delay=as.numeric(delay), diff=as.numeric(diff))
-})
-vario_cloud <- filter(vario_cloud, delay < (365*2+10))
-
-# compute average variogram on bins with an ~ equal number of observations
-vario <- vario_cloud
-breaks <- sort(unique(c(2, 5, quantile(vario$delay, seq(0,1,length.out=30)))))
-vario$bins <- cut(vario$delay, breaks, right=F, include.lowest=T)
-
-diffs <- vario %>% group_by(bins) %>% sum_tbl("diff")
-delay <- vario %>% group_by(bins) %>% summarise(delay=min(delay))
-vario <- full_join(delay, diffs, by="bins")
-
-x_scale <- list(
-  scale_x_continuous(
-    limits=c(0, 715),
-    breaks=c(1, 30, 30*3, 30*6, 365, 365*2),
-    labels=c("1 day", "1 month", "3 months", "6 months", "1 year", "2 years"),
-    minor=NULL
-  ),
-  theme(axis.text.x=element_text(angle=35, hjust=1))
-)
-
-last_point <- vario[nrow(vario),] %>% select(delay, median, mean) %>% gather(key=label, value=diff, -delay)
-ggplot(mapping=aes(x=delay, y=diff)) +
-  geom_point(data=vario_cloud, alpha=0.02, shape=16, na.rm=T) +
-  geom_path(aes(y=median), data=vario, colour="#F55D5B") +
-  geom_path(aes(y=mean), data=vario, colour="#F55D5B", linetype="dashed") +
-  geom_label(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3, colour="#F55D5B") +
-  x_scale + scale_y_continuous(limits=c(0,100), trans="log1p") +
-  labs(x="delay (days)", y="difference in CPUE (log(n+1) scale)")
-
-last_point <- vario[nrow(vario),] %>% select(delay, q25, median, mean, q75) %>% gather(key=label, value=diff, -delay)
-ggplot(data=vario, mapping=aes(x=delay)) +
-  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.5) +
-  geom_path(aes(y=median)) +
-  geom_path(aes(y=mean), linetype="dashed") +
-  geom_text(aes(y=diff, label=label), data=last_point, hjust=0, nudge_x=5, size=3) +
-  x_scale + scale_y_continuous(limits=c(0,NA)) +
-  labs(x="delay (days)", y="difference in CPUE")
-```
-
-TODO redo the same per species for a few species
-
-These plots can be interpreted as follows:
-
-- from one day to the next (left extreme of the plot), the median difference in CPUE is about 0.5 to 1 fish/CARE/night/site, when the median CPUE is `r median(dd$cpue)`. In other words, the variability is considerably greater than the observation, meaning that, in the vast majority of cases, how much you catch today does not allow to predict how much you will catch tomorrow.
-- variance is even higher from one lunar cycle to the next (one month delay).
-- a clear ~ 6 months long oscillation is visible, which probably matches the seasonal component highlighted above:
-    - high catches in spring-summer and somewhat higher catches in November (6 months between May and Nov),
-    - and, more importantly, steady, low catches in Sept-Oct and from Jan to April (6 months between Sept and March).
-
-Overall, catches are as variable in the short term (day to day) as in the long term (month to month or year to year). This, combined with the importance of the large peaks of settlement for the total catch, has important consequences for *sampling strategies*. Indeed, sampling too sparsely in time will likely lead to miss large peaks and change the interpretation of the data completely. Actually, from this analysis, the only safe sampling strategy would seem to be to sample *every single day*.
+Even for the most abundant species, we do not have enough data to compute the same quantilograms per species.
 
 ## Lunar phase variations
 
@@ -384,9 +250,9 @@ dplot <- left_join(dplot, rangeMoon, by = "species")
 dplot <- arrange(dplot, range)
 
 # order species per mean of arrival during lunar month
-unique(dplot$species)
+# unique(dplot$species)
 # dplot$species <- factor(x = dplot$species, labels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)], levels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)])
-dplot$species <- factor(x = dplot$species, labels = print(unique(dplot$species)), levels = print(unique(dplot$species)))
+dplot$species <- factor(x = dplot$species, labels = unique(dplot$species), levels = unique(dplot$species))
 
 # plot distribution of arrival through lunar month
 ggplot(filter(dplot, !species %in% "Atherina hepsetus") ) + geom_bar(aes(x=moon_phase, y=cpue), fill="grey30", colour=NA, stat = 'identity') + facet_wrap(~species, ncol=3, scales = "free_y") + moon_x + labs(y="total number of larvae (scaled per species)")
@@ -470,9 +336,6 @@ ggplot(mapping=aes(x=moon_phase)) +
   scale_y_continuous("CPUE (scaled per species)") +
   scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
   theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0) 
-
-
-
 ```
 
 So, overall, we observe a significant influence of the moon, with higher catches around the new moon for all quantiles, the influence being higher for higher quantiles : highest catches systematically occur around the new moon, even more than average catches. 
@@ -488,32 +351,37 @@ dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
 
 q <- c(.25, .5, .75, .9)
 
-srq_fit <- srq(dd$fake_date, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+# srq_fit <- srq(dd$fake_date, dd$cpue, tau=q, interval="confidence", df=30, se="boot", R=1000)
+# 
+# srq_fit$fake_date <- srq_fit$x
+# srq_fit$lower[srq_fit$lower < 0] <- 0
+# 
+# ggplot(srq_fit) +
+#   geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
+#   geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
+#   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+#   geom_line(aes(x=fake_date, y=fit,colour=tau)) +
+#   geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
+#   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+```
 
-srq_fit$fake_date <- srq_fit$x
-srq_fit$lower[srq_fit$lower < 0] <- 0
+```{r llrq}
+registerDoParallel(cores=2)
+# system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
+system.time(llrq_fit <- llrq(dd$yday, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
+stopImplicitCluster()
 
-ggplot(srq_fit) +
+llrq_fit$fake_date  <- ymd("2014-01-01") + llrq_fit$x
+llrq_fit$lower[llrq_fit$lower < 0] <- 0
+
+# same plot with different data
+ggplot(llrq_fit) +
   geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
   geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
   scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
   geom_line(aes(x=fake_date, y=fit,colour=tau)) +
   geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
-```
-
-```{r llrq}
-registerDoParallel(cores=2)
-# system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
-system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
-stopImplicitCluster()
-
-llrq_fit$fake_date <- llrq_fit$x 
-llrq_fit$lower[llrq_fit$lower < 0] <- 0
-
-# same plot with different data
-last_plot() %+% llrq_fit
-
 ```
 
 
@@ -523,7 +391,7 @@ Time arrival anomaly => see 3.Spatial.Rmd
 
 At species level, the time of arrival has consistent seasonality across years but can vary of a few weeks from year to year.
 
-```{r fig.height=7}
+```{r fig.height=9}
 # dd <- d0 %>% filter(year != 2016, species %in% abundant_species) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
 # 
 # # create a fake date coordinate
@@ -582,7 +450,7 @@ dd <- filter(dd, !is.na(species))
 
 # plots
 ggplot(dd) +
-  geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue)) +
+  geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue), alpha=0.7) +
   # scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
   labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 5) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic"))
 
@@ -686,9 +554,7 @@ So difference between years in species composition is not due to difference in s
 
 Time arrival per year
 
-```{r}
-
-head(d)
+```{r, fig.height=6}
 dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, yweek, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
 dd <- filter(dd, cpue!=0)
@@ -700,7 +566,6 @@ ggplot(dd) +
   geom_density(aes(x=yweek, y=..count..)) +
   facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
-#-----------
 
 ## Select winter species and choice a date to start the larvae arrival period
 winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
@@ -733,9 +598,9 @@ winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 
 ```
 
-2012 = only species which recruit in summer
-2013 = winter species (season 2012-2013) + summer species of 2013
-2014 = winter species (season 2013-2014) + summer species of 2014
+2012 = only species which recruit in summer  
+2013 = winter species (season 2012-2013) + summer species of 2013  
+2014 = winter species (season 2013-2014) + summer species of 2014  
 2015 = winter species (season 2015-2016) + summer species of 2015
 
 ```{r}
@@ -760,7 +625,9 @@ ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+```
 
+```{r, fig.height=4}
 #Compute mean and median lag
 descriptive_stats <- lag %>%
   group_by(year) %>%
@@ -776,8 +643,6 @@ left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% un
 # 1   2013  -0.2±6.1    0.5      1840 0.52060
 # 2   2014 -1.24±6.7   -1.0      1894 0.00966
 # 3   2015 -2.09±5.2   -2.0       234 0.00016
-
-
 
 # Time arrival per year and topography
 
@@ -801,7 +666,7 @@ lag <- filter(lag, !year == 2012)
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(year~topography, ncol=2)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_grid(year~topography)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 #Compute mean and median lag
 descriptive_stats <- lag %>%
@@ -824,7 +689,9 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "top
 # 5   2015 Gulf of Lion  -1.4±5.7     -2        83  0.0021
 # 6   2015 Ligurian sea -1.83±5.8     -1        86  0.1819
 
+```
 
+```{r, fig.height=9}
 # Time arrival per year and site
 
 samples <- summer
@@ -847,7 +714,7 @@ lag <- filter(lag, !year == 2012)
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
-  facet_wrap(site~year, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_grid(site~year)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 #Compute mean and median lag
 descriptive_stats <- lag %>%
