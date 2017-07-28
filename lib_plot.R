@@ -13,9 +13,9 @@ theme_set(
 )
 
 # nice colour scales
-# library("chroma")
-# scale_fill_viridis <- function(...) { scale_fill_gradientn(colors=viridis.colors(10), ...) }
-# scale_color_viridis <- function(...) { scale_color_gradientn(colors=viridis.colors(10), ...) }
+library("chroma")
+scale_fill_viridis <- function(...) { scale_fill_gradientn(colors=viridis.colors(10), ...) }
+scale_color_viridis <- function(...) { scale_color_gradientn(colors=viridis.colors(10), ...) }
 
 # remove y axis
 no_y <- list(
@@ -28,6 +28,7 @@ no_y <- list(
 
 # abbreviate species names for easy plotting
 abbrev_sp <- function(x, n=4) {
+	require("stringr")
   bits <- str_split_fixed(x, fixed(" "), 2)
   g <- str_sub(bits[,1],1,1)
   s <- str_sub(bits[,2],1,n)

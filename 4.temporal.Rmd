@@ -38,7 +38,7 @@ q <- c(.25, .5, .75, .9)    # quantiles of interest
 The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
 
 ```{r ts_data}
-dd <- d0 %>% group_by(site, date) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd <- d0 %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup()
 dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
 ```
 
@@ -365,7 +365,7 @@ q <- c(.25, .5, .75, .9)
 #   geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
 ```
 
-```{r llrq}
+```{r llrq2}
 registerDoParallel(cores=2)
 # system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
 system.time(llrq_fit <- llrq(dd$yday, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))

@@ -30,7 +30,8 @@ source("lib_data_manip.R")  # summarise tables
 Fish larvae were collected at the following sites
 
 ```{r}
-map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3, segment.alpha=0.7)
+map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3.5, segment.alpha=0.7) + coord_quickmap(xlim = c(3, 10))
+ggsave("maps_sampling_sites.pdf", width=8, height=5)
 ```
 
 ## Temporal scope
@@ -72,7 +73,6 @@ dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
 
 # Compute mean CPUE
-<<<<<<< HEAD
 d0 %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue, trim = 0), sd = sd(cpue))
 # # A tibble: 1 × 2
 #   meanCPUE    sd
@@ -96,10 +96,9 @@ d0 %>% filter(cpue < 500) %>% group_by(site, date) %>% summarize(cpue=sum(cpue))
 # 11     Bonifacio     4.07  12.0
 # 12 Saint Florent    17.59  51.0
 # 13        Bastia     1.08   2.3
-=======
+
 cpue_stats <- dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
 ```
->>>>>>> 49ed45389f32f20dd527422d8af25e06cc68f3a4
 
 Pooling accross sites, CPUEs were `r cpue_stats$mean`+/-`r cpue_stats$sd` (mean+/-sd) or, more robustly, `r cpue_stats$median`+/-`r cpue_stats$mad` (median+/-mad).
 

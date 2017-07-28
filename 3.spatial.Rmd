@@ -60,8 +60,9 @@ dd_summary <- arrange(dd_summary, desc(median))
 Excluding extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 3)`) and other are consistently low (`r tail(dd_summary$site, 3)`). NB: Keeping only CPUE < 10 only eliminates `r nrow(filter(dd, cpue >= 10))` records out of `r nrow(dd)`. The black squares are quantile=0.9.
 
 ```{r zoomed_boxplot, fig.height=4}
-# ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
-ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1) + geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=2) + coord_flip(ylim=c(0, 10))
+ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
+
+ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1) + geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=2) + coord_flip(ylim=c(0, 10)) 
 ```
 
 ```{r map}
