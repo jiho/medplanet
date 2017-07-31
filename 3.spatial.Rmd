@@ -67,14 +67,14 @@ ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1)
 
 ```{r map}
 # Same information on a map with q75 in blue, median in green, and q25 in yellow.
-# # add site coordinates
-# dd_summary <- left_join(dd_summary, sites, by="site")
-# cols <- viridis.colors(4)[-1]
-# map +
-#   geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
-#   geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
-#   geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
-#   scale_size_area(max_size=20, guide="none")
+# add site coordinates
+dd_summary <- left_join(dd_summary, sites, by="site")
+cols <- viridis(4)[-1]
+map +
+  geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
+  geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
+  geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
+  scale_size_area(max_size=20, guide="none")
 ```
 
 When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The reason is that the higher quantiles (which look very different) may be more difficult to test, hence the lower significance.
@@ -144,6 +144,10 @@ dd %>% group_by(topography) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = qu
 # test Rhône
 aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
 ggplot(dd) + geom_boxplot(aes(x=rhone, y=cpue), na.rm = TRUE) + ylim(0, 10)
+
+# get mean CPUE per EW Rhone
+dd %>% group_by(rhone) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
+
 ```
 
 ### Per species
