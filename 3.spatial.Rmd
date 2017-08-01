@@ -23,6 +23,8 @@ library("vegan")
 library("FactoMineR")
 library("factoextra")
 library("NbClust")
+library("ggdendro")
+library("viridis")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -448,37 +450,139 @@ ca <- CA(ddm, graph=F)
 # perform hierachical clustering
 dd_stand <- decostand(ddm, method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
-hdw <- hclust(dist_matrix, method="ward.D2")
+hdw <- hclust(dist_matrix, method="ward.D2", vfont = NULL, col = part$group)
+plot(hdw, vfont = NULL, col = part$group)
+
+
+hdw2 <- dendro_data(hdw, type="triangle")
+
+df   <- USArrests                 # really bad idea to muck up internal datasets
+labs <- paste("sta_",1:50,sep="") # new labels
+rownames(df) <- labs              # set new row names
+
+
+# hc       <- hclust(dist(df), "ave")           # heirarchal clustering
+dendr    <- dendro_data(hdw, type="triangle") # convert for ggplot
+clust    <- cutree(hdw,k=6)                    # find 2 clusters
+clust.df <- data.frame(label=names(clust), cluster=factor(clust))
+# dendr[["labels"]] has the labels, merge with clust.df based on label column
+dendr[["labels"]] <- merge(dendr[["labels"]],clust.df, by="label")
+# plot the dendrogram; note use of color=cluster in geom_text(...)
+ggplot() + 
+  geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) + 
+  geom_text(data=label(dendr), aes(x, y, label=label, hjust=0, color=cluster), 
+           size=3) +
+  coord_flip() + scale_y_reverse(expand=c(0.2, 0)) + 
+  theme(axis.line.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_rect(fill="white"),
+        panel.grid=element_blank())
+
+
+library("zoo")
+cut <- 6
+dendr <- dendro_data(hdw, type = "rectangle") 
+clust <- cutree(hdw, k = cut)               # find 'cut' clusters
+clust.df <- data.frame(label = names(clust), cluster = clust)
+
+# Split dendrogram into upper grey section and lower coloured section
+height <- unique(dendr$segments$y)[order(unique(dendr$segments$y), decreasing = TRUE)]
+cut.height <- mean(c(height[cut], height[cut-1]))
+dendr$segments$line <- ifelse(dendr$segments$y == dendr$segments$yend &
+   dendr$segments$y > cut.height, 1, 2)
+dendr$segments$line <- ifelse(dendr$segments$yend  > cut.height, 1, dendr$segments$line)
+
+# Number the clusters
+dendr$segments$cluster <- c(-1, diff(dendr$segments$line))
+change <- which(dendr$segments$cluster == 1)
+for (i in 1:cut) dendr$segments$cluster[change[i]] = i + 1
+dendr$segments$cluster <-  ifelse(dendr$segments$line == 1, 1, 
+             ifelse(dendr$segments$cluster == 0, NA, dendr$segments$cluster))
+dendr$segments$cluster <- na.locf(dendr$segments$cluster) 
+
+# Consistent numbering between segment$cluster and label$cluster
+clust.df$label <- factor(clust.df$label, levels = levels(dendr$labels$label))
+clust.df <- arrange(clust.df, label)
+clust.df$cluster <- factor((clust.df$cluster), levels = unique(clust.df$cluster), labels = (1:cut) + 1)
+dendr[["labels"]] <- merge(dendr[["labels"]], clust.df, by = "label")
+
+# Positions for cluster labels
+n.rle <- rle(dendr$segments$cluster)
+N <- cumsum(n.rle$lengths)
+N <- N[seq(1, length(N), 2)] + 1
+N.df <- dendr$segments[N, ]
+N.df$cluster <- N.df$cluster - 1
+
+# Plot the dendrogram
+library("RColorBrewer")
+cols <- colorRampPalette(brewer.pal(7, "Paired"))
+cols <- cols(7)
+myPal <- c( "grey60", cols)
+myPal <- c("grey60", "#053061", "#3288bd", "#92c5de", "#d53e4f","#7fbc41", "#fdae61")
+
+ggplot() + 
+   geom_segment(data = segment(dendr), 
+      aes(x=x, y=y, xend=xend, yend=yend, size=factor(line), colour=factor(cluster)), 
+      lineend = "square", show.legend = FALSE) + 
+   scale_colour_manual(values = myPal) +
+   scale_size_manual(values = c(.5, 1)) +
+   geom_text(data = N.df, aes(x = x, y = y, label = factor(cluster),  colour = factor(cluster + 1)), 
+      hjust = 1.5, show.legend = FALSE) +
+   geom_text(data = label(dendr), aes(x, y, label = label, colour = factor(cluster)), 
+       hjust = -0.2, size = 3, show.legend = FALSE) +
+   scale_y_reverse(expand = c(0.2, 0)) + 
+   labs(x = NULL, y = NULL) +
+   coord_flip() +
+    theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank())
+ggsave("figures/dendrogram_sites.pdf", width = 6, height = 5)
+
 
 # Try to find cutoff with some criterion
-# NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # TODO how to choose?
 
 # assemble all data
 ca_df <- augment(ca)
-part <- data.frame(group=factor(cutree(hdw, k=6)))
-part$label <- rownames(part)
-ca_df <- left_join(ca_df, part, by=c("label"))
+# part <- data.frame(group=factor(cutree(hdw, k=6)))
+# part$label <- rownames(part)
+
+# Order to match dendrogram colors
+part <- arrange(dendr$labels, cluster)
+part$cluster <- as.numeric(as.character(part$cluster))-1
+ca_df <- left_join(ca_df, select(part, label, group=cluster), by=c("label"))
+ca_df$group <- factor(ca_df$group)
+
 
 # compute variance explained
 eig <- tidy(ca)
 dims <- names(ca_df)[str_detect(names(ca_df), "Dim")]
 labs <- str_c(dims, " (",round(eig$prop.variance[1:4]*100),"%)")
 
+ca_df <- arrange(ca_df, group)
 # plot result
 p1 <- ggplot(ca_df, aes(x=Dim1, y=Dim2, colour=group)) +
-  scale_colour_discrete(guide="none", na.value="black") +
+  scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
   geom_point(size=1) +
-  ggrepel::geom_text_repel(aes(label=label), size=1*2.5, segment.alpha=0.7) +
-  scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() +
-  labs(x=labs[1], y=labs[2])
+  ggrepel::geom_text_repel(aes(label=label), size=1*3.2, segment.alpha=0.7) +
+  scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
+  labs(x=labs[1], y=labs[2]) + theme_light()
 p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
-  scale_colour_discrete(guide="none", na.value="black") +
+  scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
   geom_point(size=1) +
-  ggrepel::geom_text_repel(aes(label=label), size=1*2.5, segment.alpha=0.7) +
-  scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) + coord_fixed() +
-  labs(x=labs[3], y=labs[4])
+  ggrepel::geom_text_repel(aes(label=label), size=1*3.2, segment.alpha=0.7) +
+  scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
+  labs(x=labs[3], y=labs[4]) + theme_light()
+# plot and save graph
+pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
 glayout(list(p1, 1, 1), list(p2, 1, 2))
+dev.off()
 ```
 
 Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
