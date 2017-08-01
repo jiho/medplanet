@@ -25,6 +25,7 @@ library("factoextra")
 library("NbClust")
 library("ggdendro")
 library("viridis")
+library("zoo")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -62,9 +63,12 @@ dd_summary <- arrange(dd_summary, desc(median))
 Excluding extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 3)`) and other are consistently low (`r tail(dd_summary$site, 3)`). NB: Keeping only CPUE < 10 only eliminates `r nrow(filter(dd, cpue >= 10))` records out of `r nrow(dd)`. The black squares are quantile=0.9.
 
 ```{r zoomed_boxplot, fig.height=4}
-ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
+# ggplot(dd) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T) + coord_flip(ylim=c(0, 10)) + scale_fill_viridis(name="median\ncpue") + theme(legend.position="bottom")
+ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T, outlier.size=1) + geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=2) + coord_flip(ylim=c(0, 13)) + scale_fill_viridis(name="Median\nCPUE") + theme(legend.position="right") + scale_x_discrete("") + scale_y_continuous("CPUE") + theme_light(base_size = 14)
 
-ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue), na.rm=T, outlier.size=1) + geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=2) + coord_flip(ylim=c(0, 10)) 
+# Save plot
+ggsave("figures/Fig3_CPUE_per_sites.pdf", width = 9.5, height = 6)
+
 ```
 
 ```{r map}
@@ -272,6 +276,8 @@ sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date,
 # and per CARE
 # sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
 
+sp_per_night <- rename(sp_per_night, Sites=site)
+
 
 # and some plots
 differentiating_scales <- list(
@@ -281,7 +287,8 @@ differentiating_scales <- list(
 )
 
 # ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site))+ differentiating_scales
-ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) + differentiating_scales
+ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=Sites), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=Sites, linetype=Sites)) + theme_light() + differentiating_scales + scale_x_continuous("Nights sampled") + scale_y_continuous("Species richness")
+ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
 
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
@@ -444,44 +451,13 @@ Many assocations are geographic but there are some exceptions: Bastia associated
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ddm <- as.multivar(dd, "site")
 
-# perform CA
-ca <- CA(ddm, graph=F)
 
 # perform hierachical clustering
 dd_stand <- decostand(ddm, method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
 hdw <- hclust(dist_matrix, method="ward.D2", vfont = NULL, col = part$group)
-plot(hdw, vfont = NULL, col = part$group)
 
-
-hdw2 <- dendro_data(hdw, type="triangle")
-
-df   <- USArrests                 # really bad idea to muck up internal datasets
-labs <- paste("sta_",1:50,sep="") # new labels
-rownames(df) <- labs              # set new row names
-
-
-# hc       <- hclust(dist(df), "ave")           # heirarchal clustering
-dendr    <- dendro_data(hdw, type="triangle") # convert for ggplot
-clust    <- cutree(hdw,k=6)                    # find 2 clusters
-clust.df <- data.frame(label=names(clust), cluster=factor(clust))
-# dendr[["labels"]] has the labels, merge with clust.df based on label column
-dendr[["labels"]] <- merge(dendr[["labels"]],clust.df, by="label")
-# plot the dendrogram; note use of color=cluster in geom_text(...)
-ggplot() + 
-  geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) + 
-  geom_text(data=label(dendr), aes(x, y, label=label, hjust=0, color=cluster), 
-           size=3) +
-  coord_flip() + scale_y_reverse(expand=c(0.2, 0)) + 
-  theme(axis.line.y=element_blank(),
-        axis.ticks.y=element_blank(),
-        axis.text.y=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_rect(fill="white"),
-        panel.grid=element_blank())
-
-
-library("zoo")
+# Color dendrogram with groups
 cut <- 6
 dendr <- dendro_data(hdw, type = "rectangle") 
 clust <- cutree(hdw, k = cut)               # find 'cut' clusters
@@ -541,12 +517,16 @@ ggplot() +
         axis.title.y = element_blank(),
         panel.background = element_rect(fill = "white"),
         panel.grid = element_blank())
-ggsave("figures/dendrogram_sites.pdf", width = 6, height = 5)
+ggsave("figures/dendrogram_sites.pdf", width = 10, height = 4)
 
 
 # Try to find cutoff with some criterion
 NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # TODO how to choose?
+
+
+# perform CA
+ca <- CA(ddm, graph=F)
 
 # assemble all data
 ca_df <- augment(ca)
