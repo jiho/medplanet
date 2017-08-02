@@ -44,11 +44,14 @@ summary_effort
 ```
 
 ```{r}
-ggplot(effort) + geom_point(aes(x=date, y=site), shape="|") +
-  scale_y_discrete(
+ggplot(effort) + geom_point(aes(x=date, y=site), shape="|", size = 3) +
+  scale_x_datetime("Date") +
+  scale_y_discrete("",
     breaks=summary_effort$site,
     labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")")
-  ) + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+  ) + theme(axis.title.x=element_blank(), axis.title.y=element_blank()) + theme_gray(base_size = 14) 
+ggsave("figures/Fig2_sampling_effort.pdf", width = 9, height = 6)
+
 ```
 
 Resulting in a total of `r nrow(effort)` nights sampled, in `r nrow(sites)` sites.
