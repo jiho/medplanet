@@ -73,7 +73,7 @@ llrq_fit <- rename(llrq_fit, Tau = tau)
 ggplot(llrq_fit) +
   geom_point(aes(x=date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
   geom_ribbon(aes(x=date, ymin=lower, ymax=higher, fill=Tau, alpha=Tau)) +
-  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
+  scale_alpha_manual(values=c(0.2, 0.2, 0.2, 0.2)) +
   geom_line(aes(x=date, y=fit,colour=Tau)) +
   geom_rug(aes(x=date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
   geom_rug(aes(x=date), dd, sides="b", alpha=0.1) + theme_light(base_size = 14) + scale_x_datetime("Sampling dates") + scale_y_continuous("CPUE")
@@ -372,22 +372,35 @@ q <- c(.25, .5, .75, .9)
 ```
 
 ```{r llrq2}
-registerDoParallel(cores=2)
+# registerDoParallel(cores=2)
 # system.time(llrq_fit <- llrq(dd$fake_date, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
 system.time(llrq_fit <- llrq(dd$yday, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
-stopImplicitCluster()
+# stopImplicitCluster()
 
 llrq_fit$fake_date  <- ymd("2014-01-01") + llrq_fit$x
 llrq_fit$lower[llrq_fit$lower < 0] <- 0
 
+head(llrq_fit)
+llrq_fit <- rename(llrq_fit, Tau = tau)
+
 # same plot with different data
 ggplot(llrq_fit) +
-  geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 100), size=1, alpha=0.5, shape=16) +
-  geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=tau, alpha=tau)) +
-  scale_alpha_manual(values=c(0., 0.2, 0., 0.2)) +
-  geom_line(aes(x=fake_date, y=fit,colour=tau)) +
-  geom_rug(aes(x=fake_date), filter(dd, cpue > 100), sides="t", alpha=0.5) +
-  geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b")
+  geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 30), size=1, alpha=0.5, shape=16) +
+  geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=Tau, alpha=Tau)) +
+  scale_alpha_manual(values=c(0.2, 0.2, 0.2, 0.2)) +
+  geom_line(aes(x=fake_date, y=fit,colour=Tau)) +
+  geom_rug(aes(x=fake_date), filter(dd, cpue >= 30), sides="t", alpha=0.5) +
+  geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b") + theme_light()
+
+# Save plot
+ggsave("figures/Fig9a_seasonality_total_catches.pdf", width = 7, height = 4)
+
+
+# Find min and max of q90
+head(llrq_fit)
+llrq_fit %>% group_by(Tau) %>% summarize(min = min(fit), max=max(fit), sd = sd(fit))
+
+
 ```
 
 
@@ -428,10 +441,10 @@ At species level, the time of arrival has consistent seasonality across years bu
 
 
 # Do it with points instead of path
-dd <- d0 %>% filter(year != 2016) %>% group_by(yweek, year, species) %>% summarise(cpue=mean(cpue))
+dd <- d0 %>% filter(year != 2016) %>% group_by(yweek, year, species) %>% summarise(ycpue=mean(cpue)) %>% group_by(yweek, species) %>% summarize(cpue = mean(ycpue)) # average CPUE per week and per year among site, then average per week within year to get a single value per week
 
-# rescale per species and year
-dd <- dd %>% group_by(species, year) %>% mutate(scaled_cpue=cpue/max(cpue))
+# rescale per species
+dd <- dd %>% group_by(species) %>% mutate(scaled_cpue=cpue/max(cpue))
 dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
 
 # order species by average/first date of arrival
@@ -454,12 +467,18 @@ dd$scaled_cpue[which(dd$scaled_cpue == 0)] <- NA
 #  Remove unidentified species
 dd <- filter(dd, !is.na(species))
 
+# Check if a single value per week
+head(dd)
+filter(dd, species == "Pagellus acarne")
+
 # plots
 ggplot(dd) +
   geom_point(aes(x=yweek, y=species_abbr, size = scaled_cpue), alpha=0.7) +
   # scale_x_date(date_breaks="1 month", date_labels="%b", minor_breaks=NULL) +
-  labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 5) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic"))
+  labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 6) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic")) + theme_light() + scale_y_discrete(expand = c(0,1))
 
+# save plot
+ggsave("figures/Fig9b_weekly_abund_species.pdf", width = 7, height = 9)
 
 
 
