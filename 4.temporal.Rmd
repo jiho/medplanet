@@ -669,14 +669,46 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
-# A tibble: 3 × 5
-#     year     stats median statistic p.value
-#   <fctr>     <chr>  <dbl>     <dbl>   <dbl>
-# 1   2013  -0.2±6.1    0.5      1840 0.52060
-# 2   2014 -1.24±6.7   -1.0      1894 0.00966
-# 3   2015 -2.09±5.2   -2.0       234 0.00016
+#     year     stats median statistic   p.value
+#   <fctr>     <chr>  <dbl>     <dbl>     <dbl>
+# 1   2013  0.13±5.4      1      2002 0.3294539
+# 2   2014 -0.95±6.3     -1      2064 0.0212450
+# 3   2015 -3.03±5.9     -2       192 0.0000054
 
-# Time arrival per year and topography
+
+
+# Additionnaly check first occurrence per year
+week_first_occ <- samples %>% group_by(species,site,year) %>% summarise(ref_week_first_occ=min(yweek))
+# average week of first occ among sites
+week_first_occ <- week_first_occ %>% group_by(species, year) %>% summarise(ref_week_first_occ = round(mean(ref_week_first_occ),0))
+
+# Compute differences among sites
+diff2014_2013 <- filter(week_first_occ, year == 2014)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
+diff2015_2013 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
+diff2015_2014 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2014)$ref_week_first_occ
+
+data.frame(
+  diff2014_2013 = str_c(round_any(mean(diff2014_2013), 0.01), "±", 
+                        round_any(sd(diff2014_2013), 0.01)),
+  diff2015_2013 = str_c(round_any(mean(diff2015_2013), 0.01), "±", 
+                        round_any(sd(diff2015_2013), 0.01)),
+#   diff2014_2013 diff2015_2014
+  diff2015_2014 = str_c(round_any(mean(diff2015_2014), 0.01), "±", 
+                        round_any(sd(diff2015_2014), 0.01)))
+#   diff2014_2013 diff2015_2014
+# 1    -0.47±4.39    -1.63±6.43
+
+# Check if significant
+suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.frame(first_occ = diff2015_2014), data.frame(first_occ = diff2015_2013)), years = c(rep("2014-2013", 19), rep("2015-2014", 19), rep("2015-2013", 19))) %>% group_by(years) %>% do(glance(wilcox.test(.$first_occ,mu = 0,alternative = "less"))))
+#       years statistic p.value                                               method alternative
+#      <fctr>     <dbl>   <dbl>                                               <fctr>      <fctr>
+# 1 2014-2013        66   0.317 Wilcoxon signed rank test with continuity correction        less
+# 2 2015-2014        52   0.071 Wilcoxon signed rank test with continuity correction        less
+
+# No significant difference in the timing of first arrival, but still earlier arrival
+
+
+#--- Time arrival per year and topography
 
 samples <- summer
 # join with topography
@@ -724,7 +756,9 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "top
 ```
 
 ```{r, fig.height=9}
-# Time arrival per year and site
+
+
+###--- Time arrival per year and site
 
 samples <- summer
 # join with topography
