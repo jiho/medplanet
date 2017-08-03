@@ -580,46 +580,46 @@ So difference between years in species composition is not due to difference in s
 Time arrival per year
 
 ```{r, fig.height=6}
+# sum catches per day and site
 dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, yweek, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
 dd <- filter(dd, cpue!=0)
 
 ## Check time of arrival by species to identify winter species
 ggplot(dd) +
-  geom_histogram(aes(x=yweek),binwidth=1) +
+  geom_histogram(aes(x=yweek, fill=year), binwidth=1) +
   #geom_histogram(aes(x=yweek, weight=cpue),binwidth=1) +
   geom_density(aes(x=yweek, y=..count..)) +
-  facet_wrap(~species, ncol=3)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+  facet_wrap(~species, ncol=3) + geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 
-## Select winter species and choice a date to start the larvae arrival period
+
+###--- Winter species should be handle differently (because around new year)
+
+# Select winter species 
 winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pagellus acarne"),])
 
-winter$fake_date <- "2012-10-01"
+# Switch date by 1/2 year
+fake_date <- yday("2012-07-01")
+fake_week <- week("2012-07-01")
 
 
-##Modify day and week according to this new date
 
-winter$shift_day <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="days")),0)
-winter$shift_week <- round(as.double(difftime(strptime(winter$date, format = "%Y-%m-%d"),strptime(winter$fake_date, format = "%Y-%m-%d"),units="weeks")),0)
-
-winter$season <- "2012-2013"
-winter$season[which(winter$shift_day>365 & winter$shift_day<731)] <- "2013-2014"
-winter$season[which(winter$shift_day>=731 & winter$shift_day<1096)] <- "2014-2015"
-winter$season[which(winter$shift_day>=1096)] <- "2015-2016"
-
-winter$shift_day <- winter$shift_day%%365
-winter$shift_week <- winter$shift_week%%52
+## Modify day and week according to this new date
+winter$yday_shifted <- round(yday(winter$date)-fake_date, 0) %% 365 # diff of number of day since mid year, and modulo 365 (days per year) to center on new year
+# Same for week
+winter$yweek_shifted <- round(week(winter$date)-fake_week, 0) %% 52
 
 
 ## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
 ## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season
-winter$fake_year <- NA
-winter$fake_year[which(winter$season=="2012-2013")] <- "2013"
-winter$fake_year[which(winter$season=="2013-2014")] <- "2014"
-winter$fake_year[which(winter$season=="2014-2015")] <- "2015"
-winter <- winter %>% filter(!is.na(fake_year)) %>% ungroup()
-winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
+winter$year_shifted <- winter$year
+winter$year_shifted[which(winter$year == 2012 & winter$yday > 183)] <- "2013"
+winter$year_shifted[which(winter$year == 2013 & winter$yday > 183)] <- "2014"
+winter$year_shifted[which(winter$year == 2014 & winter$yday > 183)] <- "2015"
+
+# Prepare df like for summer species
+winter <- select(winter, date, year=year_shifted, yday=yday_shifted, yweek=yweek_shifted, site, species, cpue)
 
 ```
 
@@ -630,13 +630,17 @@ winter <- select(winter, year=fake_year, species, site, yweek=shift_week, cpue)
 
 ```{r}
 
+# Select summer species
 summer <- dd %>% filter(species %in% interest_species) %>% filter(species != c("Sarpa salpa", "Pagellus acarne")) %>% ungroup()
-samples <- summer
 
+# Add winter species
+samples <- rbind(summer, winter)
+
+head(samples)
+unique(samples$species)
 #Compute the mean arrival week by species/sites/year
 ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
 ref_sp <- ref_detailed %>% group_by(species) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
-
 
 #Join the two data.frame to comute lag time for each site
 lag <- left_join(ref_detailed, ref_sp, by=c("species"))
@@ -646,10 +650,13 @@ lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
 #  Remove 2012 because not full
 lag <- filter(lag, !year == 2012)
 
+
 ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_wrap(~year, ncol=1)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+
 ```
 
 ```{r, fig.height=4}
