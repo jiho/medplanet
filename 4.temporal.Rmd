@@ -723,11 +723,11 @@ suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.f
 # No significant difference in the timing of first arrival, but still earlier arrival
 
 
+
 #--- Time arrival per year and topography
 
-samples <- summer
 # join with topography
-samples <- left_join(samples, select(sites, site, topography))
+samples <- left_join(samples, select(sites, site, rhone, topography))
 
 #Compute the mean arrival week by species/sites/year
 ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
@@ -768,16 +768,58 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "top
 # 5   2015 Gulf of Lion  -1.4±5.7     -2        83  0.0021
 # 6   2015 Ligurian sea -1.83±5.8     -1        86  0.1819
 
+
+
+#--- Time arrival per year and rhone side
+
+
+#Compute the mean arrival week by species/sites/year
+ref_detailed <- samples %>% group_by(species,site,rhone,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species, rhone) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
+
+
+#Join the two data.frame to comute lag time for each site
+lag <- left_join(ref_detailed, ref_sp, by=c("species", "rhone"))
+lag$lag_week <- lag$ref_week_det - lag$ref_week_sp
+
+
+#  Remove 2012 because not full
+lag <- filter(lag, !year == 2012)
+
+ggplot(lag) +
+  geom_histogram(aes(x=lag_week),binwidth=1) +
+  geom_density(aes(x=lag_week, y=..count..)) +
+  facet_grid(year~rhone)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
+#Compute mean and median lag
+descriptive_stats <- lag %>%
+  group_by(year, rhone) %>%
+  summarise(stats=str_c(round(mean(lag_week),2), "±", round(sd(lag_week),1)), median=median(lag_week))
+
+
+suppressWarnings (test <- lag %>% group_by(year, rhone) %>% do(glance(wilcox.test(.$lag_week,mu = 0,alternative = "two.sided"))))
+
+
+# make a nice table with both
+left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "rhone")) %>% ungroup()
+#     year         rhone     stats median statistic p.value
+#   <fctr>        <fctr>     <chr>  <dbl>     <dbl>   <dbl>
+# 1   2013 West of Rhone  0.03±3.8      0       140 0.68339
+# 2   2013 East of Rhone  0.16±5.4      0       877 0.36763
+# 3   2014 West of Rhone -1.41±7.4     -2        87 0.07367
+# 4   2014 East of Rhone -0.69±5.9     -1      1184 0.20129
+# 5   2015 West of Rhone -18.5±7.8    -18         0 0.50000
+# 6   2015 East of Rhone -1.93±4.6     -1       244 0.00065
+
+
+
+
 ```
 
 ```{r, fig.height=9}
 
 
 ###--- Time arrival per year and site
-
-samples <- summer
-# join with topography
-samples <- left_join(samples, select(sites, site))
 
 #Compute the mean arrival week by species/sites/year
 ref_detailed <- samples %>% group_by(species,site,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
