@@ -79,7 +79,7 @@ ggplot(llrq_fit) +
   geom_rug(aes(x=date), dd, sides="b", alpha=0.1) + theme_light(base_size = 14) + scale_x_datetime("Sampling dates") + scale_y_continuous("CPUE")
 
 # Save plot
-ggsave("figures/Fig6_timeseries.pdf", width = 10, height = 6)
+# ggsave("figures/Fig6_timeseries.pdf", width = 10, height = 6)
 ```
 
 TODO do the same per genus/species
@@ -129,14 +129,21 @@ qm <- dd %>% group_by(site) %>% do({
 })
 
 # plot result
-sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=50), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")), theme(axis.text.x=element_text(hjust=1, angle=35)))
+sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=30.5), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")))
 ggplot(qm) + facet_grid(tau~site) +
   geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
   # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
-  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2), alpha=0.5, fill="red", data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1))
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = tau), alpha=0.7, data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45)) + geom_vline(aes(xintercept = 80))
+
+# save graph
+# ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
 
 # and zoom on small scale variability
 last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
+
+# save plot
+# ggsave("figures/FigS3b_quantilograms.pdf", width = 10, height = 6)
+
 ```
 
 The confidence interval in Bastia clearly shows that the sampling was centred around the new moon which makes it difficult to estimate what happens at invervals that are not multiple of a lunar month.
@@ -337,11 +344,13 @@ qpreds$quantile <- factor(qpreds$tau)
 ggplot(mapping=aes(x=moon_phase)) +
   geom_point(aes(y=cpue), data=dd, alpha=0.5) +
   geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpreds, alpha=0.3) +
-  geom_path(aes(y=fit, colour=quantile), data=qpreds) + scale_color_discrete("Quantile", labels = c(expression("0.25"^"°"), expression("0.5"^"***"), expression("0.75"^"***"), expression("0.9"^"***"))) + scale_fill_discrete("Quantile", labels = c(expression("0.25"^"°"), expression("0.5"^"***"), expression("0.75"^"***"), expression("0.9"^"***"))) +
+  geom_path(aes(y=fit, colour=quantile), data=qpreds) + scale_color_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) + scale_fill_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) +
   # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("CPUE (scaled per species)") +
-  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
-  theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0) 
+  scale_y_continuous("CPUE (scaled per species)", expand = c(0,-0.06)) + theme_light(base_size = 14) +
+  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099"), expand = c(0,0.04)) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
+
+# ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
+
 ```
 
 So, overall, we observe a significant influence of the moon, with higher catches around the new moon for all quantiles, the influence being higher for higher quantiles : highest catches systematically occur around the new moon, even more than average catches. 
@@ -387,13 +396,18 @@ llrq_fit <- rename(llrq_fit, Tau = tau)
 ggplot(llrq_fit) +
   geom_point(aes(x=fake_date, y=cpue), data=filter(dd, cpue < 30), size=1, alpha=0.5, shape=16) +
   geom_ribbon(aes(x=fake_date, ymin=lower, ymax=higher, fill=Tau, alpha=Tau)) +
-  scale_alpha_manual(values=c(0.2, 0.2, 0.2, 0.2)) +
+  scale_alpha_manual("Quantiles", label = c("25%", "50%", "75%", "90%"), values=c(0.2, 0.2, 0.2, 0.2)) +
   geom_line(aes(x=fake_date, y=fit,colour=Tau)) +
   geom_rug(aes(x=fake_date), filter(dd, cpue >= 30), sides="t", alpha=0.5) +
-  geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + scale_x_date("month", date_breaks="1 month", date_labels="%b") + theme_light()
+  geom_rug(aes(x=fake_date), dd, sides="b", alpha=0.1) + 
+  scale_x_date("Month",  date_breaks="1 month", labels = c("Dec","Jan", "Feb", "Mar","Apr", "May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb")) + theme_light() + 
+  scale_color_discrete("Quantiles", label = c("25%", "50%", "75%", "90%")) + 
+  scale_fill_discrete("Quantiles", label = c("25%", "50%", "75%", "90%")) + 
+  scale_y_continuous("CPUE") 
+
 
 # Save plot
-ggsave("figures/Fig9a_seasonality_total_catches.pdf", width = 7, height = 4)
+# ggsave("figures/Fig9a_seasonality_total_catches.pdf", width = 7, height = 4)
 
 
 # Find min and max of q90
@@ -478,7 +492,7 @@ ggplot(dd) +
   labs(y="CPUE (scaled per species)") + scale_size_area("CPUE", max_size = 6) + scale_x_continuous("", breaks = seq(1, 48, length = 12), labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) + theme(axis.text.y = element_text(face="italic")) + theme_light() + scale_y_discrete(expand = c(0,1))
 
 # save plot
-ggsave("figures/Fig9b_weekly_abund_species.pdf", width = 7, height = 9)
+# ggsave("figures/Fig9b_weekly_abund_species.pdf", width = 7, height = 9)
 
 
 
@@ -557,7 +571,9 @@ ggplot(ddr) +
   theme(axis.text.x=element_text(angle=30, hjust=1), axis.text.y=element_blank(), axis.ticks.y=element_blank())
 
 ca <- CA(as.multivar(dd, x.var="year"), graph=F)
-autoplot(ca)
+autoplot(ca) + scale_color_manual("", label = c("Species", "Year"), values = c("grey40", "#d53e4f"), guide = "none") + theme_light(base_size = 9)
+
+# ggsave("figures/FigS2_CA_years.pdf", width = 5, height = 6)
 
 ```
 
@@ -602,7 +618,6 @@ winter <- rbind(dd[which(dd$species=="Sarpa salpa"),], dd[which(dd$species=="Pag
 # Switch date by 1/2 year
 fake_date <- yday("2012-07-01")
 fake_week <- week("2012-07-01")
-
 
 
 ## Modify day and week according to this new date
