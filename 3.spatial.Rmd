@@ -67,7 +67,7 @@ Excluding extreme events and focusing on the more common, low (CPUE < 10), catch
 ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T, outlier.size=1) + geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=2) + coord_flip(ylim=c(0, 13)) + scale_fill_viridis(name="Median\nCPUE") + theme(legend.position="right") + scale_x_discrete("") + scale_y_continuous("CPUE") + theme_light(base_size = 14)
 
 # Save plot
-ggsave("figures/Fig3_CPUE_per_sites.pdf", width = 9.5, height = 6)
+# ggsave("figures/Fig3_CPUE_per_sites.pdf", width = 9.5, height = 6)
 
 ```
 
@@ -142,17 +142,38 @@ dd <- left_join(dd, sites, by="site")
 
 # test GoL vs Lig
 aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
+#    tau Df Resid Df F value Pr(>F)   
+# 1 0.25  1     1073    0.00 0.9160   
+# 2 0.50  1     1073    2.14 0.0554 . 
+# 3 0.75  1     1073   10.72 0.0031 **
+# 4 0.90  1     1073   28.67 0.0133 * 
+
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 # get mean CPUE per topography
 dd %>% group_by(topography) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
+# # A tibble: 2 × 5
+#     topography  mean    sd   q75   q90
+#         <fctr> <dbl> <dbl> <dbl> <dbl>
+# 1 Gulf of Lion   2.3   5.4     2   5.4
+# 2 Ligurian sea   6.2  39.8     3   9.9
 
 # test Rhône
 aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
+#    tau Df Resid Df F value  Pr(>F)    
+# 1 0.25  1     1073    0.00 0.91463    
+# 2 0.50  1     1073    0.55 0.42303    
+# 3 0.75  1     1073   10.98 0.00017 ***
+# 4 0.90  1     1073   51.10 0.00011 ***
 ggplot(dd) + geom_boxplot(aes(x=rhone, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 # get mean CPUE per EW Rhone
 dd %>% group_by(rhone) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
+# # A tibble: 2 × 5
+#           rhone  mean    sd   q75   q90
+#          <fctr> <dbl> <dbl> <dbl> <dbl>
+# 1 West of Rhone   1.7     3     2   3.8
+# 2 East of Rhone   5.5    35     3   9.2
 
 ```
 
@@ -184,6 +205,21 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5
 
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+# # A tibble: 12 × 7
+#                  sp `Gulf of Lion` `Ligurian sea`  `0.25`   `0.5`  `0.75`   `0.9`
+#               <chr>          <chr>          <chr>   <dbl>   <dbl>   <dbl>   <dbl>
+# 1       A. hepsetus          0±0.1       0.12±1.7 0.00627 0.71171 1.0e-01 2.6e-03
+# 2          B. boops            0±0       0.19±1.3 0.02096 0.45987 3.6e-01 2.9e-01
+# 3        C. chromis       0.45±3.2       0.78±4.8 0.00034 0.03643 8.6e-04 9.1e-04
+# 4      D. annularis       0.15±1.2       0.31±2.2 0.14502 0.62220 6.2e-01 6.5e-01
+# 5  G. mediterraneus       0.05±0.2       0.04±0.3 0.02096 0.66636 1.0e-01 2.7e-04
+# 6     M. surmuletus       0.21±1.1       0.29±2.7 0.00627 0.90196 6.2e-01 7.1e-01
+# 7       O. melanura            0±0       0.26±2.6 0.01427 0.45987 1.0e-01 3.6e-02
+# 8         P. acarne       0.08±0.5       0.13±0.8 0.01433 0.49836 5.9e-01 3.5e-02
+# 9      P. bogaraveo         0.16±1            0±0 0.37406 0.00682 2.9e-05 2.6e-11
+# 10    P. pilicornis         0.23±1       0.11±0.9 0.45524 0.00001 1.5e-10 1.9e-10
+# 11         S. salpa       0.07±0.7       0.14±0.8 0.00954 0.80539 5.2e-01 2.0e-01
+# 12        S. smaris       0.29±2.7       0.95±6.7 0.80328 0.71151 1.0e-01 2.5e-04
 
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
@@ -200,6 +236,21 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.7
 
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+#                  sp `West of Rhone` `East of Rhone`  `0.25`   `0.5`  `0.75`   `0.9`
+#               <chr>           <chr>           <chr>   <dbl>   <dbl>   <dbl>   <dbl>
+# 1       A. hepsetus             0±0        0.09±1.5 1.1e-15 0.0e+00 1.3e-04 2.6e-01
+# 2          B. boops             0±0        0.15±1.2 0.0e+00 6.7e-16 3.3e-05 9.4e-01
+# 3        C. chromis        0.02±0.1        0.85±4.8 1.1e-03 1.7e-03 3.2e-03 1.8e-08
+# 4      D. annularis        0.02±0.3        0.32±2.1 1.1e-10 6.4e-10 1.1e-01 1.5e-04
+# 5  G. mediterraneus        0.04±0.1        0.05±0.3 1.5e-12 2.0e-15 9.5e-09 2.6e-04
+# 6     M. surmuletus        0.34±1.5        0.23±2.3 1.1e-16 2.0e-15 6.6e-05 1.4e-03
+# 7       O. melanura             0±0         0.2±2.3 0.0e+00 2.0e-15 1.3e-04 5.9e-01
+# 8         P. acarne        0.12±0.6        0.11±0.7 1.4e-14 0.0e+00 1.6e-05 9.4e-01
+# 9      P. bogaraveo          0.16±1        0.04±0.4 4.0e-11 0.0e+00 6.7e-11 1.0e-04
+# 10    P. pilicornis        0.33±1.2         0.1±0.8 0.0e+00 0.0e+00 0.0e+00 0.0e+00
+# 11         S. salpa         0.1±0.9        0.11±0.7 4.8e-13 2.2e-16 3.3e-05 2.7e-01
+# 12        S. smaris             0±0        0.89±6.2 3.7e-08 2.1e-05 6.9e-02 2.7e-10
+
 
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=rhone)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
@@ -231,6 +282,21 @@ dd_night <- dd %>% group_by(site) %>% summarise(nb_night=length(unique(date)), n
 dd_sp <- left_join(dd_sp, dd_night, by=c("site"))
 
 dd_sp
+#             site nb.family nb.genus nb.species nb_night nb_care
+#           <fctr>     <int>    <int>      <int>    <int>   <dbl>
+# 1          Carry         6        6          6       26     184
+# 2         Cassis        10       11          9       23     163
+# 3      Bonifacio         9       13         13       35     176
+# 4   Port Vendres        12       17         18       47     197
+# 5           Agde        16       18         21       52     247
+# 6      Marseille        11       17         23       83     818
+# 7      La Ciotat        13       20         23       57     603
+# 8      Port-Cros        15       20         24       46     201
+# 9     Les Embiez        16       23         25       70     472
+# 10 Saint Florent        14       21         25       43     215
+# 11        Bastia        14       20         26      202    1811
+# 12       Leucate        15       23         36      174    1482
+# 13  Villefranche        18       30         40      217     565
 ```
 
 More species are caught in Villefranche probably because sampling is done in winter too.
@@ -288,7 +354,9 @@ differentiating_scales <- list(
 
 # ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site))+ differentiating_scales
 ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=Sites), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=Sites, linetype=Sites)) + theme_light() + differentiating_scales + scale_x_continuous("Nights sampled") + scale_y_continuous("Species richness")
-ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
+
+# Save plot
+# ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
 
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
@@ -449,13 +517,14 @@ Many assocations are geographic but there are some exceptions: Bastia associated
 
 ```{r CA_sites, fig.height=5, fig.width=8}
 dd <- d0 %>% filter(species %in% interest_species) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
+# dd <- d0 %>% filter(species %in% c(interest_species, "Aidablennius sphynx", "Diplodus puntazzo", "Diplodus sargus", "Epinephelus marginatus", "Gymnammodytes cicerelus", "Lypophrys trigloides", "Lithognathus mormyrus", "Parablennius rouxi", "Parablennius sanguinolentus", "Serranus cabrilla")) %>% group_by(site, species) %>% summarise(mean=mean(cpue))
 ddm <- as.multivar(dd, "site")
 
 
 # perform hierachical clustering
 dd_stand <- decostand(ddm, method = "chi.square")
 dist_matrix <- vegdist(dd_stand, "euclidean")
-hdw <- hclust(dist_matrix, method="ward.D2", vfont = NULL, col = part$group)
+hdw <- hclust(dist_matrix, method="ward.D2")
 
 # Color dendrogram with groups
 cut <- 6
@@ -517,11 +586,14 @@ ggplot() +
         axis.title.y = element_blank(),
         panel.background = element_rect(fill = "white"),
         panel.grid = element_blank())
-ggsave("figures/dendrogram_sites.pdf", width = 10, height = 4)
+
+# Save plot
+# ggsave("figures/dendrogram_sites.pdf", width = 10, height = 4)
 
 
 # Try to find cutoff with some criterion
 NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+# 5 clusters seems to be the best cutoff, but Vlfr with Bastia and Leucate --> due to higher sampling effort=higher diversity ?
 # TODO how to choose?
 
 
@@ -560,9 +632,9 @@ p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
   scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
   labs(x=labs[3], y=labs[4]) + theme_light()
 # plot and save graph
-pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
+# pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
 glayout(list(p1, 1, 1), list(p2, 1, 2))
-dev.off()
+# dev.off()
 ```
 
 Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
@@ -571,6 +643,18 @@ Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for th
 ddm$rhone <- sites$rhone
 ddm$topography <- sites$topography
 adonis(dist_matrix~rhone+topography, ddm, permutations = 999)$aov.tab
+# Permutation: free
+# Number of permutations: 999
+# 
+# Terms added sequentially (first to last)
+# 
+#            Df SumsOfSqs MeanSqs F.Model    R2 Pr(>F)  
+# rhone       1      11.3   11.27    2.56 0.181   0.02 *
+# topography  1       7.0    7.02    1.59 0.113   0.14  
+# Residuals  10      44.1    4.41         0.707         
+# Total      12      62.4                 1.000         
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 ```
 
 
@@ -616,10 +700,13 @@ Difficult to read...
 The time of arrival of each species throughout the year is plotted to detect its peak. Winter species are shifted by 183 days (half a year).
 
 ```{r compute_anomaly, fig.height=9}
-dd <- d %>% filter(species %in% interest_species) %>% group_by(date, year, yday, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+# Add species caught several times and at several sites + interest_species
+dd <- d %>% 
+  filter(species %in% c(interest_species, "Aidablennius sphynx", "Diplodus puntazzo", "Diplodus sargus", "Epinephelus marginatus", "Gymnammodytes cicerelus", "Lypophrys trigloides", "Lithognathus mormyrus", "Parablennius rouxi", "Parablennius sanguinolentus", "Serranus cabrilla")) %>%
+  group_by(date, year, yday, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 
 # for winter species, shift the time
-dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] <- (dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] + 183) %% 366
+dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] <- (dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] + 183) %% 365
 
 # compute the mean arrival day by species/sites/year
 dp <- dd %>% filter(cpue > 0) %>% group_by(species, site, year) %>% summarise(peak=weighted.mean(yday, cpue, na.rm=TRUE))
@@ -627,8 +714,9 @@ dp <- dd %>% filter(cpue > 0) %>% group_by(species, site, year) %>% summarise(pe
 dp <- dp %>% group_by(species) %>% mutate(mean_peak = mean(peak))
 dp$lag <- dp$peak - dp$mean_peak
 
+
 # check that the detected reference yday makes sense
-ggplot(dd) + facet_wrap(~species, scales="free_y", ncol=3) + theme(legend.position="bottom") +
+ggplot(dd) + facet_wrap(~species, scales="free_y", ncol=4) + theme(legend.position="bottom") +
   geom_point(aes(x=yday, y=cpue, colour=site), alpha=0.5) + scale_y_log10() +
   geom_vline(aes(xintercept=mean_peak), data=unique(select(dp, species, mean_peak)))
 ```
@@ -639,11 +727,15 @@ Port Vendres is late. Eastern sites are mostly early (La Ciota, Villfranche, and
 
 ```{r test_anomaly, fig.height=5}
 dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa"))
-ggplot(dp) +
-  geom_vline(xintercept=0, size=2, colour="white") +
+ggplot(filter(dp, ! site == "Carry")) +
+  geom_vline(xintercept=0, size=2, colour="grey70") +
   geom_histogram(aes(x=lag), binwidth=1) +
   geom_density(aes(x=lag, y=..count..)) +
-  facet_wrap(~site, ncol=3)
+  facet_wrap(~site, ncol=3) + theme_light(base_size = 14) + 
+  scale_x_continuous("Lag (in days)") + scale_y_continuous("Count (lag/species/year)")
+
+# Save figure
+ggsave("figures/Fig9_spatial_lag_sites.pdf", width = 8, height = 7)
 
 t <- dp %>%
   group_by(site) %>%
