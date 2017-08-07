@@ -750,5 +750,109 @@ t <- dp %>%
   }) %>% ungroup()
 t$signif <- stars(t$p.value)
 t
+# # A tibble: 13 × 8
+#             site   mean    sd    med   mad statistic p.value signif
+#           <fctr>  <dbl> <dbl>  <dbl> <dbl>     <dbl>   <dbl>  <chr>
+# 1        Leucate   4.32    31   6.12    26       547  0.3785       
+# 2   Port Vendres  17.17    35  18.83    24       120  0.0052     **
+# 3           Agde   9.72    32   9.48    22       112  0.2645       
+# 4          Carry  -5.05    25  -7.63    32         5  0.6250       
+# 5      Marseille   1.52    40  -4.63    28       319  0.4639       
+# 6         Cassis -14.91    22  -8.02    11         4  0.1094       
+# 7      La Ciotat -16.78    39 -14.62    24        37  0.0013     **
+# 8     Les Embiez  -1.56    38  -8.05    19       172  0.1406       
+# 9      Port-Cros  17.40    35  11.41    25       285  0.0200      *
+# 10  Villefranche  -8.53    26  -6.86    16       390  0.0171      *
+# 11     Bonifacio   0.99    22   0.49    27       107  0.9563       
+# 12 Saint Florent   8.59    28   2.90    13       329  0.2312       
+# 13        Bastia -11.69    40  -6.39    22       246  0.0269      *
 ```
+
+
+```{r test_anomaly_timing_among_basins, fig.height=9}
+
+
+# Add species caught several times and at several sites + interest_species
+dd <- d %>% 
+  filter(species %in% c(interest_species)) %>%
+  group_by(date, year, yday, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+
+# for winter species, shift the time
+dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] <- (dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] + 183) %% 365
+
+# Add site characteristics
+dd <- left_join(dd, select(sites, site, topography, rhone), by="site")
+
+# compute the mean arrival day by species/sites/year
+dp <- dd %>% filter(cpue > 0) %>% group_by(species, rhone, year) %>% summarise(peak=weighted.mean(yday, cpue, na.rm=TRUE))
+# compute reference yday for each species
+dp <- dp %>% group_by(species) %>% mutate(mean_peak = mean(peak))
+dp$lag <- dp$peak - dp$mean_peak
+
+# check that the detected reference yday makes sense
+ggplot(dd) + facet_wrap(~species, scales="free_y", ncol=4) + theme(legend.position="bottom") +
+  geom_point(aes(x=yday, y=cpue, colour=rhone), alpha=0.5) + scale_y_log10() +
+  geom_vline(aes(xintercept=mean_peak), data=unique(select(dp, species, mean_peak)))
+
+# Remove unrelevant spp
+dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa", "Atherina hepsetus", "Oblada melanura", "Spicara smaris"))
+
+# Plot the lag
+ggplot(dp) +
+  geom_vline(xintercept=0, size=2, colour="grey70") +
+  geom_histogram(aes(x=lag), binwidth=1) +
+  geom_density(aes(x=lag, y=..count..)) +
+  facet_wrap(~rhone, ncol=3) + theme_light(base_size = 14) + 
+  scale_x_continuous("Lag (in days)") + scale_y_continuous("Count (lag/species/year)")
+
+# Compute test for significativity
+t <- dp %>%
+  group_by(rhone) %>%
+  do({
+    data.frame(
+      mean=mean(.$lag, na.rm=T),
+      sd=sd(.$lag, na.rm=T),
+      med=median(.$lag, na.rm=T),
+      mad=mad(.$lag, na.rm=T),
+      glance(wilcox.test(.$lag, mu = 0, alternative = "two.sided")) %>% select(statistic, p.value)
+    )
+  }) %>% ungroup()
+t$signif <- stars(t$p.value)
+t
+# # A tibble: 2 × 8
+#           rhone  mean    sd   med   mad statistic p.value signif
+#          <fctr> <dbl> <dbl> <dbl> <dbl>     <dbl>   <dbl>  <chr>
+# 1 West of Rhone   9.1    28   8.6    17       409   0.057      .
+# 2 East of Rhone  -6.5    21  -7.9    21       346   0.012      *
+
+
+# Compare by Topography
+
+# compute the mean arrival day by species/sites/year
+dp <- dd %>% filter(cpue > 0) %>% group_by(species, topography, year) %>% summarise(peak=weighted.mean(yday, cpue, na.rm=TRUE))
+# compute reference yday for each species
+dp <- dp %>% group_by(species) %>% mutate(mean_peak = mean(peak))
+dp$lag <- dp$peak - dp$mean_peak
+
+# Remove unrelevant spp
+dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa", "Atherina hepsetus", "Oblada melanura", "Spicara smaris"))
+
+t <- dp %>%
+  group_by(topography) %>%
+  do({
+    data.frame(
+      mean=mean(.$lag, na.rm=T),
+      sd=sd(.$lag, na.rm=T),
+      med=median(.$lag, na.rm=T),
+      mad=mad(.$lag, na.rm=T),
+      glance(wilcox.test(.$lag, mu = 0, alternative = "two.sided")) %>% select(statistic, p.value)
+    )
+  }) %>% ungroup()
+t$signif <- stars(t$p.value)
+t
+# # A tibble: 2 × 8
+#     topography  mean    sd   med   mad statistic p.value signif
+#         <fctr> <dbl> <dbl> <dbl> <dbl>     <dbl>   <dbl>  <chr>
+# 1 Gulf of Lion   3.7    27   5.4    24       613    0.61       
+# 2 Ligurian sea  -3.7    23  -6.5    19       430    0.16 
 
