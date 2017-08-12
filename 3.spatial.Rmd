@@ -463,7 +463,7 @@ div <- d %>% group_by(year, month, site, species) %>% summarise(cpue=mean(cpue))
 div <- left_join(div, select(sites, site, topography, rhone), by="site")
 
 divt <- gather(div, key="index", value="value", shannon, pielou)
-ggplot(divt) + geom_boxplot(aes(x=site, y=value), na.rm=T) + facet_wrap(~index, ncol=1, scales="free_y") + theme(axis.text.x=element_text(angle=35, hjust=1))
+ggplot(divt) + geom_boxplot(aes(x=site, y=value, fill = topography), na.rm=T) + facet_wrap(~index, ncol=1, scales="free_y") + theme(axis.text.x=element_text(angle=35, hjust=1))
 
 div_stats <- function(x) {
   with(x,
@@ -477,7 +477,8 @@ div_stats <- function(x) {
 }
 # diversity indices by site and geographic regions
 div %>% do(div_stats(.)) %>% as.data.frame()
-div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
+pp <- div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
+ggplot(reshape2::melt(select(pp, site, `H mean±sd`, `P med±mad`), id.vars = "site"), aes(x = site, y = value)) + geom_point() + facet_wrap(~variable, scales = "free_y", ncol = 1)
 div %>% group_by(rhone) %>% do(div_stats(.)) %>% as.data.frame()
 div %>% group_by(topography) %>% do(div_stats(.)) %>% as.data.frame()
 
@@ -522,9 +523,9 @@ ddm <- as.multivar(dd, "site")
 
 
 # perform hierachical clustering
-dd_stand <- decostand(ddm, method = "chi.square")
-dist_matrix <- vegdist(dd_stand, "euclidean")
-hdw <- hclust(dist_matrix, method="ward.D2")
+dd_stand <- decostand(ddm, method = "chi.square") # Chi2 transform the data
+dist_matrix <- vegdist(dd_stand, "euclidian") # compute distance on transformed data
+hdw <- hclust(dist_matrix, method="ward.D2") # compute hierarchical clustering
 
 # Color dendrogram with groups
 cut <- 6
@@ -592,7 +593,7 @@ ggplot() +
 
 
 # Try to find cutoff with some criterion
-NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=10, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=12, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # 5 clusters seems to be the best cutoff, but Vlfr with Bastia and Leucate --> due to higher sampling effort=higher diversity ?
 # TODO how to choose?
 
