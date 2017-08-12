@@ -16,6 +16,7 @@ load("data.rda")
 library("reshape2")
 library("plyr")
 library("tidyverse")
+library("stringr")
 library("FactoMineR")
 library("printr")
 library("lubridate")
@@ -684,11 +685,7 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
-#     year     stats median statistic   p.value
-#   <fctr>     <chr>  <dbl>     <dbl>     <dbl>
-# 1   2013  0.13±5.4      1      2002 0.3294539
-# 2   2014 -0.95±6.3     -1      2064 0.0212450
-# 3   2015 -3.03±5.9     -2       192 0.0000054
+
 
 
 
@@ -710,17 +707,16 @@ data.frame(
 #   diff2014_2013 diff2015_2014
   diff2015_2014 = str_c(round_any(mean(diff2015_2014), 0.01), "±", 
                         round_any(sd(diff2015_2014), 0.01)))
-#   diff2014_2013 diff2015_2014
-# 1    -0.47±4.39    -1.63±6.43
+#   diff2014_2013 diff2015_2013 diff2015_2014
+# 1    -0.47±4.39    -2.11±6.64    -1.63±6.43
 
 # Check if significant
 suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.frame(first_occ = diff2015_2014), data.frame(first_occ = diff2015_2013)), years = c(rep("2014-2013", 19), rep("2015-2014", 19), rep("2015-2013", 19))) %>% group_by(years) %>% do(glance(wilcox.test(.$first_occ,mu = 0,alternative = "less"))))
 #       years statistic p.value                                               method alternative
-#      <fctr>     <dbl>   <dbl>                                               <fctr>      <fctr>
 # 1 2014-2013        66   0.317 Wilcoxon signed rank test with continuity correction        less
-# 2 2015-2014        52   0.071 Wilcoxon signed rank test with continuity correction        less
-
-# No significant difference in the timing of first arrival, but still earlier arrival
+# 2 2015-2013        48   0.030 Wilcoxon signed rank test with continuity correction        less
+# 3 2015-2014        52   0.071 Wilcoxon signed rank test with continuity correction        less
+# No significant difference in the timing of first arrival except between 2015-2013
 
 
 
@@ -790,6 +786,7 @@ ggplot(lag) +
   geom_histogram(aes(x=lag_week),binwidth=1) +
   geom_density(aes(x=lag_week, y=..count..)) +
   facet_grid(year~rhone)+geom_vline(xintercept = 0,linetype="dashed") + xlab("")
+
 
 #Compute mean and median lag
 descriptive_stats <- lag %>%
