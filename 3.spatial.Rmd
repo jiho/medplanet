@@ -857,3 +857,23 @@ t
 # 1 Gulf of Lion   3.7    27   5.4    24       613    0.61       
 # 2 Ligurian sea  -3.7    23  -6.5    19       430    0.16 
 
+
+```
+
+```{r emblematic species}
+
+# Mérou
+data.frame(filter(d, species == "Epinephelus marginatus"))
+
+# Anguille
+data.frame(filter(d, species == "Anguilla anguilla"))
+
+# Dorades
+data.frame(filter(d, species == "Sparus aurata"))
+data.frame(filter(d, species == "Spondyliosoma cantharus"))
+
+# Denti
+data.frame(filter(d, species == "Dentex dentex"))
+
+# Corb
+data.frame(filter(d, species == "Sciaena umbra"))
