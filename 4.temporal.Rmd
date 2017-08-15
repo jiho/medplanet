@@ -214,9 +214,12 @@ d0m <- left_join(d0, moon, by="date")
 dm <- left_join(d, moon, by="date")
 
 # check distribution of effort per moonphase
-table(d0m$moon_phase)
+count(d0m, moon_phase)
 #  -14  -13  -12  -11  -10   -9   -8   -7   -6   -5   -4   -3   -2   -1    0    1    2    3    4    5    6    7    8    9   10   11   12   13 
 # 1600  900 1000 1300 1300 1600 1900 2400 2200 2800 3400 4401 5700 8402 9900 8800 9400 7700 6600 5500 4100 4400 2900 2200 1900 2500 1800  900 
+
+# Plot effort at each moon phase
+ggplot(count(d0m, moon_phase)) + geom_bar(aes(x = abs(moon_phase), y = n), stat = "identity"))
 
 
 
@@ -247,7 +250,7 @@ If we look at the total number of larvae caught, a large proportion of it is cau
 ```{r fig.height=5}
 
 # average per lunar day
-dplot <- filter(d0m, species %in% interest_species  & cpue < 200) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
+dplot <- filter(d0m,  cpue < 200) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
 
 moon_x <- list(scale_x_continuous(breaks=c(-14, 0, 14), labels=c("\U0099", "\U0098", "\U0099")), theme(axis.text.x=element_text(family="Wingdings 2"), axis.title.x=element_blank()))
 
@@ -304,18 +307,33 @@ Another way to look at it is to regress CPUE on moon phase. Using quantile regre
 ```{r fig.height=4}
 suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
 
-# select data: common species, in summer, without extreme Spicara
-dd <- filter(d0m, species %in% interest_species, !species %in% "Atherina hepsetus", in_summer(date), cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
+# Check effort
+cc <- data.frame(count(unique(select(d0m, date, site, moon_phase)), moon_phase))
+# Plot effort at each moon phase
+ggplot(cc) + geom_bar(aes(x = moon_phase, y = 1/n, fill = moon_phase), stat = "identity", position = "stack")
 
-# standardize cpue per species (each species gets the same weight)
+
+# Join d0m with fishing effort of each moon_phase
+dd <- left_join(d0m, rename(cc, n_nights=n))
+
+# select data: common species, in summer, without extreme Spicara
+# dd <- filter(d0m, species %in% interest_species, !species %in% "Atherina hepsetus", in_summer(date), cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
+# Or all data (except massive events)
+dd <- filter(dd, cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = weighted.mean(cpue, 1/n_nights))
+
+
+# Fn to standardize cpue per species (each species gets the same weight)
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 dd <- ddply(dd, ~species, function(x){
   x$cpue <- range01(x$cpue)
   x
 })
 
+
 # only consider distance to the new moon, irrespective of direction
 dd$moon_phase <- abs(dd$moon_phase)
+
+
 
 # # plot according to various moon related variables
 # ggplot(dd) + geom_point(aes(x=moon_time, y=cpue))
@@ -334,10 +352,12 @@ summary.rql(qpred, se="boot", R=1000, bsmethod="xy")
 
 
 # new data for prediction
-x <- seq(0, 14, length.out=14)
+x <- seq(0, 14, length.out=15)
 new <- data.frame(moon_phase=x)
-qpreds <- predict.rql(qpred, new = new, interval="confidence")
-qpreds$moon_phase <- rep(x, times = length(unique(quantiles)))
+qpreds <- predict.rql(qpred[3:4], new = new, interval="confidence")
+# qpreds$moon_phase <- rep(x, times = length(unique(quantiles)))
+qpreds$moon_phase <- rep(x, times = 2)
+
 # Convert tau to factor 
 qpreds$quantile <- factor(qpreds$tau)
 
@@ -347,7 +367,8 @@ ggplot(mapping=aes(x=moon_phase)) +
   geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpreds, alpha=0.3) +
   geom_path(aes(y=fit, colour=quantile), data=qpreds) + scale_color_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) + scale_fill_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) +
   # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("CPUE (scaled per species)", expand = c(0,-0.06)) + theme_light(base_size = 14) +
+  scale_y_continuous("CPUE (scaled per species)", expand = c(0,-0.01)) + 
+  theme_light(base_size = 14) +
   scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099"), expand = c(0,0.04)) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
 
 # ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
