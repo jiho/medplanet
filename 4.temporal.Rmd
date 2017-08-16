@@ -117,11 +117,11 @@ breaks <- c(1:7, seq(7, 31, by=2), seq(31, 365*1.2, by=5))
 # compute quantilogram and conf int using permutations
 qm <- dd %>% group_by(site) %>% do({
   # reference
-  qm <- quantilogram(.$days, .$cpue, dist.max=365*1.2, breaks=breaks) %>% tidy()
+  qm <- quantilogram(.$days, .$cpue, dist.max=365*1.2, breaks=breaks, tau=q) %>% tidy()
 
   # permutations
   pqm <- laply(1:1000, function(i) {
-    as.matrix(quantilogram(.$days, sample(.$cpue), dist.max=365*1.2, breaks=breaks)$quantilogram)
+    as.matrix(quantilogram(.$days, sample(.$cpue), dist.max=365*1.2, breaks=breaks, tau=q)$quantilogram)
   }, .parallel=TRUE)
   qm$q1 <- melt(aaply(pqm, 2:3, quantile, probs=0.025))$value
   qm$q2 <- melt(aaply(pqm, 2:3, quantile, probs=0.975))$value
@@ -129,15 +129,17 @@ qm <- dd %>% group_by(site) %>% do({
   qm
 })
 
+qm <- rename(qm, Tau=tau)
+
 # plot result
 sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=30.5), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")))
-ggplot(qm) + facet_grid(tau~site) +
+ggplot(qm) + facet_grid(Tau~site) +
   geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
   # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
-  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = tau), alpha=0.7, data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45)) + geom_vline(aes(xintercept = 80))
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.7, data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
 
 # save graph
-# ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
+ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
 
 # and zoom on small scale variability
 last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
