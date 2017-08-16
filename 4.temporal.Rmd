@@ -309,19 +309,26 @@ Another way to look at it is to regress CPUE on moon phase. Using quantile regre
 ```{r fig.height=4}
 suppressPackageStartupMessages(library("quantreg", quietly=TRUE))
 
-# Check effort
+# Check effort in summer only
+cc <- data.frame(count(unique(select(filter(d0m, in_summer(date)), date, site, moon_phase)), moon_phase))
+# Plot effort at each moon phase
+ggplot(cc) + geom_bar(aes(x = abs(moon_phase), y = n, fill = 1/n), stat = "identity", position = "dodge")
+
+
+# Check effort throughout the sampling period
 cc <- data.frame(count(unique(select(d0m, date, site, moon_phase)), moon_phase))
 # Plot effort at each moon phase
-ggplot(cc) + geom_bar(aes(x = moon_phase, y = 1/n, fill = moon_phase), stat = "identity", position = "stack")
+ggplot(cc) + geom_bar(aes(x = abs(moon_phase), y = n, fill = 1/n), stat = "identity", position = "dodge")
+# The effort is (slightly) better distributed over all moon phase when considering the entire period
 
 
 # Join d0m with fishing effort of each moon_phase
 dd <- left_join(d0m, rename(cc, n_nights=n))
 
 # select data: common species, in summer, without extreme Spicara
-# dd <- filter(d0m, species %in% interest_species, !species %in% "Atherina hepsetus", in_summer(date), cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
-# Or all data (except massive events)
-dd <- filter(dd, cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = weighted.mean(cpue, 1/n_nights))
+dd <- filter(dd, species %in% interest_species, !species %in% "Atherina hepsetus", cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = mean(cpue))
+# Or all data (except massive events) but that inflates the number of 0s for rare species
+# dd <- filter(dd, cpue < 250) %>% group_by(species, moon_phase) %>% summarize(cpue = weighted.mean(cpue, 1/n_nights))
 
 
 # Fn to standardize cpue per species (each species gets the same weight)
@@ -336,7 +343,6 @@ dd <- ddply(dd, ~species, function(x){
 dd$moon_phase <- abs(dd$moon_phase)
 
 
-
 # # plot according to various moon related variables
 # ggplot(dd) + geom_point(aes(x=moon_time, y=cpue))
 # ggplot(dd) + geom_point(aes(x=moon_phase, y=cpue))
@@ -344,9 +350,9 @@ dd$moon_phase <- abs(dd$moon_phase)
 # ggplot(dd) + geom_point(aes(x=moon_index2, y=cpue))
 
 
-quantiles <- c(0.25, 0.5, 0.75, 0.9)
-
 # Compute rql for all quantiles
+quantiles <- c(0.25, 0.5, 0.75, 0.9)
+rm(qpred, qpreds)
 qpred <- rql(cpue ~ moon_phase, tau=quantiles, data=dd)
 
 # check significance of the regression curves
@@ -354,27 +360,38 @@ summary.rql(qpred, se="boot", R=1000, bsmethod="xy")
 
 
 # new data for prediction
-x <- seq(0, 14, length.out=15)
+x <- seq(0, 14, length.out=14)
 new <- data.frame(moon_phase=x)
-qpreds <- predict.rql(qpred[3:4], new = new, interval="confidence")
-# qpreds$moon_phase <- rep(x, times = length(unique(quantiles)))
-qpreds$moon_phase <- rep(x, times = 2)
-
+qpreds <- predict.rql(qpred, new = new, interval="confidence")
+qpreds$moon_phase <- rep(x, times = length(unique(quantiles)))
 # Convert tau to factor 
 qpreds$quantile <- factor(qpreds$tau)
 
+
+# If all regressions are not predictable (e.g. all O)
+# x <- seq(0, 14, length.out=15)
+# new <- data.frame(moon_phase=x)
+# qpreds <- predict.rql(qpred[3:4], new = new, interval="confidence")
+# qpreds$moon_phase <- rep(x, times = 2)
+
+
+# Keep only uniques 
+dd <- dd %>% select(-species) %>% group_by(moon_phase) %>% count(cpue) %>% rename(Occurrence=n) %>% ungroup() %>% as.data.frame()
+
 # plot the result
 ggplot(mapping=aes(x=moon_phase)) +
-  geom_point(aes(y=cpue), data=dd, alpha=0.5) +
   geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpreds, alpha=0.3) +
-  geom_path(aes(y=fit, colour=quantile), data=qpreds) + scale_color_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) + scale_fill_discrete("Quantiles", labels = c(expression("25%"^"°"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) +
+  geom_path(aes(y=fit, colour=quantile), data=qpreds) + 
+  geom_point(aes(y=cpue, size = Occurrence), data=dd, alpha=0.5) +
+  scale_color_discrete("Quantiles", labels = c(expression("25%"^"***"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) + 
+  scale_fill_discrete("Quantiles", labels = c(expression("25%"^"***"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) +
   # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("CPUE (scaled per species)", expand = c(0,-0.01)) + 
-  theme_light(base_size = 14) +
-  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099"), expand = c(0,0.04)) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
+  scale_y_continuous("CPUE (scaled per species)") + coord_cartesian(xlim = c(0.5, 13.6), ylim = c(0.02, 0.97)) +
+  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
+  theme_light(base_size = 14) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
 
-# ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
-
+ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
+#
 ```
 
 So, overall, we observe a significant influence of the moon, with higher catches around the new moon for all quantiles, the influence being higher for higher quantiles : highest catches systematically occur around the new moon, even more than average catches. 
@@ -437,6 +454,12 @@ ggplot(llrq_fit) +
 # Find min and max of q90
 head(llrq_fit)
 llrq_fit %>% group_by(Tau) %>% summarize(min = min(fit), max=max(fit), sd = sd(fit))
+
+
+#--- Check species richness over the season
+head(d)
+div <- d %>% group_by(month) %>% summarise(div = length(unique(species)))
+ggplot(div, aes(x = month, y = div)) + geom_bar(stat = "identity")
 
 
 ```
