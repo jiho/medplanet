@@ -65,11 +65,11 @@ ggplot(effort) +
 ggsave("figures/Fig2_sampling_effort.pdf", width=6, height=3)
 ```
 
-Resulting in a total of `r nrow(effort)` nights sampled, in `r nrow(sites)` sites.
+Resulting in a total of `r nrow(effort)` nights sampled, the deployment of `r sum(summary_effort$n_CARE_fished)` CAREs, over `r nrow(sites)` sites.
 
 ## Sampling effort
 
-At each sites, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the report. Unless otherwise stated, it includes nights with 0 catches.
+At each site, CARE light traps were deployed at several stations. The number of fish caught was summed per site and divided by the number of CARE observed to be working when collected in the morning, to compensate for sampling effort. This Catch Per Unit Effort (cpue = nb fish / CARE / night / site) is the unit used in the rest of the work. Unless otherwise stated, it includes nights with 0 catches.
 
 Statistics on the number of CARE working per night at each site are
 
@@ -80,18 +80,11 @@ effort %>% group_by(site) %>% sum_tbl("n_gear") %>% select(-n, -n_NA, -starts_wi
 
 ## Distribution of catches
 
-We focus on *coastal fish* taxa only. A total of `r sum(d$n)` larvae were caught. The most commonly observed catch per night per CARE (CPUE), is 0, by far (the bars represent the number of times a given CPUE was observed in the dataset).
+We focus on *coastal fish* taxa only. A total of `r sum(d$n)` larvae were caught. The most commonly observed catch per night per CARE (CPUE), is 0, by far (the bars represent the number of times a given CPUE was observed in the dataset) and detailed numerical statistics are given below
 
 ```{r}
 dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=sum(cpue))
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
-
-# Compute mean CPUE
-d0 %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(meanCPUE=mean(cpue, trim = 0), sd = sd(cpue))
-# # A tibble: 1 × 2
-#   meanCPUE    sd
-#      <dbl> <dbl>
-#  1      4.5   30
 
 d0 %>% filter(cpue < 500) %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% group_by(site) %>% summarize(meanCPUE=mean(cpue, trim = 0.0), sd = sd(cpue))
 # # A tibble: 13 × 3
@@ -110,12 +103,8 @@ d0 %>% filter(cpue < 500) %>% group_by(site, date) %>% summarize(cpue=sum(cpue))
 # 11     Bonifacio     4.07  12.0
 # 12 Saint Florent    17.59  51.0
 # 13        Bastia     1.08   2.3
-
-cpue_stats <- dd %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup() %>% summarize(mean=mean(cpue), sd=sd(cpue), median=median(cpue), mad=mad(cpue))
+dd %>% ungroup() %>% summarise(min=min(cpue), q25=quantile(cpue, 0.25), med=median(cpue), mean=mean(cpue), q75=quantile(cpue, 0.75), max=max(cpue), sd=sd(cpue), mad=mad(cpue))
 ```
-
-Pooling accross sites, CPUEs were `r cpue_stats$mean`+/-`r cpue_stats$sd` (mean+/-sd) or, more robustly, `r cpue_stats$median`+/-`r cpue_stats$mad` (median+/-mad).
-
 
 Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
 
