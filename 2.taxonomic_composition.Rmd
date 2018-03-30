@@ -1,6 +1,7 @@
 ---
 output: 
   html_document:
+    css: mypaper.css
     df_print: kable
     theme: paper
     toc: yes

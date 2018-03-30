@@ -1,12 +1,13 @@
 ---
 output: 
   html_document:
+    css: mypaper.css
     df_print: kable
     theme: paper
-    toc: true
+    toc: yes
     toc_depth: 4
     toc_float:
-      collapsed: false
+      collapsed: no
 ---
 
 ```{r load, message=FALSE, echo=FALSE}
