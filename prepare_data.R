@@ -293,11 +293,12 @@ filter(filter(d, n==0), !is.na(family))
 taxo <- unique(select(d, family, genus, species, sp))
 taxo <- arrange(taxo, family, genus, species, sp)
 
-d0 <- ddply(d, ~date+n_gear+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
-  x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
+d0 <- d %>% group_by(date, n_gear, year, month, yday, yweek, days_since_start, weeks_since_start, site, lon, lat) %>% do({
+  x <- select(., family, genus, species, cpue)
+  x <- full_join(x, taxo, by=c("family", "genus", "species"))
   x$cpue[is.na(x$cpue)] <- 0
-  return(x)
-}, .progress="text")
+  x
+})
 
 # remove lines with only NA taxonomic specification (were used to specify 0 catches)
 d0 <- d0[-which(is.na(d0$family) & is.na(d0$genus) &  is.na(d0$species)),]
