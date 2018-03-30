@@ -107,7 +107,7 @@ head(ra_genus, n=10) %>% dplyr::rename(`rel. abund. %`=ra, `cum. abund. %`=cum)
 dd <- filter(d, !is.na(species))
 ra_species <- dd %>% group_by(species) %>% summarise(ra = (sum(n)*100)/sum(dd$n)) %>% arrange(desc(ra))
 ra_species$cum <- cumsum(ra_species$ra)
-head(ra_species, n=10) %>% dplyr::rename(`rel. abund. %`=ra, `cum. abund. %`=cum)
+head(ra_species, n=12) %>% dplyr::rename(`rel. abund. %`=ra, `cum. abund. %`=cum)
 ```
 
 At the level of a any given taxon, the catch is most often < 1 fish/CARE/night/site and very variable. Despite the extreme variability, the most abundant taxa in CARE catches are not surprising given what we know of the coastal adult populations.
