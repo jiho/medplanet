@@ -74,15 +74,15 @@ ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=3)
 ```
 
 ```{r map}
-# Same information on a map with q75 in blue, median in green, and q25 in yellow.
-# add site coordinates
-dd_summary <- left_join(dd_summary, sites, by="site")
-cols <- viridis_colors(4)[-1]
-map +
-  geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
-  geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
-  geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
-  scale_size_area(max_size=20, guide="none")
+# # Same information on a map with q75 in blue, median in green, and q25 in yellow.
+# # add site coordinates
+# dd_summary <- left_join(dd_summary, sites, by="site")
+# cols <- viridis_colors(4)[-1]
+# map +
+#   geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
+#   geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
+#   geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
+#   scale_size_area(max_size=20, guide="none")
 ```
 
 When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The reason is that the higher quantiles (which look very different) may be more difficult to test, hence the lower significance.
