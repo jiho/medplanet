@@ -237,7 +237,7 @@ Comparing the list in french species recorded in Louisy and the list from CARE c
 
 Among families which are caught, the following genera were never caught either in this study:
 
-```{r}
+```{r uncaught_genera}
 filter(l_demersal, ! family %in% uncaught_families &! genus %in% unique(d$genus)) %>% select(family, genus) %>% unique() %>% arrange(family, genus)
 ```
 
