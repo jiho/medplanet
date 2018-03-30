@@ -1,8 +1,13 @@
 ---
 output: 
   html_document:
-    theme: null
-    css: document.css
+    css: mypaper.css
+    df_print: kable
+    theme: paper
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
 ---
 
 ```{r load, message=FALSE, echo=FALSE}
@@ -17,7 +22,6 @@ library("stringr")
 library("lubridate")
 library("plyr")
 library("tidyverse")
-library("printr")
 
 library("vegan")
 library("FactoMineR")
