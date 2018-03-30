@@ -231,16 +231,18 @@ range(d$lon)
 coast <- read.csv("data/gshhg_nw_med_h.csv")
 
 # and plot it
-map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
-  geom_polygon(data=coast, fill="white", colour="grey50", size=0.25),
+lon_labels <- function(x) {
+  paste0(x, "ºE")
+}
+lat_labels <- function(x) {
+  paste0(x, "ºN")
+}
+basemap <- ggplot(mapping=aes(x=lon, y=lat)) + list(
   coord_quickmap(),
-  scale_x_continuous(expand=c(0,0)), scale_y_continuous(expand=c(0,0)),
-  theme(
-    axis.ticks=element_blank(),
-    axis.title=element_blank(),
-    axis.text=element_blank()
-  )
+  scale_x_continuous(expand=c(0,0), labels=lon_labels), scale_y_continuous(expand=c(0,0), labels=lat_labels),
+  theme(axis.title=element_blank())
 )
+map <- basemap + geom_polygon(data=coast, fill="white", colour="grey50", size=0.25)
 map
 
 
@@ -310,4 +312,4 @@ d <- filter(d, cpue != 0)
 
 ## Save data ----
 
-save(d, d0, effort, sites, map, taxo, file="data.rda")
+save(d, d0, effort, sites, basemap, map, taxo, file="data.rda")
