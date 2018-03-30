@@ -93,43 +93,70 @@ aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
 
 In terms of pairwise differences:
 
-- q=0.25: Saint-Florent is different, higher than others
-- q=0.5: Marseille and Bastia are lower
-- wilcox: Marseille and Bastia are lower, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
-- q=0.75: ?
+- q=0.25: Saint-Florent is higher than others
+- q=0.5: Marseille and Bastia are lower, Villefranche and La Ciotat are higher
+- q=0.75: Bastia is lower
 - q=0.9: Villefranche is higher than others; probably because it is more easily estimated (more effort).
+- wilcox: Marseille and Bastia are lower, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
 
-Also, Saint Florent, Bonifacio, Villefranche, Port-Cros, Les embiez, La Ciotat, Cassis are never different.
+Also, Saint Florent, Bonifacio, Villefranche, Port-Cros, Les Embiez, La Ciotat, Cassis are never significantly different from each other.
+
 
 ```{r pairwise_among_sites}
+# compute pairwise AOV
 pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
+# and pairwise wilcoxon tests
 pww <- suppressWarnings(pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method="holm"))
 pwa$wilcox <- pww
 ```
 
-```{r plot_among_sites, fig.height=7}
-# reformat data as data.frame
+```{r plot_among_sites, fig.height=8}
+# reformat pairwise p-value tables as data.frame
 pw <- ldply(pwa, tidy)
-pw$signif <- pw$p.value < 0.05
 pw$group1 <- factor(pw$group1, levels=sites$site)
 pw$group2 <- factor(pw$group2, levels=sites$site)
-# make symmetric
-pw <- bind_rows(pw, dplyr::rename(pw, group1=group2, group2=group1))
+# label signficant tests
+pw$signif <- pw$p.value <= 0.05
+
+# compute the actual values of the quantiles
+q <- dd %>% group_by(site) %>% 
+  summarise(
+    `0.25`=quantile(cpue, 0.25),
+    `0.5` =quantile(cpue, 0.5),
+    `0.75`=quantile(cpue, 0.75),
+    `0.9` =quantile(cpue, 0.9)
+  ) %>% 
+  gather(key=".id", value="value", -site)
+# and the values of the pairwise difference in quantile
+pw$q.diff <- q$value[match(pw$group1, q$site)] - q$value[match(pw$group2, q$site)]
+
+# make the matrices symmetric, with difference in quantiles at the top and p-values at the bottom
+pw <- bind_rows(
+  pw %>% mutate(q.diff=NA),
+  dplyr::rename(pw, group1=group2, group2=group1) %>% mutate(p.value=NA)
+)
+
 # plot
 ggplot(pw, aes(group1, group2)) +
-  geom_point(aes(colour=p.value), na.rm=T, size=5, shape=15) +
+  # plot difference in quantiles
+  geom_point(aes(colour=q.diff), na.rm=T, size=5, shape=15) +
+  # plot p-value
+  geom_point(aes(fill=p.value), na.rm=T, size=6, shape=22, stroke=0) +
+  # mark significant differences
   geom_point(colour="red", na.rm=T, size=5, shape=22, data=filter(pw, signif)) +
+  # reformat
   facet_wrap(~.id, ncol=2) + coord_fixed() +
-  scale_colour_distiller("p", palette="YlGnBu", direction=1) +
+  scale_colour_gradient2("Quantile diff\n(row-col)", na.value=NA, low="#7b3294", mid="#f7f7f7", high="#008837") +
+  scale_fill_distiller("p-value", palette="PuBu", direction=1, na.value=NA) +
   theme(
     legend.position=c(0.75, 0.15), legend.direction="horizontal",
-    # axis.text.x=element_text(angle=35, hjust=1),
-    axis.text.x=element_blank(), axis.ticks.x=element_blank(),
+    axis.text.x=element_text(angle=65, hjust=1),
+    # axis.text.x=element_blank(), axis.ticks.x=element_blank(),
     axis.title=element_blank()
   )
 ```
 
-Overall, it seems Bonifacio, Cassis, and Carry are difficult to evaluate (low sampling effort); Bastia, Marseille, Agde, Port-Vendres, and Leucate yield low catches; Saint-Florent, Villefranche, Port-Cros, Les Embiez, La Ciotat yiled high catches.
+Overall, it seems Bonifacio, Cassis, and Carry are difficult to evaluate (low sampling effort); Bastia, Marseille, Agde, Port-Vendres, and Leucate yield low catches; Saint-Florent, Villefranche, Port-Cros, Les Embiez, La Ciotat yield high catches.
 
 Test whether these differences are linked with geomorphological regions:
 
