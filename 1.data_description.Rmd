@@ -1,4 +1,5 @@
 ---
+title: Description of data
 output: 
   html_document:
     css: mypaper.css
@@ -25,8 +26,6 @@ library("ggrepel")
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 ```
-
-# Description of data
 
 
 ## Spatial scope

@@ -1,4 +1,5 @@
 ---
+title: Spatial distribution
 output: 
   html_document:
     css: mypaper.css
@@ -35,8 +36,6 @@ source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
 source("lib_quantreg.R")    # perform quantile regression
 ```
-
-# Spatial distribution
 
 ## Abundances among sites
 

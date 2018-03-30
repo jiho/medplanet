@@ -1,4 +1,5 @@
 ---
+title: Taxonomic composition
 output: 
   html_document:
     css: mypaper.css
@@ -28,8 +29,6 @@ source("lib_plot.R")    # colour scales and theme
 source("lib_data_manip.R")
 ```
 
-
-# Taxonomic composition
 
 ## Description
 
