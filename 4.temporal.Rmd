@@ -656,7 +656,6 @@ ggplot(dd) +
   facet_wrap(~species, ncol=3) + geom_vline(xintercept = 0,linetype="dashed") + xlab("")
 
 
-
 ###--- Winter species should be handle differently (because around new year)
 
 # Select winter species 
@@ -732,9 +731,6 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
 
-
-
-
 # Additionnaly check first occurrence per year
 week_first_occ <- samples %>% group_by(species,site,year) %>% summarise(ref_week_first_occ=min(yweek))
 # average week of first occ among sites
@@ -770,11 +766,6 @@ suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.f
 
 # join with topography
 samples <- left_join(samples, select(sites, site, rhone, topography))
-
-#Compute the mean arrival week by species/sites/year
-ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
-ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
-
 
 #Join the two data.frame to comute lag time for each site
 lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
@@ -908,5 +899,9 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("site", "yea
 # 10   2014       Leucate -2.21±4.4   -1.5      11.5   0.033
 
 
-```
 
+# Compute differences among sites
+diff2014_2013 <- filter(week_first_occ, year == 2014)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
+diff2015_2013 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
+diff2015_2014 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2014)$ref_wee
+```

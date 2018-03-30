@@ -174,7 +174,6 @@ dd %>% group_by(rhone) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantil
 #          <fctr> <dbl> <dbl> <dbl> <dbl>
 # 1 West of Rhone   1.7     3     2   3.8
 # 2 East of Rhone   5.5    35     3   9.2
-
 ```
 
 ### Per species
