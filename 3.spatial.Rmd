@@ -28,7 +28,6 @@ library("FactoMineR")
 library("factoextra")
 library("NbClust")
 library("ggdendro")
-library("viridis")
 library("zoo")
 
 source("lib_plot.R")        # colour scales and theme
@@ -79,7 +78,7 @@ ggplot(ungroup(dd)) + geom_boxplot(aes(x=site, y=cpue, fill=..middle..), na.rm=T
 # Same information on a map with q75 in blue, median in green, and q25 in yellow.
 # add site coordinates
 dd_summary <- left_join(dd_summary, sites, by="site")
-cols <- viridis(4)[-1]
+cols <- viridis_colors(4)[-1]
 map +
   geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
   geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
