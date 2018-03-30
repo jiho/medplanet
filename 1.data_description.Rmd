@@ -1,8 +1,12 @@
 ---
 output: 
   html_document:
-    theme: null
-    css: document.css
+    df_print: kable
+    theme: paper
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
 ---
 
 ```{r load, message=FALSE, echo=FALSE}
@@ -16,7 +20,6 @@ load("data.rda")
 library("tidyverse")
 library("stringr")
 library("ggrepel")
-library("printr")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables

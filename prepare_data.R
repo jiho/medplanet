@@ -231,18 +231,16 @@ range(d$lon)
 coast <- read.csv("data/gshhg_nw_med_h.csv")
 
 # and plot it
-lon_labels <- function(x) {
-  paste0(x, "ºE")
-}
-lat_labels <- function(x) {
-  paste0(x, "ºN")
-}
-basemap <- ggplot(mapping=aes(x=lon, y=lat)) + list(
+map <- ggplot(mapping=aes(x=lon, y=lat)) + list(
+  geom_polygon(data=coast, fill="white", colour="grey50", size=0.25),
   coord_quickmap(),
-  scale_x_continuous(expand=c(0,0), labels=lon_labels), scale_y_continuous(expand=c(0,0), labels=lat_labels),
-  theme(axis.title=element_blank())
+  scale_x_continuous(expand=c(0,0)), scale_y_continuous(expand=c(0,0)),
+  theme(
+    axis.ticks=element_blank(),
+    axis.title=element_blank(),
+    axis.text=element_blank()
+  )
 )
-map <- basemap + geom_polygon(data=coast, fill="white", colour="grey50", size=0.25)
 map
 
 
@@ -295,12 +293,11 @@ filter(filter(d, n==0), !is.na(family))
 taxo <- unique(select(d, family, genus, species, sp))
 taxo <- arrange(taxo, family, genus, species, sp)
 
-d0 <- d %>% group_by(date, n_gear, year, month, yday, yweek, days_since_start, weeks_since_start, site, lon, lat) %>% do({
-  x <- select(., family, genus, species, cpue)
-  x <- full_join(x, taxo, by=c("family", "genus", "species"))
+d0 <- ddply(d, ~date+n_gear+year+month+yday+yweek+days_since_start+weeks_since_start+site+lon+lat, function(x) {
+  x <- full_join(select(x, family, genus, species, cpue), taxo, by=c("family", "genus", "species"))
   x$cpue[is.na(x$cpue)] <- 0
-  x
-})
+  return(x)
+}, .progress="text")
 
 # remove lines with only NA taxonomic specification (were used to specify 0 catches)
 d0 <- d0[-which(is.na(d0$family) & is.na(d0$genus) &  is.na(d0$species)),]
