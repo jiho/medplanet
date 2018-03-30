@@ -92,13 +92,13 @@ dd %>% ungroup() %>% summarise(min=min(cpue), q25=quantile(cpue, 0.25), med=medi
 Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
 
 ```{r}
-ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10")
+ggplot(filter(dd, cpue > 0)) + geom_histogram(aes(x=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10")
 ```
 
 However, in terms of total number of fish supplied to the coast, its the rare, very high CPUE nights that contribute the most; the following plot is basically the previous one where each bar is multiplied by the number of larvae it corresponds to.
 
 ```{r}
-ggplot(dd) + geom_histogram(aes(x=cpue, weight=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10") + labs(y="number of larvae")
+ggplot(filter(dd, cpue > 0)) + geom_histogram(aes(x=cpue, weight=cpue), binwidth=0.1, na.rm=T) + scale_x_continuous(breaks=c(0, 1, 10, 100, 1000), trans="log10") + labs(y="number of larvae")
 ```
 
 ```{r}
