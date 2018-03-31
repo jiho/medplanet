@@ -97,14 +97,15 @@ In terms of pairwise differences:
 - q=0.5: Marseille and Bastia are lower, Villefranche and La Ciotat are higher
 - q=0.75: Bastia is lower
 - q=0.9: Villefranche is higher than others; probably because it is more easily estimated (more effort).
-- wilcox: Marseille and Bastia are lower, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
+- wilcox: Marseille and Bastia are lower; La Ciotat, Port-Cros and St-Florent are higher; Carry is often barely signif and would be similar to Marseille.
 
 Also, Saint Florent, Bonifacio, Villefranche, Port-Cros, Les Embiez, La Ciotat, Cassis are never significantly different from each other.
 
+NB: The p-values seem quite sensitive and may change form run to run. We need to reason in terms of global behaviour and trend of the p-value. 
 
 ```{r pairwise_among_sites}
 # compute pairwise AOV
-pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=1000))
+pwa <- suppressMessages(pairwise.aovq(dd$cpue, dd$site, tau=c(0.25, 0.5, 0.75, 0.9), R=2000))
 # and pairwise wilcoxon tests
 pww <- suppressWarnings(pairwise.wilcox.test(dd$cpue, dd$site, p.adjust.method="holm"))
 pwa$wilcox <- pww
@@ -116,7 +117,7 @@ pw <- ldply(pwa, tidy)
 pw$group1 <- factor(pw$group1, levels=sites$site)
 pw$group2 <- factor(pw$group2, levels=sites$site)
 # label signficant tests
-pw$signif <- pw$p.value <= 0.05
+pw$signif <- pw$p.value <= 0.06
 
 # compute the actual values of the quantiles
 q <- dd %>% group_by(site) %>% 
@@ -149,6 +150,7 @@ ggplot(pw, aes(group1, group2)) +
   scale_colour_gradient2("Quantile diff\n(row-col)", na.value=NA, low="#7b3294", mid="#f7f7f7", high="#008837") +
   scale_fill_distiller("p-value", palette="PuBu", direction=1, na.value=NA) +
   theme(
+    panel.background=element_blank(), panel.grid=element_blank(),
     legend.position=c(0.75, 0.15), legend.direction="horizontal",
     axis.text.x=element_text(angle=65, hjust=1),
     # axis.text.x=element_blank(), axis.ticks.x=element_blank(),
