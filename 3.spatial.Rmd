@@ -826,7 +826,6 @@ t
 ```
 
 ```{r emblematic species}
-
 # Mérou
 data.frame(filter(d, species == "Epinephelus marginatus"))
 
@@ -842,3 +841,4 @@ data.frame(filter(d, species == "Dentex dentex"))
 
 # Corb
 data.frame(filter(d, species == "Sciaena umbra"))
+```
