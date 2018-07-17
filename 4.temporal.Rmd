@@ -62,7 +62,7 @@ dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
 
 ```{r llrq}
 # system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="nid"))
-system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
+system.time(llrq_fit <- llrq(dd$days, dd$cpue, tau=q, bw=20, n=200, .parallel=F, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
 
 llrq_fit$date <- min(dd$date) + llrq_fit$x * 24 * 3600
 llrq_fit$lower[llrq_fit$lower < 0] <- 0
@@ -122,7 +122,7 @@ qm <- dd %>% group_by(site) %>% do({
   # permutations
   pqm <- laply(1:1000, function(i) {
     as.matrix(quantilogram(.$days, sample(.$cpue), dist.max=365*1.2, breaks=breaks, tau=q)$quantilogram)
-  }, .parallel=TRUE)
+  }, .parallel=F)
   qm$q1 <- melt(aaply(pqm, 2:3, quantile, probs=0.025))$value
   qm$q2 <- melt(aaply(pqm, 2:3, quantile, probs=0.975))$value
   
@@ -139,7 +139,7 @@ ggplot(qm) + facet_grid(Tau~site) +
   geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.7, data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
 
 # save graph
-ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
+# ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
 
 # and zoom on small scale variability
 last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
@@ -221,7 +221,7 @@ count(d0m, moon_phase)
 # 1600  900 1000 1300 1300 1600 1900 2400 2200 2800 3400 4401 5700 8402 9900 8800 9400 7700 6600 5500 4100 4400 2900 2200 1900 2500 1800  900 
 
 # Plot effort at each moon phase
-ggplot(count(d0m, moon_phase)) + geom_bar(aes(x = abs(moon_phase), y = n), stat = "identity"))
+ggplot(count(d0m, moon_phase)) + geom_bar(aes(x = abs(moon_phase), y = n), stat = "identity")
 
 
 
@@ -271,7 +271,7 @@ dplot <- arrange(dplot, range)
 # order species per mean of arrival during lunar month
 # unique(dplot$species)
 # dplot$species <- factor(x = dplot$species, labels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)], levels = unique(dplot$species)[c(7, 16, 10, 2:3, 5:6, 8:9, 11:15, 18:19, 4, 17, 1)])
-dplot$species <- factor(x = dplot$species, labels = unique(dplot$species), levels = unique(dplot$species))
+dplot$species <- factor(x = dplot$species, labels = unique(dplot$species), levels = unique(dplot$species), exclude=NULL)
 
 # plot distribution of arrival through lunar month
 ggplot(filter(dplot, !species %in% "Atherina hepsetus") ) + geom_bar(aes(x=moon_phase, y=cpue), fill="grey30", colour=NA, stat = 'identity') + facet_wrap(~species, ncol=3, scales = "free_y") + moon_x + labs(y="total number of larvae (scaled per species)")
@@ -390,7 +390,7 @@ ggplot(mapping=aes(x=moon_phase)) +
   scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
   theme_light(base_size = 14) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
 
-ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
+# ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
 #
 ```
 
@@ -403,7 +403,7 @@ Unsurprisingly, the catch is very seasonal, with higher catches from May to mid-
 
 ```{r}
 dd <- d0 %>% group_by(date, yday, year, site) %>% summarise(cpue=sum(cpue))
-dd$fake_date <- ymd("2014-01-01") + days(dd$yday)
+dd$fake_date <- ymd("2012-01-01") + days(dd$yday) # put 2012 because it had 366 days
 
 q <- c(.25, .5, .75, .9)
 
@@ -427,7 +427,7 @@ q <- c(.25, .5, .75, .9)
 system.time(llrq_fit <- llrq(dd$yday, dd$cpue, tau=q, bw=20, n=200, .parallel=T, .progress="text", smooth=1, interval="conf", se="boot", bsmethod="xy", R=1000))
 # stopImplicitCluster()
 
-llrq_fit$fake_date  <- ymd("2014-01-01") + llrq_fit$x
+llrq_fit$fake_date  <- ymd("2012-01-01") + llrq_fit$x
 llrq_fit$lower[llrq_fit$lower < 0] <- 0
 
 head(llrq_fit)
@@ -511,7 +511,7 @@ dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
 # order species by average/first date of arrival
 order <- dd %>%
   group_by(species) %>%
-  filter(cpue > median(cpue)) %>% 
+  filter(cpue > median(cpue)) %>%
   summarise(avg_date=weighted.mean(yweek, scaled_cpue), first_date=min(yweek)) %>%
   arrange(first_date)
 
@@ -667,12 +667,15 @@ fake_week <- week("2012-07-01")
 
 
 ## Modify day and week according to this new date
-winter$yday_shifted <- round(yday(winter$date)-fake_date, 0) %% 365 # diff of number of day since mid year, and modulo 365 (days per year) to center on new year
+winter$yday_shifted <- round(yday(winter$date)-fake_date, 0) %% 365 # diff of number of day since mid year, and modulo 365 (days per year) to center on new year -> min=1,  max=183
+
+
 # Same for week
 winter$yweek_shifted <- round(week(winter$date)-fake_week, 0) %% 52
+# same as for days, but max=26
 
 
-## So if we remove the season 2015-2016 (because of not data in begging 2016) we can
+## So if we remove the season 2015-2016 (because of no data in the beggining of 2016) we can
 ## consider 2012-2013 = 2012 season, 2013-2014 = 2013 season, 2014-2015 = 2014 season
 winter$year_shifted <- winter$year
 winter$year_shifted[which(winter$year == 2012 & winter$yday > 183)] <- "2013"
@@ -692,7 +695,7 @@ winter <- select(winter, date, year=year_shifted, yday=yday_shifted, yweek=yweek
 ```{r}
 
 # Select summer species
-summer <- dd %>% filter(species %in% interest_species) %>% filter(species != c("Sarpa salpa", "Pagellus acarne")) %>% ungroup()
+summer <- dd %>% filter(species %in% interest_species) %>% filter(!species %in% c("Sarpa salpa", "Pagellus acarne")) %>% ungroup()
 
 # Add winter species
 samples <- rbind(summer, winter)
@@ -730,6 +733,12 @@ suppressWarnings (test <- lag %>% group_by(year) %>% do(glance(wilcox.test(.$lag
 
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by="year") %>% ungroup()
+#   year  stats     median statistic   p.value
+#   <fct> <chr>      <dbl>     <dbl>     <dbl>
+# 1 2013  0.75±5.9       1     2096. 0.238    
+# 2 2014  -0.44±6.6     -1     2116. 0.0328   
+# 3 2015  -2.64±6.1     -2      258. 0.0000502
+
 
 # Additionnaly check first occurrence per year
 week_first_occ <- samples %>% group_by(species,site,year) %>% summarise(ref_week_first_occ=min(yweek))
@@ -738,8 +747,9 @@ week_first_occ <- week_first_occ %>% group_by(species, year) %>% summarise(ref_w
 
 # Compute differences among sites
 diff2014_2013 <- filter(week_first_occ, year == 2014)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
-diff2015_2013 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
-diff2015_2014 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2014)$ref_week_first_occ
+diff2015_2013 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2013, !species=="Scorpaena porcus")$ref_week_first_occ
+diff2015_2014 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2014, !species=="Scorpaena porcus")$ref_week_first_occ
+# S. porcus was not caught in 2015 and so it shambled the difference in the timing of first arrival 
 
 data.frame(
   diff2014_2013 = str_c(round_any(mean(diff2014_2013), 0.01), "±", 
@@ -749,23 +759,40 @@ data.frame(
 #   diff2014_2013 diff2015_2014
   diff2015_2014 = str_c(round_any(mean(diff2015_2014), 0.01), "±", 
                         round_any(sd(diff2015_2014), 0.01)))
-#   diff2014_2013 diff2015_2013 diff2015_2014
-# 1    -0.47±4.39    -2.11±6.64    -1.63±6.43
+  # diff2014_2013 diff2015_2013 diff2015_2014
+# 1    -0.68±5.25    -2.56±5.82    -1.56±6.88
 
-# Check if significant
-suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.frame(first_occ = diff2015_2014), data.frame(first_occ = diff2015_2013)), years = c(rep("2014-2013", 19), rep("2015-2014", 19), rep("2015-2013", 19))) %>% group_by(years) %>% do(glance(wilcox.test(.$first_occ,mu = 0,alternative = "less"))))
+# Check if significant lower in the next year
+suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.frame(first_occ = diff2015_2014), data.frame(first_occ = diff2015_2013)), years = c(rep("2014-2013", 19), rep("2015-2014", 18), rep("2015-2013", 18))) %>% group_by(years) %>% do(glance(wilcox.test(.$first_occ,mu = 0,alternative = "less"))))
 #       years statistic p.value                                               method alternative
-# 1 2014-2013        66   0.317 Wilcoxon signed rank test with continuity correction        less
-# 2 2015-2013        48   0.030 Wilcoxon signed rank test with continuity correction        less
-# 3 2015-2014        52   0.071 Wilcoxon signed rank test with continuity correction        less
+# 1 2014-2013      66   0.317   Wilcoxon signed rank test with continuity correction less       
+# 2 2015-2013      18   0.00171 Wilcoxon signed rank test with continuity correction less       
+# 3 2015-2014      43.5 0.0611  Wilcoxon signed rank test with continuity correction less 
 # No significant difference in the timing of first arrival except between 2015-2013
+
+
+# Same but two-sided
+suppressWarnings (data.frame(rbind(data.frame(first_occ = diff2014_2013), data.frame(first_occ = diff2015_2014), data.frame(first_occ = diff2015_2013)), years = c(rep("2014-2013", 19), rep("2015-2014", 18), rep("2015-2013", 18))) %>% group_by(years) %>% do(glance(wilcox.test(.$first_occ,mu = 0,alternative = "two"))))
+#   years     statistic p.value method                                               alternative
+# 1 2014-2013      66   0.635   Wilcoxon signed rank test with continuity correction two.sided  
+# 2 2015-2013      18   0.00342 Wilcoxon signed rank test with continuity correction two.sided  
+# 3 2015-2014      43.5 0.122   Wilcoxon signed rank test with continuity correction two.sided 
+
+# Although providing pretty similar results, testing for difference in the mean timing of arrival is more relevant and provides "better"" results (here the p is 0.06, which is tricky to address in the manuscript)
+
 
 
 
 #--- Time arrival per year and topography
 
+samples <- summer
+samples <- rbind(summer, winter)
+
 # join with topography
 samples <- left_join(samples, select(sites, site, rhone, topography))
+
+ref_detailed <- samples %>% group_by(species,site,topography,year) %>% summarise(ref_week_det=round(weighted.mean(yweek, cpue),0))
+ref_sp <- ref_detailed %>% group_by(species, topography) %>% summarise(ref_week_sp = round(mean(ref_week_det),0))
 
 #Join the two data.frame to comute lag time for each site
 lag <- left_join(ref_detailed, ref_sp, by=c("species", "topography"))
@@ -793,13 +820,23 @@ suppressWarnings (test <- lag %>% group_by(year, topography) %>% do(glance(wilco
 left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "topography")) %>% ungroup()
 # # A tibble: 6 × 6
 #     year   topography     stats median statistic p.value
-#   <fctr>       <fctr>     <chr>  <dbl>     <dbl>   <dbl>
-# 1   2013 Gulf of Lion -0.14±6.7      1       364  0.1342
-# 2   2013 Ligurian sea -0.28±5.2      0       540  0.6189
-# 3   2014 Gulf of Lion -0.98±5.1     -1       298  0.1310
-# 4   2014 Ligurian sea -1.26±7.3     -1       661  0.0904
-# 5   2015 Gulf of Lion  -1.4±5.7     -2        83  0.0021
-# 6   2015 Ligurian sea -1.83±5.8     -1        86  0.1819
+# 1 2013  Gulf of Lion 2.42±5.8       1      502. 0.00197  
+# 2 2013  Ligurian sea -0.64±5.2     -1      493  0.232    
+# 3 2014  Gulf of Lion -0.29±7.7     -1      344  0.180    
+# 4 2014  Ligurian sea -0.41±6       -1      734  0.182    
+# 5 2015  Gulf of Lion -3.88±5.5     -3       53  0.0000466
+# 6 2015  Ligurian sea -0.24±5.9     -1      116. 0.498   
+ # Considering or not the winter species does not influence the results (same site*year are significant)
+
+# summer only
+#   year  topography   stats     median statistic   p.value
+#   <fct> <fct>        <chr>      <dbl>     <dbl>     <dbl>
+# 1 2013  Gulf of Lion 1.62±3.7       1     352.  0.00318  
+# 2 2013  Ligurian sea -0.72±4.2      0     438   0.504    
+# 3 2014  Gulf of Lion -0.7±4.5      -1     254.  0.144    
+# 4 2014  Ligurian sea -0.2±4.4      -1     598.  0.296    
+# 5 2015  Gulf of Lion -2.56±2.4     -2      24   0.0000688
+# 6 2015  Ligurian sea -1.05±4.2     -1      68.5 0.284   
 
 
 
@@ -837,13 +874,12 @@ suppressWarnings (test <- lag %>% group_by(year, rhone) %>% do(glance(wilcox.tes
 # make a nice table with both
 left_join(descriptive_stats, select(test, statistic, p.value), by=c("year", "rhone")) %>% ungroup()
 #     year         rhone     stats median statistic p.value
-#   <fctr>        <fctr>     <chr>  <dbl>     <dbl>   <dbl>
-# 1   2013 West of Rhone  0.03±3.8      0       140 0.68339
-# 2   2013 East of Rhone  0.16±5.4      0       877 0.36763
-# 3   2014 West of Rhone -1.41±7.4     -2        87 0.07367
-# 4   2014 East of Rhone -0.69±5.9     -1      1184 0.20129
-# 5   2015 West of Rhone -18.5±7.8    -18         0 0.50000
-# 6   2015 East of Rhone -1.93±4.6     -1       244 0.00065
+# 1 2013  West of Rhone 1.07±4       0        165  0.215  
+# 2 2013  East of Rhone 0.51±6.2     0        852. 0.489  
+# 3 2014  West of Rhone -0.93±8.1   -2         91  0.0938 
+# 4 2014  East of Rhone -0.25±6.1   -1       1197  0.228  
+# 5 2015  West of Rhone -13.5±7.8  -13.5        0  0.5    
+# 6 2015  East of Rhone -1.66±5.4   -1        315  0.00492
 
 
 
@@ -883,7 +919,7 @@ suppressWarnings (test <- lag %>% group_by(site, year) %>% do(glance(wilcox.test
 
 
 # make a nice table with both
-left_join(descriptive_stats, select(test, statistic, p.value), by=c("site", "year")) %>% ungroup()
+data.frame(left_join(descriptive_stats, select(test, statistic, p.value), by=c("site", "year")) %>% ungroup())
 # # A tibble: 26 × 6
 #      year          site     stats median statistic p.value
 #    <fctr>        <fctr>     <chr>  <dbl>     <dbl>   <dbl>
@@ -899,9 +935,4 @@ left_join(descriptive_stats, select(test, statistic, p.value), by=c("site", "yea
 # 10   2014       Leucate -2.21±4.4   -1.5      11.5   0.033
 
 
-
-# Compute differences among sites
-diff2014_2013 <- filter(week_first_occ, year == 2014)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
-diff2015_2013 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2013)$ref_week_first_occ
-diff2015_2014 <- filter(week_first_occ, year == 2015)$ref_week_first_occ - filter(week_first_occ, year == 2014)$ref_wee
 ```
