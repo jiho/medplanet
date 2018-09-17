@@ -142,15 +142,22 @@ qm <- dd %>% group_by(site) %>% do({
 
 qm <- rename(qm, Tau=tau)
 
+# Add ribbon to day 0
+qm$q1[which(qm$dx==0)] <- 0
+qm$q2[which(qm$dx==0)] <- 0
+
+
 # plot result
-sx <- list(scale_x_continuous("Lag", breaks=c(0, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=30.5), labels=c(0, "1 lunar\nmonth", "6 months", "1 year")))
+sx <- list(scale_x_continuous("Lag", breaks=c(0, 1, 3, 7, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=30.5), labels=c(0, "1 day", "3 days", "1 week", "1 lunar\nmonth", "6 months", "1 year"), trans='log1p'), scale_y_continuous("Autocorrelation"))
 ggplot(qm) + facet_grid(Tau~site) +
   geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
   # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
-  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.7, data=filter(qm, dx > 0)) + sx + coord_cartesian(ylim=c(-0.5, 1)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.7, data=filter(qm, dx >= 0)) + sx + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 450)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
 
 # save graph
-# ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 6)
+ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 7)
+ggsave("figures/FigS3a_quantilograms.png", width = 10, height = 7)
+
 
 # and zoom on small scale variability
 last_plot() + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 80))
@@ -387,21 +394,23 @@ qpreds$quantile <- factor(qpreds$tau)
 
 
 # Keep only uniques 
-dd <- dd %>% select(-species) %>% group_by(moon_phase) %>% count(cpue) %>% rename(Occurrence=n) %>% ungroup() %>% as.data.frame()
+dd$cpue_r <- round(dd$cpue, 2) 
+  
+dplot <- dd %>% select(-species) %>% group_by(moon_phase) %>% count(cpue_r) %>% rename(Occurrence=n) %>% ungroup() %>% as.data.frame()
 
 # plot the result
 ggplot(mapping=aes(x=moon_phase)) +
   geom_ribbon(aes(ymin=lower, ymax=higher, fill=quantile), data=qpreds, alpha=0.3) +
   geom_path(aes(y=fit, colour=quantile), data=qpreds) + 
-  geom_point(aes(y=cpue, size = Occurrence), data=dd, alpha=0.5) +
+  geom_jitter(aes(y=cpue), data=dd, alpha=0.5, height=0, width=0.5) +
   scale_color_discrete("Quantiles", labels = c(expression("25%"^"***"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) + 
   scale_fill_discrete("Quantiles", labels = c(expression("25%"^"***"), expression("50%"^"***"), expression("75%"^"***"), expression("90%"^"***"))) +
   # scale_colour_brewer(palette="Reds") + scale_fill_brewer(palette="Reds") +
-  scale_y_continuous("CPUE (scaled per species)") + coord_cartesian(xlim = c(0.5, 13.6), ylim = c(0.02, 0.97)) +
-  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099")) +
+  scale_y_continuous("CPUE (scaled per species)") + coord_cartesian(ylim = c(0.02, 0.97)) +
+  scale_x_continuous("Moon phase", breaks=c(0, 7, 14), labels=c("\U0098", "\U00BA", "\U0099"), limits=c(0, 14), oob = scales::squish) +
   theme_light(base_size = 14) + theme(axis.text.x=element_text(family="Wingdings 2"),legend.text.align = 0)
 
-# ggsave("figures/Fig8_Moon_influence.png", width = 8, height = 5)
+ggsave("figures/Fig8_Moon_influence_jitter.png", width = 8, height = 5)
 #
 ```
 
