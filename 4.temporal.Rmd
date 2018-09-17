@@ -34,12 +34,23 @@ q <- c(.25, .5, .75, .9)    # quantiles of interest
 
 # Temporal variability
 
+## Interannual variability
+dd <- d0 %>% group_by(date, site, year) %>% summarize(cpue=sum(cpue)) %>% ungroup()
+dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
+dd
+
+dd %>% group_by(year) %>% summarize(mean=mean(cpue))
+
+ggplot(dd) + geom_violin(aes(x=year, y=cpue)) + geom_point(aes(x=year, y=cpue), alpha=0.2) + scale_y_continuous("CPUE", trans='log', breaks=c(1, 100)) + scale_x_discrete("") + geom_point(aes(x=year, y=median(cpue)), shape=3, size=10)
+
+
+
 ## Main patterns
 
 The time series of the total CPUE (all species pooled) at each site highlights a seasonal variability, with two peaks of high catches around June and in Autumn.
 
 ```{r ts_data}
-dd <- d0 %>% group_by(site, date) %>% summarize(cpue=sum(cpue)) %>% ungroup()
+dd <- d0 %>% group_by(site, date, year) %>% summarize(cpue=sum(cpue)) %>% ungroup()
 dd$days <- as.numeric((dd$date - min(dd$date)) / (24*3600))
 ```
 
