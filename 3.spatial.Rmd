@@ -19,6 +19,9 @@ source("lib_knitr.R")
 load("data.rda")
 
 # load packages and functions
+# devtools::install_github("jiho/chroma") # CHROMA PACKAGE TO BE DOWNLOADED FROM JIHO's GitHub
+
+
 library("stringr")
 library("lubridate")
 library("plyr")
@@ -30,6 +33,7 @@ library("factoextra")
 library("NbClust")
 library("ggdendro")
 library("zoo")
+library("RColorBrewer")
 
 source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
@@ -216,6 +220,7 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5
 # make a nice table with both
 left_join(descriptive_stats, tests, by="sp") %>% ungroup()
 
+
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
 ```
@@ -230,7 +235,11 @@ descriptive_stats <- d_abund %>%
 tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
 # make a nice table with both
-left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+descriptive_stats <- left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+colnames(descriptive_stats) <- c("Species", "CPUE in W (mean±SD)", "CPUE in LS (mean±SD)", "q25", "q50", "q75", "q90")
+descriptive_stats %>% mutate(q25=if_else(q25>0.001, q25, 0.001), q50=if_else(q50>0.001, q50, 0.001), q75=if_else(q75>0.001, q75, 0.001), q90=if_else(q90>0.001, q90, 0.001))
+
+
 
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=rhone)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
@@ -435,17 +444,20 @@ div_stats <- function(x) {
     data.frame(
       `H mean±sd` = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)), 
       `H med±mad` = str_c(round(median(shannon),2),"±",round(mad(shannon),1)),
-      `P mean±sd` = str_c(round(mean(pielou, na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)),
-      `P med±mad` = str_c(round(median(pielou, na.rm=T),2),"±",round(mad(pielou, na.rm=T),1)),
+      `J mean±sd` = str_c(round(mean(pielou, na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)),
+      `J med±mad` = str_c(round(median(pielou, na.rm=T),2),"±",round(mad(pielou, na.rm=T),1)),
     check.names=F)
   )
 }
 # diversity indices by site and geographic regions
 div %>% do(div_stats(.)) %>% as.data.frame()
 pp <- div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
-ggplot(reshape2::melt(select(pp, site, `H mean±sd`, `P med±mad`), id.vars = "site"), aes(x = site, y = value)) + geom_point() + facet_wrap(~variable, scales = "free_y", ncol = 1)
+ggplot(reshape2::melt(select(pp, site, `H mean±sd`, `J med±mad`), id.vars = "site"), aes(x = site, y = value)) + geom_point() + facet_wrap(~variable, scales = "free_y", ncol = 1)
 div %>% group_by(rhone) %>% do(div_stats(.)) %>% as.data.frame()
 div %>% group_by(topography) %>% do(div_stats(.)) %>% as.data.frame()
+div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
+
+
 
 #Test differences between site/rhone/topography for each index
 # Test for shannon index
@@ -493,7 +505,7 @@ dist_matrix <- vegdist(dd_stand, "euclidian") # compute distance on transformed 
 hdw <- hclust(dist_matrix, method="ward.D2") # compute hierarchical clustering
 
 # Color dendrogram with groups
-cut <- 6
+cut <- 6 # ward.D2 cut at 5, but cutting at 6 enables to discriminate Vlfr from Corsica on Axe 4
 dendr <- dendro_data(hdw, type = "rectangle") 
 clust <- cutree(hdw, k = cut)               # find 'cut' clusters
 clust.df <- data.frame(label = names(clust), cluster = clust)
@@ -527,7 +539,6 @@ N.df <- dendr$segments[N, ]
 N.df$cluster <- N.df$cluster - 1
 
 # Plot the dendrogram
-library("RColorBrewer")
 cols <- colorRampPalette(brewer.pal(7, "Paired"))
 cols <- cols(7)
 myPal <- c( "grey60", cols)
@@ -542,7 +553,8 @@ ggplot() +
    geom_text(data = N.df, aes(x = x, y = y, label = factor(cluster),  colour = factor(cluster + 1)), 
       hjust = 1.5, show.legend = FALSE) +
    geom_text(data = label(dendr), aes(x, y, label = label, colour = factor(cluster)), 
-       hjust = -0.2, size = 3, show.legend = FALSE) +
+       hjust = -0.2, size = 4, show.legend = FALSE) +
+   geom_hline(aes(yintercept=2.85), linetype=2)+
    scale_y_reverse(expand = c(0.2, 0)) + 
    labs(x = NULL, y = NULL) +
    coord_flip() +
@@ -552,13 +564,19 @@ ggplot() +
         axis.title.y = element_blank(),
         panel.background = element_rect(fill = "white"),
         panel.grid = element_blank())
+`
+
+
+
+
+
 
 # Save plot
-# ggsave("figures/dendrogram_sites.pdf", width = 10, height = 4)
+ggsave("figures/dendrogram_sites.pdf", width = 10, height = 3)
 
 
 # Try to find cutoff with some criterion
-NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=12, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=8, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
 # 5 clusters seems to be the best cutoff, but Vlfr with Bastia and Leucate --> due to higher sampling effort=higher diversity ?
 # TODO how to choose?
 
@@ -581,26 +599,33 @@ ca_df$group <- factor(ca_df$group)
 # compute variance explained
 eig <- tidy(ca)
 dims <- names(ca_df)[str_detect(names(ca_df), "Dim")]
-labs <- str_c(dims, " (",round(eig$prop.variance[1:4]*100),"%)")
+labs <- str_c(dims, " (",round(ca$eig[1:4,2]),"%)")
 
 ca_df <- arrange(ca_df, group)
+# ca_df$label[which(ca_df$type=="col")] <- paste("italic('", ca_df$label[which(ca_df$type=="col")], "')", sep="")
+# ca_df$label[which(ca_df$type=="Port Vendres")] <- "Port-Vendres"
+# ca_df$label[which(ca_df$type=="La Ciotat")] <- "La_Ciotat"
+# ca_df$label[which(ca_df$type=="Les Embiez")] <- "Les_Embiez"
+# ca_df$label[which(ca_df$type=="Saint Florent")] <- "Saint-Florent"
+
 # plot result
 p1 <- ggplot(ca_df, aes(x=Dim1, y=Dim2, colour=group)) +
   scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
   geom_point(size=1) +
-  ggrepel::geom_text_repel(aes(label=label), size=1*3.2, segment.alpha=0.7) +
+  ggrepel::geom_text_repel(aes(label=label), size=4.2, segment.alpha=0.8) +
   scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
-  labs(x=labs[1], y=labs[2]) + theme_light()
+  labs(x=labs[1], y=labs[2]) + theme_light(base_size=14)
 p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
   scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
   geom_point(size=1) +
-  ggrepel::geom_text_repel(aes(label=label), size=1*3.2, segment.alpha=0.7) +
+  ggrepel::geom_text_repel(aes(label=label), size=4.2, segment.alpha=0.8) +
   scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
-  labs(x=labs[3], y=labs[4]) + theme_light()
+  labs(x=labs[3], y=labs[4]) + theme_light(base_size=14)
+
 # plot and save graph
-# pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
+pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
 glayout(list(p1, 1, 1), list(p2, 1, 2))
-# dev.off()
+dev.off()
 ```
 
 Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
@@ -694,14 +719,14 @@ Port Vendres is late. Eastern sites are mostly early (La Ciota, Villfranche, and
 ```{r test_anomaly, fig.height=5}
 dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa"))
 ggplot(filter(dp, ! site == "Carry")) +
-  geom_vline(xintercept=0, size=2, colour="grey70") +
-  geom_histogram(aes(x=lag), binwidth=1) +
-  geom_density(aes(x=lag, y=..count..)) +
+  geom_vline(xintercept=0, size=1, colour="grey70") +
+  #geom_histogram(aes(x=lag), binwidth=1) +
+  geom_density(aes(x=lag, y=..count..), adjust=0.5, fill='white') +
   facet_wrap(~site, ncol=3) + theme_light(base_size = 14) + 
-  scale_x_continuous("Lag (in days)") + scale_y_continuous("Count (lag/species/year)")
+  scale_x_continuous("Lag (in days)") + scale_y_continuous("Density", limits=c(0, 1.3), expand=c(0,0))
 
 # Save figure
-ggsave("figures/Fig9_spatial_lag_sites.pdf", width = 8, height = 7)
+ggsave("figures/Fig9_spatial_lag_sites_density.pdf", width = 8, height = 7)
 
 t <- dp %>%
   group_by(site) %>%
@@ -771,7 +796,7 @@ ggplot(dp) +
   facet_wrap(~rhone, ncol=3) + theme_light(base_size = 14) + 
   scale_x_continuous("Lag (in days)") + scale_y_continuous("Count (lag/species/year)")
 
-# Compute test for significativity
+# Compute test for significativity for East and West of Rhone separately (each w/r to 0)
 t <- dp %>%
   group_by(rhone) %>%
   do({
@@ -790,6 +815,12 @@ t
 #          <fctr> <dbl> <dbl> <dbl> <dbl>     <dbl>   <dbl>  <chr>
 # 1 West of Rhone   9.1    28   8.6    17       409   0.057      .
 # 2 East of Rhone  -6.5    21  -7.9    21       346   0.012      *
+
+# Test for differences between East and West of Rhone directly
+glance(wilcox.test(filter(dp, rhone=="West of Rhone")$lag, filter(dp, rhone=="East of Rhone")$lag, alternative = "two.sided")) %>% select(statistic, p.value)
+#   statistic p.value
+# 1      1130  0.0028
+
 
 
 # Compare by Topography
@@ -821,6 +852,12 @@ t
 #         <fctr> <dbl> <dbl> <dbl> <dbl>     <dbl>   <dbl>  <chr>
 # 1 Gulf of Lion   3.7    27   5.4    24       613    0.61       
 # 2 Ligurian sea  -3.7    23  -6.5    19       430    0.16 
+
+
+# Test for differences between Topography directly
+glance(wilcox.test(filter(dp, topography=="Gulf of Lion")$lag, filter(dp, topography=="Ligurian sea")$lag, alternative = "two.sided")) %>% select(statistic, p.value)
+#   statistic p.value
+# 1      1263    0.23
 
 
 ```

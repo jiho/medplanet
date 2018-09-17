@@ -35,9 +35,8 @@ Fish larvae were collected at the following sites
 ```{r}
 # wide map
 med_coast <- read_csv("data/gshhg_i_2018-03-30_17-54-05.csv", col_types=cols())
-basemap + 
-  geom_polygon(data=med_coast, fill="white", color="grey50", size=0.25) +
-  annotate("rect", xmin=2.5, xmax=9.9, ymin=41.2, ymax=44, fill=NA, color="grey30", size=1)
+ggplot() +  geom_polygon(data=med_coast, aes(x=lon, y=lat), fill="white", color="grey50", size=0.25) +
+  annotate("rect", xmin=2.5, xmax=9.9, ymin=41.2, ymax=44, fill=NA, color="grey30", size=1) + coord_quickmap(ylim=c(35, 45))
 ggsave("figures/maps_med.pdf", width=6, height=3)
 
 # sampling sites
