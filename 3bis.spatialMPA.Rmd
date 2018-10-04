@@ -1,0 +1,532 @@
+---
+title: Spatial distribution between MPA vs no MPA sites
+output:
+  html_document:
+  css: mypaper.css
+  df_print: kable
+  theme: paper
+  toc: yes
+  toc_depth: 4
+  toc_float:
+  collapsed: no
+---
+
+```{r load, message=FALSE, echo=FALSE}
+# set knitr options
+source("lib_knitr.R")
+
+# load data
+load("data.rda")
+
+# load packages and functions
+# devtools::install_github("jiho/chroma") # CHROMA PACKAGE TO BE DOWNLOADED FROM JIHO's GitHub
+
+
+library("stringr")
+library("lubridate")
+library("plyr")
+library("tidyverse")
+
+library("vegan")
+library("FactoMineR")
+library("factoextra")
+library("NbClust")
+library("ggdendro")
+library("zoo")
+library("RColorBrewer")
+
+source("lib_plot.R")        # colour scales and theme
+source("lib_data_manip.R")  # summarise tables
+source("lib_factorial.R")   # extract and plot info from CAs
+source("lib_quantreg.R")    # perform quantile regression
+```
+
+```{r test_anomaly_between_MPA}
+# Add MPA variable to the dataset
+# Port-Vendres, Carry, Les Embiez, Port-Cros, Saint-Florent, and Bonifacio were located within or close to (<5 km) a Marine Protected Area (MPA); Agde, Villefranche, La Ciotat, and Cassis were located in areas of limited urbanisation; Marseille and Carry were located within the bay of Marseille
+sites$protection <- c("no-MPA", "MPA", "no-MPA", "MPA", "no-MPA", "no-MPA", "no-MPA", "MPA", "MPA", "no-MPA", "MPA", "MPA", "no-MPA")
+data.frame(sites)
+
+d0 <- left_join(d0, select(sites, site, protection))
+
+## Abundances among sites
+
+### Total community
+```{r summary_table}
+dd <- d0 %>% group_by(protection, date) %>% summarise(cpue=sum(cpue))
+
+# ggplot(dd) + geom_path(aes(x=cpue, linetype=site, color=site, y=..scaled..), stat="density", bw=0.2) + theme(legend.position=c(0.8, 0.8), legend.key.width=unit(10, "mm")) + labs(y="Scaled probability density")
+# last_plot() + scale_x_continuous(trans="identity", limits=c(0,10))
+
+dd_summary <- dd %>% sum_tbl("cpue") %>% select(-n, -n_NA)
+dd_summary
+```
+
+```{r boxplot}
+ggplot(dd) + geom_boxplot(aes(x=protection, y=cpue)) + coord_flip() + scale_y_continuous(trans='log')
+```
+
+```{r order}
+# sort in decreasing order of catches to display stats, below
+dd_summary <- arrange(dd_summary, desc(median))
+```
+
+Excluding extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 3)`) and other are consistently low (`r tail(dd_summary$site, 3)`). NB: Keeping only CPUE < 10 only eliminates `r nrow(filter(dd, cpue >= 10))` records out of `r nrow(dd)`. The black squares are quantile=0.9.
+
+```{r zoomed_boxplot, fig.height=4}
+ggplot(dd) +
+  geom_boxplot(aes(x=protection, y=cpue), na.rm=T) +
+  geom_quantiled(mapping=aes(x=dd$protection, y=dd$cpue), quantiles=0.9, colour="black", size=3, shape=0) +
+  coord_flip(ylim=c(0, 13)) + theme(axis.title.y=element_blank())
+# Save plot
+# ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=3)
+```
+
+```{r map}
+# # Same information on a map with q75 in blue, median in green, and q25 in yellow.
+# # add site coordinates
+# dd_summary <- left_join(dd_summary, sites, by="site")
+# cols <- viridis_colors(4)[-1]
+# map +
+#   geom_point(aes(x=lon, y=lat, size=q75), shape=16, data=dd_summary, colour=cols[1], alpha=0.7) +
+#   geom_point(aes(x=lon, y=lat, size=median), shape=16, data=dd_summary, colour=cols[2], alpha=0.7) +
+#   geom_point(aes(x=lon, y=lat, size=q25), shape=16, data=dd_summary, colour=cols[3], alpha=0.7) +
+#   scale_size_area(max_size=20, guide="none")
+```
+
+
+```{r abund_per_protection}
+# add regions for each site
+
+# test MPA vs no MPA
+aovq(cpue ~ protection, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
+# Model 1: cpue ~ protection
+# Model 2: cpue ~ 1
+#    tau Df Resid Df F value Pr(>F)  
+# 1 0.25  1      663    0.59  0.153  
+# 2 0.50  1      663    3.90  0.065 .
+# 3 0.75  1      663   15.22  0.076 .
+# 4 0.90  1      663   83.79  0.008 *
+
+ggplot(dd) + geom_boxplot(aes(x=protection, y=cpue), na.rm = TRUE) + ylim(0, 10)
+
+# get mean CPUE per protection
+dd %>% group_by(protection) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
+# # A tibble: 2 x 5
+#   protection  mean    sd   q75   q90
+#   <chr>      <dbl> <dbl> <dbl> <dbl>
+# 1 MPA        17.1   81.4  6.45  24.2
+# 2 no-MPA      4.48  10.2  3.79  10.9
+```
+
+### Per species
+
+The same tests can be performed per species, to detect if a given species is caught more in the West or in the East. The test was restricted to the most abundant species which are present in both locations. The following table display the mean±SD of the CPUE for each species in each region, together with the statistic and *p*-value of a quantile-based ANOVA between regions.
+
+NB: Test done through rank procedure since bootstrap through anowar does not converge here (=sometimes low sample size, which would make any test problematic).
+
+```{r prepare_sp_data}
+# keep only abundant species, but B boops which is not caught in the West
+d_abund <- filter(d0, species %in% abundant_species)
+
+# remove the extreme values for S smaris
+d_abund <- filter(d_abund, cpue < 200)
+
+# add site characteristics
+d_abund <- left_join(d_abund, sites, by="protection")
+```
+
+```{r sp_protection}
+# protection
+descriptive_stats <- d_abund %>%
+  group_by(sp, protection) %>%
+  summarise(stats=str_c(round(mean(cpue),2), "±", round(sd(cpue),1))) %>%
+  spread(key=protection, value=stats)
+# perform test per species
+tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ protection, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
+
+# make a nice table with both
+descriptive_stats <- left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+
+# make a nice table with both
+colnames(descriptive_stats) <- c("Species", "CPUE in MPA (mean±SD)", "CPUE without MPA (mean±SD)", "q25", "q50", "q75", "q90")
+descriptive_stats %>% mutate(q25=if_else(q25>0.001, q25, 0.001), q50=if_else(q50>0.001, q50, 0.001), q75=if_else(q75>0.001, q75, 0.001), q90=if_else(q90>0.001, q90, 0.001))
+# A tibble: 12 x 7
+#    Species          `CPUE in MPA (mean±SD)` `CPUE without MPA (mean±SD)`     q25   q50     q75    q90
+#    <chr>            <chr>                   <chr>                          <dbl> <dbl>   <dbl>  <dbl>
+#  1 A. hepsetus      0.23±2.6                0.01±0.1                     0.00238 0.001 0.624   0.001 
+#  2 B. boops         0±0                     0.14±1.2                     0.00238 0.001 0.001   0.0121
+#  3 C. chromis       1.33±6.7                0.41±2.9                     0.493   0.001 0.0956  0.001 
+#  4 D. annularis     0.04±0.3                0.31±2.1                     0.00448 0.001 0.001   0.146 
+#  5 G. mediterraneus 0.07±0.5                0.04±0.2                     0.227   0.001 0.001   0.417 
+#  6 M. surmuletus    0.65±4                  0.13±0.9                     0.001   0.865 0.001   0.001 
+#  7 O. melanura      0.06±0.4                0.17±2.3                     0.0242  0.001 0.001   0.001 
+#  8 P. acarne        0.01±0.1                0.15±0.8                     0.378   0.001 0.001   0.001 
+#  9 P. bogaraveo     0.02±0.1                0.09±0.7                     0.535   0.001 0.001   0.235 
+# 10 P. pilicornis    0.43±1.8                0.07±0.3                     0.00238 0.001 0.00448 0.001 
+# 11 S. salpa         0.01±0.1                0.14±0.9                     0.535   0.001 0.001   0.001 
+# 12 S. smaris        1.22±9.2                0.48±3.2                     0.0824  0.001 0.001   0.0470
+
+
+# and the corresponding plot...
+ggplot(d_abund, aes(x=sp, y=cpue, colour=protection)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
+```
+
+
+Overall, many differences are significant when the actual data is mostly noise above 0. Very difficult to interpret.
+
+
+## Species composition among sites
+
+### Taxonomic richness
+
+Total number of family, genera, and species caught by sampling site.
+
+```{r table_richness, fig.height=5}
+d <- left_join(d, select(sites, site, protection))
+dd_sp <- d %>%
+  filter(family!="Unidentified") %>%
+  group_by(protection) %>%
+  summarise(
+    nb.family = length(unique(na.omit(family))),
+    nb.genus = length(unique(na.omit(genus))),
+    nb.species = length(unique(na.omit(species)))
+  )
+dd_sp <- arrange(dd_sp, nb.species)
+
+# add info on effort: number of nights and of CAREs
+dd <- d0 %>% group_by(protection, date, n_gear) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+dd_night <- dd %>% group_by(protection) %>% summarise(nb_night=length(unique(date)), nb_care=sum(n_gear)) %>% ungroup()
+dd_sp <- left_join(dd_sp, dd_night, by=c("protection"))
+
+dd_sp
+```
+
+More species are caught in Villefranche probably because sampling is done in winter too.
+
+Species richness vs effort (nb of nights fishes or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do.
+
+```{r specaccum, fig.height=5}
+dd <- d0 %>% group_by(protection, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+# cleanup data
+dd <- filter(dd, !is.na(species))
+dd <- arrange(dd, protection, date)
+
+# convert into species matrix
+dw <- spread(dd, key="species", value="cpue", fill=0)
+
+# add effort in terms of nb of CAREs (to weight by effort)
+effort <- left_join(effort, select(sites, site, protection))
+dw <- left_join(dw, effort, by=c("protection", "date"))
+
+# Species accumulation curves with CI
+#
+# @param see specaccum
+accum_stats <- function(comm, permutations=1000, ...) {
+  sp <- specaccum(comm, method="random", permutations=permutations, ...)
+  stats <- adply(sp$perm, 1, function(x) {
+    data.frame(
+      richness=mean(x),
+      sd=sd(x),
+      ci.low=quantile(x, 0.025, names=FALSE),
+      ci.high=quantile(x, 0.975, names=FALSE)
+    )
+  }, .id="effort")
+  if (is.null(sp$effort)) {
+    stats$effort <- sp$sites
+  } else {
+    stats$effort <- sp$effort
+  }
+
+  return(stats)
+}
+
+# compute per night
+sp_per_night <- dw %>% group_by(protection) %>% do(accum_stats(select(., -protection, -date, -n_gear, -site))) %>% dplyr::rename(nights=effort)
+# and per CARE
+# sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
+
+sp_per_night <- rename(sp_per_night, Protection=protection)
+
+
+# and some plots
+differentiating_scales <- list(
+  scale_linetype_manual(values=rep(c("solid", "22", "11"), times=5)),
+  scale_fill_discrete(h=c(0,280)+15), scale_colour_discrete(h=c(0,280)+15),
+  theme(legend.key.width = unit(1, "cm"), legend.position="bottom")
+)
+
+# ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site))+ differentiating_scales
+ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=Protection), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=Protection, linetype=Protection)) + theme_light() + differentiating_scales + scale_x_continuous("Nights sampled") + scale_y_continuous("Species richness")
+
+# Save plot
+# ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
+```
+
+The richness at an effort of 50, 100 and 200 nights (largest where all stations can be tested) show that species richness is similar between sites close to MPA and sites away from MPAs when considering the sampling effort (none are not significantly different).
+
+```{r compare_specaccum}
+# Test difference in species accumulation curves among groups at a given effort level
+#
+# @param comm community matrix
+# @param g factor giving the group for the corresponding element of comm
+# @param effort effort level(s) at which to test
+# @param nperm number of permutations for the test
+# @param p.adjust.method see p.adjust
+pairwise.specaccum.test <- function(comm, g, effort=c(50, 100), nperm=1000, p.adjust.method="holm") {
+  # force grouping variable (site here) to te a factor (to keep levels consistent)
+  g <- as.factor(g)
+  ng <- nlevels(g)
+
+  # extract richness at given efforts
+  richness <- function(x, e) {
+    sp <- specaccum(x, method="exact")
+    sp$richness[e]
+  }
+
+  # reference (i.e. observed) richness values at these levels of effort
+  cs <- split(comm, g)
+  rich_ref <- laply(cs, richness, e=effort)
+
+  # nperm permutations of sites
+  rich_perm <- laply(1:nperm, function(n) {
+    cs <- split(comm, sample(g))
+    laply(cs, richness, e=effort)
+  }, .progress="none")
+
+  # make pairwise tests manually
+  # compute all i,j under the diagonal
+  ij <- expand.grid(i=1:ng, j=1:ng)
+  ij <- filter(ij, i > j)
+  # define a function that performs the test for a given couple of i,j indexes (i.e. couple of sites)
+  testij <- function(ij) {
+    i <- ij[1]
+    j <- ij[2]
+    # reference difference between sites
+    diff_ref <- abs(diff(rich_ref[c(i,j),]))
+    # permutation-based distribution of differences between sites
+    diff_perm <- aaply(rich_perm[,c(i,j),], 1, function(x) {abs(diff(x))})
+    # compute p-value: proportion of time in which differences obtained at random are higher than what is observed
+    diffs <- rbind(diff_ref, diff_perm)
+    p <- apply(diffs, 2, function(x) {sum(x[-1]>x[1])/(length(x)-1)})
+    return(p)
+  }
+  p <- apply(ij, 1, testij)
+
+  # adjust and put those p.values in a easy to display data.frame
+  p <- adply(p, 1, function(pp) {
+    pp <- p.adjust(pp, method=p.adjust.method, n=sum(!is.na(pp)))
+    # NB: removes the NAs to compute the adjusted p.value
+    d <- data.frame(ij, p.value=pp)
+    return(d)
+  })
+  p$group1 <- levels(g)[p$i]
+  p$group2 <- levels(g)[p$j]
+  p$effort <- effort[p$X1]
+  p <- select(p, -X1, -i, -j)
+
+  return(p)
+}
+
+ps <- pairwise.specaccum.test(comm=select(dw, -date, -protection, -site, -n_gear), g=dw$protection, effort=c(50, 100, 200))
+```
+
+```{r plot_comparison}
+ps$group1 <- factor(ps$group1)
+ps$group2 <- factor(ps$group2)
+ps$signif <- ps$p.value < 0.05
+# make symmetric
+ps <- bind_rows(ps, dplyr::rename(ps, group1=group2, group2=group1))
+#   p.value group1 group2 effort signif
+# 1   0.709 no-MPA    MPA     50  FALSE
+# 2   0.273 no-MPA    MPA    100  FALSE
+# 3   0.068 no-MPA    MPA    200  FALSE
+# 4   0.709    MPA no-MPA     50  FALSE
+# 5   0.273    MPA no-MPA    100  FALSE
+# 6   0.068    MPA no-MPA    200  FALSE
+```
+
+### Diversity indices by site and protection
+
+Diversity indices are not significantly differents between sites close to MPA or not. This mean that the proximity with an MPA does not influence positively the diversity of the larval supply. 
+
+
+```{r diversity, fig.height=4}
+# NB: 0 do not matter for the shannon index but influence the number of species in pielou => do not include 0
+# per date
+div <- d %>% group_by(date, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
+# aggregated per month to smooth a bit the immediate variability
+div <- d %>% group_by(year, month, site, species) %>% summarise(cpue=mean(cpue)) %>% group_by(year, month, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
+
+# add site characteristics
+div <- left_join(div, select(sites, site, protection), by="site")
+div$protection <- factor(div$protection)
+
+divt <- gather(div, key="index", value="value", shannon, pielou)
+ggplot(divt) + geom_boxplot(aes(x=site, y=value, fill = protection), na.rm=T) + facet_wrap(~index, ncol=1, scales="free_y") + theme(axis.text.x=element_text(angle=35, hjust=1))
+
+div_stats <- function(x) {
+  with(x,
+       data.frame(
+         `H mean±sd` = str_c(round(mean(shannon),2), "±", round(sd(shannon),1)),
+         `H med±mad` = str_c(round(median(shannon),2),"±",round(mad(shannon),1)),
+         `J mean±sd` = str_c(round(mean(pielou, na.rm=T),2), "±", round(sd(pielou, na.rm=T),1)),
+         `J med±mad` = str_c(round(median(pielou, na.rm=T),2),"±",round(mad(pielou, na.rm=T),1)),
+         check.names=F)
+  )
+}
+# diversity indices by site and geographic regions
+div %>% do(div_stats(.)) %>% as.data.frame()
+pp <- div %>% group_by(site) %>% do(div_stats(.)) %>% as.data.frame()
+ggplot(reshape2::melt(select(pp, site, `H mean±sd`, `J med±mad`), id.vars = "site"), aes(x = site, y = value)) + geom_point() + facet_wrap(~variable, scales = "free_y", ncol = 1)
+div %>% group_by(protection) %>% do(div_stats(.)) %>% as.data.frame()
+
+
+
+#Test differences between site/rhone/topography for each index
+# Test for shannon index
+kruskal.test(shannon~protection, div)
+# 
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  shannon by protection
+# Kruskal-Wallis chi-squared = 0.06, df = 1, p-value = 0.8
+
+
+# Test for pielou index
+kruskal.test(pielou~protection, div)
+# 
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  pielou by protection
+# Kruskal-Wallis chi-squared = 0.5, df = 1, p-value = 0.5
+
+```
+
+
+
+
+## Synchronicity among sites
+
+### Time of arrival of abundant species among sites
+
+```{r time_of_arrival, fig.height=8}
+# mean CPUE per week, site, and species for abundant species
+dd <- d0 %>% filter(species %in% abundant_species) %>% group_by(yweek, year, protection, species) %>% summarise(cpue=mean(cpue))
+# we choose a granularity of one week to smooth out day-today variability and still keep resolution
+
+# create a new weekly date coordinate
+dd$date <- ymd(str_c(dd$year, "-01-01")) + weeks(dd$yweek)
+# and a new fake one starting all the same year
+dd$fake_date <- ymd("2010-01-01") + weeks(dd$yweek)
+
+# rescale abundances per species, site, and year, to get a comparable peak per year
+dd <- dd %>% group_by(species, protection, year) %>% mutate(scaled_cpue=cpue/max(cpue))
+dd$scaled_cpue[is.na(dd$scaled_cpue)] <- 0  # when max = 0
+
+# rename species for display
+dd$species_abbr <- abbrev_sp(dd$species, n=4)
+
+# plot
+ggplot(dd) +
+  geom_line(aes(x=fake_date, y=scaled_cpue, colour=protection, linetype=protection)) +
+  facet_grid(species_abbr~year)+
+  scale_x_date("", date_breaks="2 month", date_labels="%b", minor_breaks=NULL) +
+  theme(
+    axis.text.x=element_text(angle=45, hjust=1),
+    legend.position="bottom"
+  ) +
+  scale_linetype_manual(values=rep(c("solid", "22", "11"), times=5)) +
+  scale_colour_discrete(h=c(0,280)+15) +
+  no_y
+```
+
+Difficult to read...
+
+### Anomaly in date of arrival among protection
+
+```{r test_anomaly_timing_among_protection, fig.height=9}
+
+# Add species caught several times and at several sites + interest_species
+dd <- d %>%
+  filter(species %in% c(interest_species)) %>%
+  group_by(date, year, yday, site, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
+
+# for winter species, shift the time
+dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] <- (dd$yday[dd$species %in% c("Sarpa salpa", "Pagellus acarne")] + 183) %% 365
+
+# Add site characteristics
+dd <- left_join(dd, select(sites, site, protection), by="site")
+
+# compute the mean arrival day by species/sites/year
+dp <- dd %>% filter(cpue > 0) %>% group_by(species, protection, year) %>% summarise(peak=weighted.mean(yday, cpue, na.rm=TRUE))
+# compute reference yday for each species
+dp <- dp %>% group_by(species) %>% mutate(mean_peak = mean(peak))
+dp$lag <- dp$peak - dp$mean_peak
+
+# check that the detected reference yday makes sense
+ggplot(dd) + facet_wrap(~species, scales="free_y", ncol=4) + theme(legend.position="bottom") +
+  geom_point(aes(x=yday, y=cpue, colour=protection), alpha=0.5) + scale_y_log10() +
+  geom_vline(aes(xintercept=mean_peak), data=unique(select(dp, species, mean_peak)))
+
+# Remove unrelevant spp
+dp <- filter(dp, ! species %in% c("Boops boops", "Sarpa salpa"))
+
+# Plot the lag
+ggplot(dp) +
+  geom_vline(xintercept=0, size=2, colour="grey70") +
+  geom_histogram(aes(x=lag), binwidth=1) +
+  geom_density(aes(x=lag, y=..count..)) +
+  facet_wrap(~protection, ncol=3) + theme_light(base_size = 14) +
+  scale_x_continuous("Lag (in days)") + scale_y_continuous("Count (lag/species/year)")
+
+# Compute test for significativity for East and West of Rhone separately (each w/r to 0)
+t <- dp %>%
+  group_by(protection) %>%
+  do({
+    data.frame(
+      mean=mean(.$lag, na.rm=T),
+      sd=sd(.$lag, na.rm=T),
+      med=median(.$lag, na.rm=T),
+      mad=mad(.$lag, na.rm=T),
+      glance(wilcox.test(.$lag, mu = 0, alternative = "two.sided")) %>% select(statistic, p.value)
+    )
+  }) %>% ungroup()
+t$signif <- stars(t$p.value)
+t
+# # A tibble: 2 x 8
+#   protection  mean    sd    med   mad statistic p.value signif
+#   <chr>      <dbl> <dbl>  <dbl> <dbl>     <dbl>   <dbl> <chr> 
+# 1 MPA         5.43  32.5 -0.619  17.8       793   0.346 " "   
+# 2 no-MPA     -4.71  23.0 -4.63   19.5       704   0.121 " "   
+
+# Test for differences between East and West of Rhone directly
+glance(wilcox.test(filter(dp, protection=="MPA")$lag, filter(dp, protection=="no-MPA")$lag, alternative = "two.sided")) %>% select(statistic, p.value)
+#   statistic p.value
+# 1      1849   0.092
+
+
+
+```
+
+```{r emblematic species}
+# Mérou
+dtmp <- filter(d, species == "Epinephelus marginatus")
+glance(wilcox.test(filter(dtmp, protection=="MPA")$n, filter(dtmp, protection=="no-MPA")$n, alternative = "two.sided")) %>% select(statistic, p.value)
+# Not different
+
+# Anguille
+data.frame(filter(d, species == "Anguilla anguilla"))
+
+# Dorades
+data.frame(filter(d, species == "Sparus aurata"))
+data.frame(filter(d, species == "Spondyliosoma cantharus"))
+
+# Denti
+data.frame(filter(d, species == "Dentex dentex"))
+
+# Corb
+data.frame(filter(d, species == "Sciaena umbra"))
+```
+
+
