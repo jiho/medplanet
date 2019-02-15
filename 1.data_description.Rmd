@@ -49,19 +49,25 @@ ggsave("figures/maps_sampling_sites.pdf", width=6, height=3)
 Sampling occurred over the periods
 
 ```{r}
-summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() #%>% arrange(site)
+summary_effort$site <- factor(summary_effort$site, levels=levels(effort$site))
 summary_effort
 ```
 
 ```{r}
+# Rename the sites in 'effort' with the sampling number 
+effort$site <- factor(effort$site, levels=levels(effort$site), labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")"))
+
+
 ggplot(effort) +
   geom_point(aes(x=date, y=site), shape="|", size = 2, alpha=0.7) +
   scale_y_discrete("",
-    breaks=summary_effort$site,
-    labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")")
-  ) +
+    limits=rev(levels(effort$site))) +
   theme(axis.title.x=element_blank(), axis.title.y=element_blank())
-ggsave("figures/Fig2_sampling_effort.pdf", width=6, height=3)
+
+
+ggsave("figures/Fig2_sampling_effort.pdf", width=6, height=3.5)
+ggsave("figures/Fig2_sampling_effort.png", width=6, height=3.5)
 ```
 
 Resulting in a total of `r nrow(effort)` nights sampled, the deployment of `r sum(summary_effort$n_CARE_fished)` CAREs, over `r nrow(sites)` sites.

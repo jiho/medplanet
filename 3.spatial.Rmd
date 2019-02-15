@@ -69,12 +69,20 @@ dd_summary <- arrange(dd_summary, desc(median))
 Excluding extreme events and focusing on the more common, low (CPUE < 10), catches, allows to highlight that some sites yield better catches (`r head(dd_summary$site, 3)`) and other are consistently low (`r tail(dd_summary$site, 3)`). NB: Keeping only CPUE < 10 only eliminates `r nrow(filter(dd, cpue >= 10))` records out of `r nrow(dd)`. The black squares are quantile=0.9.
 
 ```{r zoomed_boxplot, fig.height=4}
+# Rename the sites in 'effort' with the sampling number 
+summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup()
+summary_effort$site <- factor(summary_effort$site, levels=levels(effort$site))
+summary_effort
+dd$site <- factor(dd$site, levels=levels(dd$site), labels=str_c(levels(dd$site), " (n=", summary_effort$n_CARE_fished, ")"))
+
 ggplot(dd) +
   geom_boxplot(aes(x=site, y=cpue), na.rm=T) +
   geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=3, shape=0) +
-  coord_flip(ylim=c(0, 13)) + theme(axis.title.y=element_blank())
+  scale_x_discrete(limits=rev(levels(dd$site))) +
+  coord_flip(ylim=c(0, 18.5)) + theme(axis.title.y=element_blank())
 # Save plot
-# ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=3)
+ggsave("figures/Fig3_CPUE_per_sites.png", width=6, height=4)
+ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=4)
 ```
 
 ```{r map}
