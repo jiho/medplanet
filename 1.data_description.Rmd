@@ -35,9 +35,8 @@ Fish larvae were collected at the following sites
 ```{r}
 # wide map
 med_coast <- read_csv("data/gshhg_i_2018-03-30_17-54-05.csv", col_types=cols())
-basemap + 
-  geom_polygon(data=med_coast, fill="white", color="grey50", size=0.25) +
-  annotate("rect", xmin=2.5, xmax=9.9, ymin=41.2, ymax=44, fill=NA, color="grey30", size=1)
+ggplot() +  geom_polygon(data=med_coast, aes(x=lon, y=lat), fill="white", color="grey50", size=0.25) +
+  annotate("rect", xmin=2.5, xmax=9.9, ymin=41.2, ymax=44, fill=NA, color="grey30", size=1) + coord_quickmap(ylim=c(35, 45))
 ggsave("figures/maps_med.pdf", width=6, height=3)
 
 # sampling sites
@@ -50,19 +49,25 @@ ggsave("figures/maps_sampling_sites.pdf", width=6, height=3)
 Sampling occurred over the periods
 
 ```{r}
-summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
+summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() #%>% arrange(site)
+summary_effort$site <- factor(summary_effort$site, levels=levels(effort$site))
 summary_effort
 ```
 
 ```{r}
+# Rename the sites in 'effort' with the sampling number 
+effort$site <- factor(effort$site, levels=levels(effort$site), labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")"))
+
+
 ggplot(effort) +
   geom_point(aes(x=date, y=site), shape="|", size = 2, alpha=0.7) +
   scale_y_discrete("",
-    breaks=summary_effort$site,
-    labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")")
-  ) +
+    limits=rev(levels(effort$site))) +
   theme(axis.title.x=element_blank(), axis.title.y=element_blank())
-ggsave("figures/Fig2_sampling_effort.pdf", width=6, height=3)
+
+
+ggsave("figures/Fig2_sampling_effort.pdf", width=6, height=3.5)
+ggsave("figures/Fig2_sampling_effort.png", width=6, height=3.5)
 ```
 
 Resulting in a total of `r nrow(effort)` nights sampled, the deployment of `r sum(summary_effort$n_CARE_fished)` CAREs, over `r nrow(sites)` sites.
