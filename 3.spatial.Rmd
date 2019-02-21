@@ -266,7 +266,7 @@ dd_sp
 
 More species are caught in Villefranche probably because sampling is done in winter too.
 
-Species richness vs effort (nb of nights fishes or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to saturate (>150 nights) and never really do. 
+Species richness vs effort (nb of nights fished or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to begin to saturate (>150 nights) and never really fully do. 
 
 ```{r specaccum, fig.height=5}
 dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
