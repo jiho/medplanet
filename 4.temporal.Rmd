@@ -1,8 +1,14 @@
 ---
+title: Temporal variability
 output: 
   html_document:
-    theme: null
-    css: document.css
+    css: mypaper.css
+    df_print: kable
+    theme: paper
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
 ---
 
 ```{r load, message=FALSE, echo=FALSE}
@@ -31,8 +37,6 @@ source("lib_quantilogram.R") # compute quantilogram
 
 q <- c(.25, .5, .75, .9)    # quantiles of interest
 ```
-
-# Temporal variability
 
 ## Main patterns
 
