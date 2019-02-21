@@ -268,7 +268,7 @@ More species are caught in Villefranche probably because sampling is done in win
 
 Species richness vs effort (nb of nights fished or nb of CARE deployed) curves are useful to know if this is just related to differing effort or if there is a true difference in diversity among sites. Here, the curves take a long time to begin to saturate (>150 nights) and never really fully do. 
 
-```{r specaccum, fig.height=5}
+```{r specaccum}
 dd <- d0 %>% group_by(site, date, species) %>% summarise(cpue=sum(cpue)) %>% ungroup()
 # cleanup data
 dd <- filter(dd, !is.na(species))
@@ -306,22 +306,28 @@ accum_stats <- function(comm, permutations=1000, ...) {
 sp_per_night <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear))) %>% dplyr::rename(nights=effort)
 # and per CARE
 # sp_per_care <- dw %>% group_by(site) %>% do(accum_stats(select(., -site, -date, -n_gear), w=.$n_gear)) %>% rename(`Nb CARE`=effort)
+```
 
-sp_per_night <- rename(sp_per_night, Sites=site)
-
-
+```{r plot_specaccum, fig.height=4.5}
 # and some plots
 differentiating_scales <- list(
-  scale_linetype_manual(values=rep(c("solid", "22", "11"), times=5)),
-  scale_fill_discrete(h=c(0,280)+15), scale_colour_discrete(h=c(0,280)+15),
+  scale_linetype_manual("Sites", values=rep(c("solid", "22", "11"), times=5)),
+  scale_fill_discrete("Sites", h=c(0,280)+15), scale_colour_discrete("Sites", h=c(0,280)+15),
   theme(legend.key.width = unit(1, "cm"), legend.position="bottom")
 )
 
 # ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=site, linetype=site))+ differentiating_scales
-ggplot(sp_per_night) + geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=Sites), alpha=0.2) + geom_path(aes(x=nights, y=richness, colour=Sites, linetype=Sites)) + theme_light() + differentiating_scales + scale_x_continuous("Nights sampled") + scale_y_continuous("Species richness")
+ggplot(sp_per_night) +
+  # geom_vline(aes(xintercept=20) , colour="black", size=0.25) +
+  # geom_vline(aes(xintercept=50) , colour="black", size=0.25) +
+  # geom_vline(aes(xintercept=150), colour="black", size=0.25) +
+  geom_ribbon(aes(x=nights, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) +
+  geom_path(aes(x=nights, y=richness, colour=site, linetype=site)) +
+  theme_light() + differentiating_scales +
+  labs(x="Nights sampled", y="Species richness")
 
 # Save plot
-# ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
+ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
 
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
@@ -409,7 +415,7 @@ ggplot(ps, aes(group1, group2)) +
   scale_colour_distiller("p", palette="YlGnBu", direction=1, na.value=NA) +
   theme(
     legend.position=c(0.75, 0.15), legend.direction="horizontal",
-    axis.text.x=element_text(angle=35, hjust=1),
+    axis.text.x=element_text(angle=65, hjust=1),
     # axis.text.x=element_blank(), axis.ticks.x=element_blank(),
     axis.title=element_blank()
   )
