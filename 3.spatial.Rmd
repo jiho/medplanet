@@ -343,7 +343,7 @@ The richness at an effort of 20 nights (largest where all stations can be tested
 # @param effort effort level(s) at which to test
 # @param nperm number of permutations for the test
 # @param p.adjust.method see p.adjust
-pairwise.specaccum.test <- function(comm, g, effort=c(10, 50, 100), nperm=1000, p.adjust.method="holm") {
+pairwise.specaccum.test <- function(comm, g, effort=c(20, 50, 150), nperm=1000, p.adjust.method="holm") {
   # force grouping variable (site here) to te a factor (to keep levels consistent)
   g <- as.factor(g)
   ng <- nlevels(g)
