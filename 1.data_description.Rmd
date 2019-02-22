@@ -27,6 +27,14 @@ source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 ```
 
+## Export database
+
+```{r}
+dexport <- select(d, date, n_gear, site, lon, lat, family, genus, species, cpue)
+dexport <- dexport %>% mutate_at(vars(lon, lat, cpue), funs(round(., 4)))
+
+write.table(dexport, file="MEDPLANET_database.csv", quote=F, row.names=F, col.names=T, sep=",")
+```
 
 ## Spatial scope
 
@@ -92,6 +100,15 @@ dd <- d0 %>% filter(!is.na(family)) %>% group_by(date, site) %>% summarise(cpue=
 ggplot(dd) + geom_histogram(aes(x=cpue), binwidth=10)
 
 dd %>% ungroup() %>% summarise(min=min(cpue), q25=quantile(cpue, 0.25), med=median(cpue), mean=mean(cpue), q75=quantile(cpue, 0.75), max=max(cpue), sd=sd(cpue), mad=mad(cpue))
+#     min   q25   med  mean   q75   max    sd   mad
+#   <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+# 1     0   0.2 0.778  4.54   2.6  900.  30.3  1.15
+
+# get the number of 0-catch events
+round(table(round((d0 %>% group_by(date, site) %>% summarize(sum=sum(cpue)))$sum, 0))/1075, 2)*100
+# 0-catch events -> 42% of the nights
+
+
 ```
 
 Excluding 0, pooling all taxa together, and using log10 scaling to see low catches better (NB: notice the labels of the x-axis), the most commonly observed catches are still very low, often around 1 fish/CARE/night/site.
