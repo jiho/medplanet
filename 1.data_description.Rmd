@@ -141,4 +141,5 @@ percent90ex <- round(i90ex / nrow(dd) * 100)
 
 Overall, `r nrow(dd)` sampling "events" (one event = one night fished at one site) are recorded in the dataset. Over 50% of the `r sum(d$n)` larvae caught were caught during only `r i50` of those fishing events (`r percent50`% of the effort). Two nights in Corsica resulted in extremely high catches of *S smaris*, which mask everything else. Even excluding those, the `r percent50ex`% richest events represent >50% of the catch and the `r percent90ex`% richest yield >90% (almost all) the catch.
 
-In summary, catches are often *low*, extremely *variable* (probably both geographically and in time) and what matters to coastal populations are the *few nights with high catches*, the rest is just negligible.
+In summary, catches are often *low*, extremely *variable* (probably both geographically and in time) and what matters to coastal populations are the *few nights with high catches*, the rest is just negligible. This variability should be further described spatially and temporally. 
+
