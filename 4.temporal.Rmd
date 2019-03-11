@@ -156,13 +156,13 @@ qm$q2[which(qm$dx==0)] <- 0
 # plot result
 sx <- list(scale_x_continuous("Lag", breaks=c(0, 1, 3, 7, 29.5, 182, 365), minor_breaks=seq(0, 356*1.2, by=30.5), labels=c(0, "1 day", "3 days", "1 week", "1 lunar\nmonth", "6 months", "1 year"), trans='log1p'), scale_y_continuous("Autocorrelation"))
 ggplot(qm) + facet_grid(Tau~site) +
-  geom_linerange(aes(x=dx, ymin=0, ymax=corr)) +
+  geom_linerange(aes(x=dx, ymin=0, ymax=corr, color=Tau), size=1.2) +
   # geom_hline(aes(yintercept=sel * qnorm(0.05/2) * c(-1,1)), alpha=0.5, colour="red") +
-  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.7, data=filter(qm, dx >= 0)) + sx + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 450)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
+  geom_ribbon(aes(x=dx, ymin=q1, ymax=q2, fill = Tau), alpha=0.3, data=filter(qm, dx >= 0)) + sx + coord_cartesian(ylim=c(-0.5, 1), xlim=c(0, 450)) + theme_light(base_size = 14) + theme(axis.text.x=element_text(hjust=1, angle=45))# + geom_vline(aes(xintercept = 80))
 
 # save graph
-ggsave("figures/FigS3a_quantilograms.pdf", width = 10, height = 7)
-ggsave("figures/FigS3a_quantilograms.png", width = 10, height = 7)
+ggsave("figures/Fig9_quantilograms.pdf", width = 10, height = 7)
+ggsave("figures/Fig9_quantilograms.png", width = 10, height = 7)
 
 
 # and zoom on small scale variability

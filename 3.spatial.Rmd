@@ -878,9 +878,13 @@ data.frame(filter(d, species == "Epinephelus marginatus"))
 
 # Anguille
 data.frame(filter(d, species == "Anguilla anguilla"))
+sum(data.frame(filter(d, species == "Anguilla anguilla"))$n) # 45 
 
 # Dorades
 data.frame(filter(d, species == "Sparus aurata"))
+sum(data.frame(filter(d, species == "Sparus aurata"))$n)
+
+
 data.frame(filter(d, species == "Spondyliosoma cantharus"))
 
 # Denti
