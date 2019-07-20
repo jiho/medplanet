@@ -496,6 +496,42 @@ wilcox.test(pielou~topography, div)
 kruskal.test(pielou~site, div)
 
 pairwise.wilcox.test(div$pielou, div$site, p.adjust.method = "BH")
+```
+
+### Do the same for the Beta diversity instead
+
+```{r beta diversity, fig.height=4}
+# Prepare the community matrix to compute the beta diversity
+dbeta <- unique(select(filter(d, !is.na(species)), site, species))
+dbeta <- dcast(dbeta, site~species, fill = 0)
+head(dbeta)
+colsites <- dbeta[,1]
+dbeta <- replace(dbeta[,2:72], dbeta[,2:72]!="0", 1)
+dbeta[,] <- sapply(dbeta[,],as.numeric)
+rownames(dbeta) <- colsites
+head(dbeta)
+
+
+sites$protection <- c("no-MPA", "MPA", "no-MPA", "MPA", "no-MPA", "no-MPA", "no-MPA", "MPA", "MPA", "no-MPA", "MPA", "MPA", "no-MPA")
+data.frame(sites)
+
+m <- betadiver(dbeta, method="w")
+riv <- betadisper(m, group=sites$rhone)
+anova(riv)
+plot(riv)
+
+typo <- betadisper(m, group=sites$topography)
+anova(typo)
+plot(typo)
+
+reg <- betadisper(m, group=sites$region)
+anova(reg)
+plot(reg)
+
+mpa <- betadisper(m, group=sites$protection)
+anova(mpa)
+plot(mpa)
+
 
 ```
 
