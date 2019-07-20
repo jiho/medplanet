@@ -26,6 +26,7 @@ library("stringr")
 library("lubridate")
 library("plyr")
 library("tidyverse")
+library("reshape2")
 
 library("vegan")
 library("FactoMineR")
@@ -39,6 +40,12 @@ source("lib_plot.R")        # colour scales and theme
 source("lib_data_manip.R")  # summarise tables
 source("lib_factorial.R")   # extract and plot info from CAs
 source("lib_quantreg.R")    # perform quantile regression
+
+# Sites ordering
+sites_ordered <- c("Port Vendres", "Leucate", "Agde", "Carry", "Marseille", "Cassis", "La Ciotat", "Les Embiez", "Port-Cros", "Villefranche", "Saint Florent", "Bastia", "Bonifacio")
+effort$site <- factor(effort$site, levels=sites_ordered)
+d0$site <- factor(d0$site, levels=sites_ordered)
+
 ```
 
 ## Abundances among sites
@@ -73,16 +80,17 @@ Excluding extreme events and focusing on the more common, low (CPUE < 10), catch
 summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup()
 summary_effort$site <- factor(summary_effort$site, levels=levels(effort$site))
 summary_effort
-dd$site <- factor(dd$site, levels=levels(dd$site), labels=str_c(levels(dd$site), " (n=", summary_effort$n_CARE_fished, ")"))
+dd$site_effort <- factor(dd$site, levels=levels(dd$site), labels=str_c(levels(dd$site), " (n=", summary_effort$n_CARE_fished, ")"))
+
 
 ggplot(dd) +
-  geom_boxplot(aes(x=site, y=cpue), na.rm=T) +
-  geom_quantiled(mapping=aes(x=dd$site, y=dd$cpue), quantiles=0.9, colour="black", size=3, shape=0) +
-  scale_x_discrete(limits=rev(levels(dd$site))) +
+  geom_boxplot(aes(x=site_effort, y=cpue), na.rm=T) +
+  geom_quantiled(mapping=aes(x=dd$site_effort, y=dd$cpue), quantiles=0.9, colour="black", size=3, shape=0) +
+  scale_x_discrete(limits=rev(levels(dd$site_effort))) + scale_y_continuous("CPUE") +
   coord_flip(ylim=c(0, 18.5)) + theme(axis.title.y=element_blank())
 # Save plot
-ggsave("figures/Fig3_CPUE_per_sites.png", width=6, height=4)
-ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=4)
+# ggsave("figures/Fig3_CPUE_per_sites.png", width=6, height=4)
+# ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=4)
 ```
 
 ```{r map}
@@ -100,7 +108,7 @@ ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=4)
 When tested globally through a quantile based ANOVA, the lower quantiles are surprisingly the most different. The reason is that the higher quantiles (which look very different) may be more difficult to test, hence the lower significance.
 
 ```{r among_sites}
-aovq(cpue ~ site, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
+aovq(cpue ~ site_effort, tau=c(0.25, 0.5, 0.75, 0.9), data=dd, R=1000)
 ```
 
 In terms of pairwise differences:
@@ -129,7 +137,7 @@ pw <- ldply(pwa, tidy)
 pw$group1 <- factor(pw$group1, levels=sites$site)
 pw$group2 <- factor(pw$group2, levels=sites$site)
 # label signficant tests
-pw$signif <- pw$p.value <= 0.06
+pw$signif <- pw$p.value <= 0.05
 
 # compute the actual values of the quantiles
 q <- dd %>% group_by(site) %>% 

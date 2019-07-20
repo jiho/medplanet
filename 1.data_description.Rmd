@@ -33,7 +33,7 @@ source("lib_data_manip.R")  # summarise tables
 dexport <- select(d, date, n_gear, site, lon, lat, family, genus, species, cpue)
 dexport <- dexport %>% mutate_at(vars(lon, lat, cpue), funs(round(., 4)))
 
-write.table(dexport, file="MEDPLANET_database.csv", quote=F, row.names=F, col.names=T, sep=",")
+# write.table(dexport, file="MEDPLANET_database.csv", quote=F, row.names=F, col.names=T, sep=",")
 ```
 
 ## Spatial scope
@@ -43,13 +43,14 @@ Fish larvae were collected at the following sites
 ```{r}
 # wide map
 med_coast <- read_csv("data/gshhg_i_2018-03-30_17-54-05.csv", col_types=cols())
-ggplot() +  geom_polygon(data=med_coast, aes(x=lon, y=lat), fill="white", color="grey50", size=0.25) +
+map <- ggplot() +  geom_polygon(data=med_coast, aes(x=lon, y=lat), fill="white", color="grey50", size=0.25) +
   annotate("rect", xmin=2.5, xmax=9.9, ymin=41.2, ymax=44, fill=NA, color="grey30", size=1) + coord_quickmap(ylim=c(35, 45))
-ggsave("figures/maps_med.pdf", width=6, height=3)
+map
+# ggsave("figures/maps_med.pdf", width=6, height=3)
 
 # sampling sites
 map + geom_point(data=sites) + geom_text_repel(aes(label=site), data=sites, size=3, segment.alpha=0.7) + coord_quickmap(xlim = c(3, 10))
-ggsave("figures/maps_sampling_sites.pdf", width=6, height=3)
+# ggsave("figures/maps_sampling_sites.pdf", width=6, height=3)
 ```
 
 ## Temporal scope
@@ -57,14 +58,19 @@ ggsave("figures/maps_sampling_sites.pdf", width=6, height=3)
 Sampling occurred over the periods
 
 ```{r}
+sites_ordered <- c("Port Vendres", "Leucate", "Agde", "Carry", "Marseille", "Cassis", "La Ciotat", "Les Embiez", "Port-Cros", "Villefranche", "Saint Florent", "Bastia", "Bonifacio")
+effort$site <- factor(effort$site, levels=sites_ordered)
+
 summary_effort <- effort %>% group_by(site) %>% summarise(begin=min(date), end=max(date, na.rm=T), n_nights_sampled=length(unique(date)), `n_CARE_fished`=sum(n_gear, na.rm=T)) %>% ungroup() #%>% arrange(site)
-summary_effort$site <- factor(summary_effort$site, levels=levels(effort$site))
 summary_effort
 ```
 
 ```{r}
 # Rename the sites in 'effort' with the sampling number 
+effort$site <- factor(effort$site, levels=sites_ordered)
+
 effort$site <- factor(effort$site, levels=levels(effort$site), labels=str_c(summary_effort$site, " (n=", summary_effort$n_CARE_fished, ")"))
+
 
 
 ggplot(effort) +
@@ -88,7 +94,8 @@ Statistics on the number of CARE working per night at each site are
 
 ```{r}
 # effort %>% group_by(site) %>% summarise(mean=round(mean(n_gear, na.rm=T),1), median=median(n_gear, na.rm=T), min=min(n_gear, na.rm=T), max=max(n_gear, na.rm=T)) %>% ungroup() %>% arrange(site)
-effort %>% group_by(site) %>% sum_tbl("n_gear") %>% select(-n, -n_NA, -starts_with("q"))
+filter(effort, n_gear>0) %>% group_by(site) %>% sum_tbl("n_gear") %>% select(-n, -n_NA, -starts_with("q"))
+
 ```
 
 ## Distribution of catches
@@ -143,3 +150,10 @@ Overall, `r nrow(dd)` sampling "events" (one event = one night fished at one sit
 
 In summary, catches are often *low*, extremely *variable* (probably both geographically and in time) and what matters to coastal populations are the *few nights with high catches*, the rest is just negligible. This variability should be further described spatially and temporally. 
 
+```{r}
+# distribution of sampling effort per month
+mm <- data.frame(count(unique(select(d0m, date, site, month)), month))
+mm
+
+ggplot(mm) + geom_bar(aes(x = month, y = n), stat = "identity", position = "dodge")
+```
