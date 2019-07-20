@@ -159,6 +159,10 @@ These most common species are similar to the most abundant ones (`r intersect(ab
 # compute the union of abundant and common species
 interest_species <- union(abundant_species, common_species)
 
+# describe the interest_species
+sum(filter(ra_species, species%in%interest_species)$ra) # 96% of the total catches
+
+
 # add list of common taxa and species of interest
 save(common_families, common_genera, common_species, interest_species, list=load("data.rda"), file="data.rda")
 ```
