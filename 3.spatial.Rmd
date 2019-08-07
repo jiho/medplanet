@@ -46,6 +46,15 @@ sites_ordered <- c("Port Vendres", "Leucate", "Agde", "Carry", "Marseille", "Cas
 effort$site <- factor(effort$site, levels=sites_ordered)
 d0$site <- factor(d0$site, levels=sites_ordered)
 
+
+#!!!!!!!! IF FOCUSING ALL ANALYSIS ON SUMMER MONTHS ONLY
+# Keep only summer months for comparison
+d0 <- filter(d0, month%in%c(5:9))
+head(d0)
+
+d <- filter(d, month%in%c(5:9))
+head(d0)
+
 ```
 
 ## Abundances among sites
@@ -90,7 +99,8 @@ ggplot(dd) +
   coord_flip(ylim=c(0, 18.5)) + theme(axis.title.y=element_blank())
 # Save plot
 # ggsave("figures/Fig3_CPUE_per_sites.png", width=6, height=4)
-# ggsave("figures/Fig3_CPUE_per_sites.pdf", width=6, height=4)
+# ggsave("figures/Fig3_CPUE_per_sites_SUMMER.pdf", width=6, height=4)
+
 ```
 
 ```{r map}
@@ -176,6 +186,8 @@ ggplot(pw, aes(group1, group2)) +
     # axis.text.x=element_blank(), axis.ticks.x=element_blank(),
     axis.title=element_blank()
   )
+ggsave("figures/pairwise_test_cpue_summer.pdf")
+
 ```
 
 Overall, it seems Bonifacio, Cassis, and Carry are difficult to evaluate (low sampling effort); Bastia, Marseille, Agde, Port-Vendres, and Leucate yield low catches; Saint-Florent, Villefranche, Port-Cros, Les Embiez, La Ciotat yield high catches.
@@ -193,15 +205,40 @@ dd <- left_join(dd, sites, by="site")
 
 # test GoL vs Lig
 aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
-
+# SUMMER
+# Model 1: cpue ~ topography
+# Model 2: cpue ~ 1
+#    tau Df Resid Df F value   Pr(>F)    
+# 1 0.25  1      758    1.56  0.00561 ** 
+# 2 0.50  1      758    9.05 0.000013 ***
+# 3 0.75  1      758   27.72 0.000077 ***
+# 4 0.90  1      758   79.30  0.00035 ***
+  
 ggplot(dd) + geom_boxplot(aes(x=topography, y=cpue), na.rm = TRUE) + ylim(0, 10)
 
 # get mean CPUE per topography
 dd %>% group_by(topography) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
 
+# SUMMER
+#   topography    mean    sd   q75   q90
+  # <fct>        <dbl> <dbl> <dbl> <dbl>
+# 1 Gulf of Lion  2.41  5.89     2  5.44
+# 2 Ligurian sea  8.61 48.7      4 13.9 
+
+
 # test Rhône
 aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.75, 0.9), data=dd)
+# SUMMER
+# Model 1: cpue ~ rhone
+# Model 2: cpue ~ 1
+#    tau Df Resid Df F value   Pr(>F)    
+# 1 0.25  1      758    0.06     0.58    
+# 2 0.50  1      758    1.63     0.10 .  
+# 3 0.75  1      758   19.62 0.000023 ***
+# 4 0.90  1      758   86.79 0.000029 ***
+
 ggplot(dd) + geom_boxplot(aes(x=rhone, y=cpue), na.rm = TRUE) + ylim(0, 10)
+
 
 # get mean CPUE per EW Rhone
 dd %>% group_by(rhone) %>% summarize(mean=mean(cpue), sd=sd(cpue), q75 = quantile(cpue, probs = 0.75), q90 = quantile(cpue, probs = 0.9))
@@ -234,8 +271,23 @@ descriptive_stats <- d_abund %>%
 tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ topography, tau=c(0.25, 0.5, 0.75, 0.9), data=., test="rank")$table[,c("tau", "pvalue")]) %>% spread(key=tau, value=pvalue)
 
 # make a nice table with both
-left_join(descriptive_stats, tests, by="sp") %>% ungroup()
-
+descriptive_stats <- left_join(descriptive_stats, tests, by="sp") %>% ungroup()
+colnames(descriptive_stats) <- c("Species", "CPUE in GoL (mean±SD)", "CPUE in LS (mean±SD)", "q25", "q50", "q75", "q90")
+descriptive_stats %>%  mutate(q25=if_else(q25>0.001, q25, 0.001), q50=if_else(q50>0.001, q50, 0.001), q75=if_else(q75>0.001, q75, 0.001), q90=if_else(q90>0.001, q90, 0.001))
+#    Species          `CPUE in GoL (mean±SD)` `CPUE in LS (mean±SD)`     q25     q50   q75     q90
+#    <chr>            <chr>                   <chr>                    <dbl>   <dbl> <dbl>   <dbl>
+#  1 A. hepsetus      0±0.1                   0.12±1.7               0.00627 0.712   0.102 0.00260
+#  2 B. boops         0±0                     0.19±1.3               0.0210  0.460   0.355 0.286  
+#  3 C. chromis       0.45±3.2                0.78±4.8               0.001   0.0364  0.001 0.001  
+#  4 D. annularis     0.15±1.2                0.31±2.2               0.145   0.622   0.619 0.651  
+#  5 G. mediterraneus 0.05±0.2                0.04±0.3               0.0210  0.666   0.102 0.001  
+#  6 M. surmuletus    0.21±1.1                0.29±2.7               0.00627 0.902   0.619 0.712  
+#  7 O. melanura      0±0                     0.26±2.6               0.0143  0.460   0.102 0.0364 
+#  8 P. acarne        0.08±0.5                0.13±0.8               0.0143  0.498   0.594 0.0347 
+#  9 P. bogaraveo     0.16±1                  0±0                    0.374   0.00682 0.001 0.001  
+# 10 P. pilicornis    0.23±1                  0.11±0.9               0.455   0.001   0.001 0.001  
+# 11 S. salpa         0.07±0.7                0.14±0.8               0.00954 0.805   0.522 0.203  
+# 12 S. smaris        0.29±2.7                0.95±6.7               0.803   0.712   0.102 0.001  
 
 # and the corresponding plot...
 ggplot(d_abund, aes(x=sp, y=cpue, colour=topography)) + geom_boxplot(na.rm=T) + scale_y_continuous(trans="log10") + theme(axis.text.x=element_text(angle=35, hjust=1))
@@ -254,7 +306,20 @@ tests <- d_abund %>% group_by(sp) %>% do(aovq(cpue ~ rhone, tau=c(0.25, 0.5, 0.7
 descriptive_stats <- left_join(descriptive_stats, tests, by="sp") %>% ungroup()
 colnames(descriptive_stats) <- c("Species", "CPUE in W (mean±SD)", "CPUE in LS (mean±SD)", "q25", "q50", "q75", "q90")
 descriptive_stats %>% mutate(q25=if_else(q25>0.001, q25, 0.001), q50=if_else(q50>0.001, q50, 0.001), q75=if_else(q75>0.001, q75, 0.001), q90=if_else(q90>0.001, q90, 0.001))
-
+#    Species          `CPUE in W (mean±SD)` `CPUE in LS (mean±SD)`     q25     q50     q75     q90
+#    <chr>            <chr>                 <chr>                    <dbl>   <dbl>   <dbl>   <dbl>
+#  1 A. hepsetus      0±0                   0.09±1.5               0.001   0.001   0.001   0.262  
+#  2 B. boops         0±0                   0.15±1.2               0.001   0.001   0.001   0.944  
+#  3 C. chromis       0.02±0.1              0.85±4.8               0.00108 0.00166 0.00321 0.001  
+#  4 D. annularis     0.02±0.3              0.32±2.1               0.001   0.001   0.115   0.001  
+#  5 G. mediterraneus 0.04±0.1              0.05±0.3               0.001   0.001   0.001   0.001  
+#  6 M. surmuletus    0.34±1.5              0.23±2.3               0.001   0.001   0.001   0.00142
+#  7 O. melanura      0±0                   0.2±2.3                0.001   0.001   0.001   0.591  
+#  8 P. acarne        0.12±0.6              0.11±0.7               0.001   0.001   0.001   0.944  
+#  9 P. bogaraveo     0.16±1                0.04±0.4               0.001   0.001   0.001   0.001  
+# 10 P. pilicornis    0.33±1.2              0.1±0.8                0.001   0.001   0.001   0.001  
+# 11 S. salpa         0.1±0.9               0.11±0.7               0.001   0.001   0.001   0.273  
+# 12 S. smaris        0±0                   0.89±6.2               0.001   0.001   0.0689  0.001  
 
 
 # and the corresponding plot...
@@ -353,6 +418,8 @@ ggplot(sp_per_night) +
 
 # Save plot
 ggsave("figures/Fig4_species_richness.pdf", width = 6, height = 5.5)
+ggsave("figures/Fig4_species_richness_SUMMER.pdf", width = 6, height = 5.5)
+
 
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=ci.low, ymax=ci.high, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
 # ggplot(sp_per_care) + geom_ribbon(aes(x=`Nb CARE`, ymin=richness-sd, ymax=richness+sd, fill=site), alpha=0.2) + geom_path(aes(x=`Nb CARE`, y=richness, colour=site, linetype=site)) + differentiating_scales
@@ -423,7 +490,7 @@ pairwise.specaccum.test <- function(comm, g, effort=c(20, 50, 150), nperm=1000, 
   return(p)
 }
 
-ps <- pairwise.specaccum.test(comm=select(dw, -date, -site, -n_gear), g=dw$site, effort=c(20, 50, 150))
+ps <- pairwise.specaccum.test(comm=select(dw, -date, -site, -n_gear), g=dw$site, effort=c(20, 50, 90))
 ```
 
 ```{r plot_comparison, fig.height=5}
@@ -444,6 +511,8 @@ ggplot(ps, aes(group1, group2)) +
     # axis.text.x=element_blank(), axis.ticks.x=element_blank(),
     axis.title=element_blank()
   )
+ggsave("figures_specaccum_SUMMER.pdf")
+
 ```
 
 ### Diversity indices by site, region, and topography
@@ -451,6 +520,10 @@ ggplot(ps, aes(group1, group2)) +
 ```{r diversity, fig.height=4}
 # NB: 0 do not matter for the shannon index but influence the number of species in pielou => do not include 0
 # per date
+
+# FOR SUMMER
+d <- filter(d, month%in%c(5:9))
+
 div <- d %>% group_by(date, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
 # aggregated per month to smooth a bit the immediate variability
 div <- d %>% group_by(year, month, site, species) %>% summarise(cpue=mean(cpue)) %>% group_by(year, month, site) %>% summarise(shannon = diversity(cpue, index="shannon"), pielou = shannon / log(length(species)) ) %>% ungroup()
@@ -487,6 +560,8 @@ wilcox.test(shannon~rhone, div)
 wilcox.test(shannon~topography, div)
 kruskal.test(shannon~site, div)
 
+# SUMMER: no significant diff
+
 # pairwise.wilcox.test(div$shannon, div$site, p.adjust.method = "holm")
 
 
@@ -496,6 +571,14 @@ wilcox.test(pielou~topography, div)
 kruskal.test(pielou~site, div)
 
 pairwise.wilcox.test(div$pielou, div$site, p.adjust.method = "BH")
+
+# SUMMER 
+#KS significant at p=0.05 but pairwise could not identify site
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  pielou by site
+# Kruskal-Wallis chi-squared = 21, df = 12, p-value = 0.05
+
 ```
 
 ### Do the same for the Beta diversity instead
@@ -506,7 +589,9 @@ dbeta <- unique(select(filter(d, !is.na(species)), site, species))
 dbeta <- dcast(dbeta, site~species, fill = 0)
 head(dbeta)
 colsites <- dbeta[,1]
-dbeta <- replace(dbeta[,2:72], dbeta[,2:72]!="0", 1)
+# dbeta <- replace(dbeta[,2:72], dbeta[,2:72]!="0", 1)
+# Summer
+dbeta <- replace(dbeta[,2:66], dbeta[,2:66]!="0", 1)
 dbeta[,] <- sapply(dbeta[,],as.numeric)
 rownames(dbeta) <- colsites
 head(dbeta)
@@ -516,9 +601,9 @@ sites$protection <- c("no-MPA", "MPA", "no-MPA", "MPA", "no-MPA", "no-MPA", "no-
 data.frame(sites)
 
 m <- betadiver(dbeta, method="w")
-riv <- betadisper(m, group=sites$rhone)
-anova(riv)
-plot(riv)
+River_location <- betadisper(m, group=sites$rhone)
+anova(River_location)
+plot(River_location)
 
 typo <- betadisper(m, group=sites$topography)
 anova(typo)
@@ -531,6 +616,9 @@ plot(reg)
 mpa <- betadisper(m, group=sites$protection)
 anova(mpa)
 plot(mpa)
+
+# SUMMER
+# no signif diff either but nice differenciation betweet W and E side of the Rhone
 
 
 ```
@@ -561,9 +649,10 @@ ddm <- as.multivar(dd, "site")
 dd_stand <- decostand(ddm, method = "chi.square") # Chi2 transform the data
 dist_matrix <- vegdist(dd_stand, "euclidian") # compute distance on transformed data
 hdw <- hclust(dist_matrix, method="ward.D2") # compute hierarchical clustering
+plot(hdw)
 
 # Color dendrogram with groups
-cut <- 6 # ward.D2 cut at 5, but cutting at 6 enables to discriminate Vlfr from Corsica on Axe 4
+cut <- 7 # ward.D2 cut at 5, but cutting at 6 enables to discriminate Vlfr from Corsica on Axe 4
 dendr <- dendro_data(hdw, type = "rectangle") 
 clust <- cutree(hdw, k = cut)               # find 'cut' clusters
 clust.df <- data.frame(label = names(clust), cluster = clust)
@@ -597,10 +686,10 @@ N.df <- dendr$segments[N, ]
 N.df$cluster <- N.df$cluster - 1
 
 # Plot the dendrogram
-cols <- colorRampPalette(brewer.pal(7, "Paired"))
-cols <- cols(7)
+cols <- colorRampPalette(brewer.pal(8, "Paired"))
+cols <- cols(8)
 myPal <- c( "grey60", cols)
-myPal <- c("grey60", "#053061", "#3288bd", "#92c5de", "#d53e4f","#7fbc41", "#fdae61")
+# myPal <- c("grey60", "#053061", "#3288bd", "#92c5de", "#d53e4f","#7fbc41", "#fdae61")
 
 ggplot() + 
    geom_segment(data = segment(dendr), 
@@ -612,7 +701,7 @@ ggplot() +
       hjust = 1.5, show.legend = FALSE) +
    geom_text(data = label(dendr), aes(x, y, label = label, colour = factor(cluster)), 
        hjust = -0.2, size = 4, show.legend = FALSE) +
-   geom_hline(aes(yintercept=2.85), linetype=2)+
+   geom_hline(aes(yintercept=2.3), linetype=2)+
    scale_y_reverse(expand = c(0.2, 0)) + 
    labs(x = NULL, y = NULL) +
    coord_flip() +
@@ -626,13 +715,12 @@ ggplot() +
 
 
 # Save plot
-# ggsave("figures/dendrogram_sites.pdf", width = 10, height = 3)
+ggsave("figures/dendrogram_sites_SUMMER.pdf", width = 10, height = 3)
 
 
 # Try to find cutoff with some criterion
-NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=8, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
-# 5 clusters seems to be the best cutoff, but Vlfr with Bastia and Leucate --> due to higher sampling effort=higher diversity ?
-# TODO how to choose?
+NbClust(data=ddm, diss=dist_matrix, distance=NULL, min.nc=2, max.nc=9, method="ward.D2", index=c("kl", "ch", "cindex", "db", "silhouette", "duda", "pseudot2", "beale", "gap"))
+# 3 clusters seems to be the best cutoff, but Vlfr with Bastia and Leucate --> due to higher sampling effort=higher diversity ?
 
 
 # perform CA
@@ -664,22 +752,22 @@ ca_df <- arrange(ca_df, group)
 
 # plot result
 p1 <- ggplot(ca_df, aes(x=Dim1, y=Dim2, colour=group)) +
-  scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
+  scale_colour_manual(guide="none", values = myPal[2:9], na.value="grey50") +
   geom_point(size=1) +
   ggrepel::geom_text_repel(aes(label=label), size=4.2, segment.alpha=0.8) +
   scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
   labs(x=labs[1], y=labs[2]) + theme_light(base_size=14)
 p2 <- ggplot(ca_df, aes(x=Dim3, y=Dim4, colour=group)) +
-  scale_colour_manual(guide="none", values = myPal[2:7], na.value="grey50") +
+  scale_colour_manual(guide="none", values = myPal[2:9], na.value="grey50") +
   geom_point(size=1) +
   ggrepel::geom_text_repel(aes(label=label), size=4.2, segment.alpha=0.8) +
   scale_x_continuous(breaks=0) + scale_y_continuous(breaks=0) +
   labs(x=labs[3], y=labs[4]) + theme_light(base_size=14)
 
 # plot and save graph
-# pdf(file = "figures/CA_species_sites.pdf", width = 10, height = 8)
-# glayout(list(p1, 1, 1), list(p2, 1, 2))
-# dev.off()
+pdf(file = "figures/CA_species_sites_SUMMER.pdf", width = 10, height = 8)
+glayout(list(p1, 1, 1), list(p2, 1, 2))
+dev.off()
 ```
 
 Using a one-way PERMANOVA based on Chi-2 distance we can explicitely test for the significance of the difference of communities between geographic or topographic regions. Species assemblages were not different between site located in the Ligurian Sea and those located in the Gulf of Lions (`topograhy`); they were according to which side of the Rhône they were located on.
@@ -700,6 +788,17 @@ adonis(dist_matrix~rhone+topography, ddm, permutations = 999)$aov.tab
 # Total      12      62.4                 1.000         
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+# SUMMER: same results, higher signif
+# Number of permutations: 999
+# 
+# Terms added sequentially (first to last)
+# 
+#            Df SumsOfSqs MeanSqs F.Model    R2 Pr(>F)   
+# rhone       1      15.4   15.37    3.80 0.251  0.003 **
+# topography  1       5.5    5.48    1.36 0.089  0.211   
+# Residuals  10      40.4    4.04         0.660          
+# Total      12      61.3                 1.000          
 ```
 
 
@@ -871,11 +970,11 @@ t
 # 2 East of Rhone  -6.5    21  -7.9    21       346   0.012      *
 
 # Test for differences between East and West of Rhone directly
-glance(wilcox.test(filter(dp, rhone=="West of Rhone")$lag, filter(dp, rhone=="East of Rhone")$lag, alternative = "two.sided")) %>% select(statistic, p.value)
+glance(wilcox.test(filter(dp, rhone=="West of Rhone")$lag, filter(dp, rhone=="East of Rhone")$lag, alternative = "g")) %>% select(statistic, p.value)
 #   statistic p.value
 # 1      1130  0.0028
 
-
+# SUMMER: now non significant results
 
 # Compare by Topography
 
@@ -913,6 +1012,8 @@ glance(wilcox.test(filter(dp, topography=="Gulf of Lion")$lag, filter(dp, topogr
 #   statistic p.value
 # 1      1263    0.23
 
+
+# SUMMER same results
 
 ```
 
