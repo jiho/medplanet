@@ -113,7 +113,13 @@ dd <- d0 %>% filter(species %in% interest_species) %>% group_by(month, species) 
 
 dd$month <- as.factor(month.abb[dd$month])
 ca <- CA(as.multivar(dd, "month"), graph=F)
-autoplot(ca, size=1, dimensions=c(1,2))
+autoplot(ca, size=1, dimensions=c(1,2)) + scale_color_manual("", label = c("Species", "Month"), values = c("grey40", "#d53e4f"), guide = "none") + theme_light(base_size = 9)
+
+# print eigvalues and var explained
+ca$eig
+
+ggsave("figures/CA_month.pdf", width = 4, height = 5)
+
 ```
 
 
@@ -673,6 +679,9 @@ When inspecting the dynamics per species the characteristic year-species couples
 
 ```{r fig.height=5}
 dd <- d0 %>% filter(year != 2016, year != 2012, species %in% interest_species) %>% group_by(year, species) %>% summarise(mean=mean(cpue))
+# Summer only
+dd <- d0 %>% filter(year != 2016, year != 2012, species %in% interest_species, month%in%c(5:9)) %>% group_by(year, species) %>% summarise(mean=mean(cpue))
+
 
 # relative abundance
 # ggplot(dd) + geom_bar(aes(x=year, y=mean), stat="identity") + facet_wrap(~species, scales="free_y") + theme(axis.text.x=element_text(angle=30, hjust=1))
@@ -687,8 +696,9 @@ ggplot(ddr) +
 
 ca <- CA(as.multivar(dd, x.var="year"), graph=F)
 autoplot(ca) + scale_color_manual("", label = c("Species", "Year"), values = c("grey40", "#d53e4f"), guide = "none") + theme_light(base_size = 9)
+ca$eig
 
-# ggsave("figures/FigS2_CA_years.pdf", width = 5, height = 6)
+ggsave("figures/FigS2_CA_years_SUMMER.pdf", width = 5, height = 6)
 
 ```
 
